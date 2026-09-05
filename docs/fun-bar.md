@@ -6,8 +6,11 @@ Every line below is something a **7-year-old would notice**, and something an ad
 eye in a two-minute play** — no instrumentation, no reading the code. If a line fails, the game is
 not yet fun, however correct the maths is.
 
-Lines are numbered `F1`..`F15` so pull requests can cite exactly which ones they move. The art
-pipeline series (#91: #93 → #94 → #95 → #96 → #98 → #97) is scored against this list.
+Lines are numbered so pull requests can cite exactly which ones they move. The numbers are stable
+identifiers, not an ordering — a new line is added to whichever section it belongs in and takes the
+next free number there, so `F16` and `F17` sit under **Falling** and **Always-on motion** rather than
+at the end, and every citation in an earlier pull request stays valid. The art pipeline series (#91:
+#93 → #94 → #95 → #96 → #98 → #97) is scored against this list.
 
 ## Every answer
 
@@ -15,8 +18,8 @@ pipeline series (#91: #93 → #94 → #95 → #96 → #98 → #97) is scored aga
   appear.
 - **F2.** A correct answer moves the character **up by at least one body height**, and you can watch
   it travel rather than teleport.
-- **F3.** A wrong answer never reads as punishment: there is a way to keep going, and nothing on
-  screen says "game over".
+- **F3.** A *single* wrong answer never reads as punishment: you slip one step, the next question
+  comes straight away, and nothing on screen scolds.
 
 ## Climbing
 
@@ -31,10 +34,17 @@ pipeline series (#91: #93 → #94 → #95 → #96 → #98 → #97) is scored aga
 
 - **F7.** A miss shows a **slip** — the character slides back down — with a distinct sound, within
   300 ms of the answer.
-- **F8.** The slip is visibly **smaller than a climb**: you can see in one glance that you lose less
-  than you gain.
+- **F8.** A regular climb and a regular slip are the same size — one position each — so a miss costs
+  exactly what a correct answer earns. Getting ahead comes from the **boost**: with the boost meter
+  full a correct answer moves two instead of one, and a miss empties the meter.
 - **F9.** After a slip the character settles back into a ready pose within about a second; the game
   never stalls waiting on the player.
+
+## Falling
+
+- **F16.** Falling is a real outcome, and a child can see it coming: each miss visibly fills the
+  fall-risk meter, so a fall reads as earned rather than random. After a fall you can start the peak
+  again without leaving the screen.
 
 ## Summit
 
@@ -50,6 +60,10 @@ pipeline series (#91: #93 → #94 → #95 → #96 → #98 → #97) is scored aga
 
 ## Always-on motion
 
-- **F14.** Something on screen is always moving during a climb, even while the player is thinking.
+- **F14.** Something on screen is always moving during a climb, even while the player is thinking —
+  wind in the grass, a drifting cloud, a bird crossing the sky.
 - **F15.** With `prefers-reduced-motion` set, every line above still communicates the same thing from
   a **static frame plus a label** — nothing becomes unreadable, and nothing keeps moving.
+- **F17.** The mountain feels inhabited: in a two-minute climb you see at least one creature that
+  isn't your character — a bird, lizard, goat, or snake — and it behaves like it lives there
+  (crossing, basking, scattering) rather than looping in place as decoration.
