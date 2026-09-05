@@ -11,6 +11,7 @@
     "build": "tsc -b && tsx scripts/generate-icons.ts && vite build",
     "icons": "tsx scripts/generate-icons.ts",
     "preview:questions": "tsx scripts/preview-questions.ts",
+    "sprites:normalize": "tsx scripts/normalize-sprites.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

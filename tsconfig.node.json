@@ -21,11 +21,12 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["vite.config.ts", "scripts"],
-  // preview-questions.ts imports from src/, which is compiled under
+  // These scripts import from src/, which is compiled under
   // tsconfig.app.json's bundler resolution (extension-less relative
-  // imports). Pulling it into this nodenext project would force
-  // explicit .js extensions across the whole engine graph it touches, so
-  // it's excluded here and relies on `tsx` (type-stripping only) to run,
-  // same as the other scripts in this directory.
-  "exclude": ["scripts/preview-questions.ts"]
+  // imports). Pulling them into this nodenext project would force
+  // explicit .js extensions across the whole graph they touch, so
+  // they're excluded here and rely on `tsx` (type-stripping only) to run,
+  // same as the other scripts in this directory. The imported modules are
+  // still type-checked, via the app project.
+  "exclude": ["scripts/preview-questions.ts", "scripts/normalize-sprites.ts"]
 }

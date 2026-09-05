@@ -8,6 +8,8 @@ import { hairShort, hairPuffy, hairPigtails } from '../pixel/sprites/hair';
 import { helmetClassic } from '../pixel/sprites/helmet';
 import { harnessBasic } from '../pixel/sprites/harness';
 import type { Sprite } from '../pixel/types';
+import SpriteAnimator from '../sprites/SpriteAnimator';
+import { SPRITE_ANIMALS } from '../sprites/bunny';
 
 const SKIN_TONES = ['#e8b98a', '#c68958', '#8d5a3a', '#f2cba0'];
 const HAIR_COLORS = ['#4a2f1c', '#1b1b1b', '#a35c2e', '#e8c15a'];
@@ -152,6 +154,45 @@ export default function DebugSpritesPage() {
               scale={SCALE}
             />
             <p>{name}</p>
+          </div>
+        ))}
+      </div>
+
+      <h2>Imported animals</h2>
+      <p>
+        Normalized CC0 art from <code>public/sprites/</code>, cycling live at each pose&rsquo;s own
+        fps — the pipeline from issue #93. Check these against <code>docs/fun-bar.md</code> F12
+        (silhouette at 64 px) and F13 (four poses a child can name). With{' '}
+        <code>prefers-reduced-motion</code> set, each one falls back to a static frame plus its pose
+        name.
+      </p>
+      <div data-testid="animal-preview">
+        {SPRITE_ANIMALS.map((animal) => (
+          <div key={animal.animal}>
+            <p>
+              <strong>{animal.displayName}</strong> — {animal.frameSize}×{animal.frameSize},{' '}
+              {animal.credit.pack} by {animal.credit.author} (
+              <a href={animal.credit.url} target="_blank" rel="noreferrer">
+                {animal.credit.license}
+              </a>
+              )
+            </p>
+            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-end' }}>
+              {Object.entries(animal.poses).map(([pose, spec]) => (
+                <div key={pose} data-testid={`animal-pose-${animal.animal}-${pose}`}>
+                  <SpriteAnimator manifest={animal} pose={pose} />
+                  <p>
+                    {pose} — {spec.frames.length}f @ {spec.fps}fps
+                    {spec.loop ? '' : ', once'}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-end' }}>
+              {Object.keys(animal.poses).map((pose) => (
+                <SpriteAnimator key={pose} manifest={animal} pose={pose} size={64} />
+              ))}
+            </div>
           </div>
         ))}
       </div>

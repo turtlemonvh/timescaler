@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DebugSpritesPage from './DebugSpritesPage';
+import { SPRITE_ANIMALS } from '../sprites/bunny';
 
 describe('DebugSpritesPage', () => {
   it('renders every pose', () => {
@@ -61,6 +62,32 @@ describe('DebugSpritesPage', () => {
 
     await user.selectOptions(screen.getByTestId('headgear-select'), 'helmet');
     expect(screen.queryByTestId('hair-style-select')).not.toBeInTheDocument();
+  });
+
+  it('shows every imported animal cycling through each of its poses', () => {
+    render(<DebugSpritesPage />);
+    const panel = screen.getByTestId('animal-preview');
+    for (const animal of SPRITE_ANIMALS) {
+      for (const pose of Object.keys(animal.poses)) {
+        const cell = screen.getByTestId(`animal-pose-${animal.animal}-${pose}`);
+        expect(cell).toBeInTheDocument();
+        expect(cell.querySelector('img')).toHaveAttribute('alt', `${animal.displayName}, ${pose}`);
+      }
+      // Once at native size with a caption, once at 64 px for the F12
+      // silhouette check.
+      expect(panel.querySelectorAll(`img[alt^="${animal.displayName}, "]`)).toHaveLength(
+        Object.keys(animal.poses).length * 2,
+      );
+    }
+  });
+
+  it('credits the license of each imported animal next to it', () => {
+    render(<DebugSpritesPage />);
+    const panel = screen.getByTestId('animal-preview');
+    for (const animal of SPRITE_ANIMALS) {
+      expect(panel).toHaveTextContent(animal.credit.pack);
+      expect(panel).toHaveTextContent(animal.credit.license);
+    }
   });
 
   it('selecting a different hair style updates the selector', async () => {
