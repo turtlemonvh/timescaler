@@ -1,0 +1,11 @@
+{
+  "queue_label": "status: ready",
+  "claim_label": "status: in-progress",
+  "review_label": "status: in-review",
+  "reviewer": "turtlemonvh",
+  "concurrency": 1,
+  "merge_when_all_labels": ["autonomy: ship-to-merge"],
+  "model_label": "model: opus",
+  "summary_issue": 91,
+  "verify_commands": ["pnpm typecheck", "pnpm lint", "pnpm test", "pnpm build"]
+}
