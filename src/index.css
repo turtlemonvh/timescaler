@@ -236,29 +236,351 @@ code {
   border-radius: 4px;
 }
 
-.climb-sprite-wrap {
-  position: relative;
-  display: inline-block;
-  margin-bottom: 28px;
+/* --- Climb stage (issue #94) ---------------------------------------------
+ * A full-bleed cliff the character genuinely climbs, with the question card
+ * docked over the bottom of it.
+ *
+ * The one rule to keep: **movement is where, animation is what.**
+ * `.climb-stage__climber` owns the translate derived from `--climb-progress`
+ * and owns nothing else; `.climb-stage__arc` (the hop's vertical arc) and
+ * `.climb-stage__pose` (squash-and-stretch) are nested inside it and own the
+ * keyframes. Merging any of those onto one element reproduces the Chromium
+ * compositing smear root-caused in PR #84 — a transformed, keyframed element
+ * whose bounding box overlaps its neighbours leaves a smeared ghost trail. */
+
+/* The stage's narrow layout is a *container* query, not a media query, so
+   `/debug/climb-stage`'s 390px toggle produces exactly what a 390px phone
+   produces — a media query would ignore the wrapper and keep showing the
+   desktop layout inside a narrow box, which is precisely the bug that makes
+   width toggles untrustworthy. Anything that hosts a `.climb-stage` needs to
+   be a container. */
+.climb-screen,
+.climb-stage-frame {
+  container-type: inline-size;
 }
 
-.climb-slip-dust {
+.climb-screen {
+  padding: 0;
+  flex: 1;
+}
+
+.climb-stage {
+  /* Set from JS by `stageVars()`; declared here so the stage still paints
+     sensibly if it is ever rendered without them. */
+  --climb-progress: 0;
+  --climb-move-ms: 0ms;
+  --climb-rock: #6b6459;
+  --climb-snow: #f4f4f4;
+  /* The travel band: the climber sits at --climb-floor at position 0 and
+     rises --climb-span from there. Viewport units, so "climbs the height of
+     the viewport" is literally true rather than a fixed-height box. */
+  --climb-floor: 24svh;
+  --climb-span: 54svh;
+
+  position: relative;
+  width: 100%;
+  min-height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  text-align: center;
+}
+
+.climb-stage__wall {
   position: absolute;
-  bottom: 8px;
-  width: 7px;
-  height: 7px;
+  inset: -5svh 0;
+  z-index: 0;
+  /* F5: the wall itself drifts down a little as height is gained, so
+     progress is felt and not only read off the number. */
+  transform: translate3d(0, calc(var(--climb-progress) * 4svh), 0);
+  transition: transform var(--climb-move-ms) ease-out;
+}
+
+.climb-stage__band {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+/* Three visually distinct bands, all drawn with repeating gradients — no
+   bitmaps, so nothing new has to enter the service worker's precache list. */
+.climb-stage__band--base {
+  bottom: 0;
+  height: 42%;
+  background:
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 22px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.07) 0 3px, transparent 3px 40px),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--climb-rock) 72%, #241a10) 0%,
+      color-mix(in srgb, var(--climb-rock) 42%, #120c07) 100%
+    );
+}
+
+.climb-stage__band--middle {
+  bottom: 34%;
+  height: 40%;
+  background:
+    repeating-linear-gradient(118deg, rgba(0, 0, 0, 0.12) 0 2px, transparent 2px 30px),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--climb-rock) 88%, #f0e6d2) 0%,
+      color-mix(in srgb, var(--climb-rock) 92%, #1d150d) 100%
+    );
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, #000 20%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(to top, transparent 0%, #000 20%, #000 78%, transparent 100%);
+}
+
+.climb-stage__band--summit {
+  top: 0;
+  bottom: 62%;
+  background:
+    repeating-linear-gradient(96deg, rgba(255, 255, 255, 0.5) 0 4px, transparent 4px 34px),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--climb-snow) 92%, #7fb6d9) 0%,
+      color-mix(in srgb, var(--climb-snow) 70%, var(--climb-rock)) 100%
+    );
+}
+
+.climb-stage__texture {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.climb-stage__cloud {
+  position: absolute;
+  width: 130px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  filter: blur(6px);
+}
+.climb-stage__cloud--1 {
+  top: 12%;
+  left: -20%;
+}
+.climb-stage__cloud--2 {
+  top: 26%;
+  left: -35%;
+  width: 90px;
+  height: 24px;
+  opacity: 0.7;
+}
+
+/* F17: a bird crossing the sky — something alive that isn't the player. */
+.climb-stage__bird {
+  position: absolute;
+  top: 18%;
+  left: -6%;
+  width: 16px;
+  height: 16px;
+  border-top: 2.5px solid rgba(40, 30, 20, 0.7);
+  border-right: 2.5px solid rgba(40, 30, 20, 0.7);
+  border-radius: 60% 0 60% 0;
+  transform: rotate(-45deg);
+}
+
+.climb-stage__holds {
+  position: absolute;
+  inset: 0;
+}
+
+.climb-stage__hold {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--climb-floor) + var(--hold-fraction) * var(--climb-span));
+  width: 36px;
+  height: 12px;
+  border-radius: 999px;
+  transform: translateX(calc(-50% + var(--hold-side) * 52px));
+  background: color-mix(in srgb, var(--climb-rock) 50%, #000);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.22),
+    0 3px 6px rgba(0, 0, 0, 0.35);
+}
+
+.climb-stage__summit-flag {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--climb-floor) + var(--climb-span) + 52px);
+  width: 3px;
+  height: 34px;
+  background: color-mix(in srgb, var(--climb-rock) 40%, #000);
+  transform: translateX(-50%);
+}
+.climb-stage__summit-flag::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 3px;
+  border-left: 24px solid var(--accent);
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+}
+
+/* MOVEMENT ONLY. Nothing else may be added to this element's transform. */
+.climb-stage__climber {
+  position: absolute;
+  left: 50%;
+  bottom: var(--climb-floor);
+  z-index: 2;
+  transform: translate3d(-50%, calc(var(--climb-progress) * var(--climb-span) * -1), 0);
+  transition: transform var(--climb-move-ms) cubic-bezier(0.34, 1.24, 0.64, 1);
+  will-change: transform;
+}
+/* A drop and a fall accelerate downward instead of easing out — gravity, not
+   a hop played backwards. */
+.climb-stage__climber[data-move='drop'],
+.climb-stage__climber[data-move='fall'] {
+  transition-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+}
+
+/* ANIMATION ONLY. The arc carries the hop's lift; the pose carries the
+   squash-and-stretch, with its origin at the feet. */
+.climb-stage__arc {
+  display: block;
+}
+.climb-stage__pose {
+  display: block;
+  transform-origin: 50% 100%;
+}
+
+.climb-stage__glow {
+  position: absolute;
+  inset: -22px;
+  z-index: -1;
   border-radius: 50%;
-  background: var(--border);
+  background: radial-gradient(circle, rgba(255, 206, 110, 0.7) 0%, rgba(255, 206, 110, 0) 70%);
+  pointer-events: none;
+}
+
+.climb-stage__dust {
+  position: absolute;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--climb-rock) 60%, #fff);
   opacity: 0;
 }
-.climb-slip-dust--1 {
-  left: 38%;
+.climb-stage__dust--1 {
+  left: 22%;
 }
-.climb-slip-dust--2 {
-  left: 52%;
+.climb-stage__dust--2 {
+  left: 62%;
 }
-.climb-slip-dust--3 {
-  left: 45%;
+.climb-stage__dust--3 {
+  left: 44%;
+}
+
+.climb-stage__readout {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(24, 18, 10, 0.62);
+  font-variant-numeric: tabular-nums;
+}
+.climb-stage__readout-number {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.climb-stage__readout-total {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+.climb-stage__pose-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.climb-stage__hud {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+}
+
+/* The card is the most readable thing on screen: opaque, bordered, and on
+   top of everything. On a 390px phone it docks flush to the bottom edge. */
+.climb-stage__card {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 4;
+  width: min(720px, 100%);
+  max-height: 60svh;
+  overflow-y: auto;
+  transform: translateX(-50%);
+  padding: 0.75rem 1rem 1.1rem;
+  box-sizing: border-box;
+  border: 2px solid var(--border);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+.climb-stage__title {
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-h);
+  margin: 0 0 0.4rem;
+}
+
+@container (max-width: 560px) {
+  .climb-stage {
+    --climb-floor: 20svh;
+    --climb-span: 40svh;
+  }
+  .climb-stage__card {
+    width: 100%;
+    max-height: 64svh;
+    border-radius: 14px 14px 0 0;
+    padding: 0.6rem 0.7rem 0.9rem;
+  }
+  .climb-stage__hud {
+    gap: 0.5rem;
+    padding: 6px 8px;
+  }
+  .climb-stage__hold {
+    width: 28px;
+    transform: translateX(calc(-50% + var(--hold-side) * 38px));
+  }
+}
+
+/* Reduced motion: the position change is instant, and the only thing left is
+   a short crossfade so the jump is still noticed (`docs/fun-bar.md` F15). */
+@media (prefers-reduced-motion: reduce) {
+  .climb-stage__climber,
+  .climb-stage__wall {
+    transition: none;
+  }
+  .climb-stage__climber[data-phase='moving'] .climb-stage__pose {
+    animation: climbReducedFade 140ms ease-out 1;
+  }
 }
 
 .celebrate-wrap {
@@ -322,17 +644,57 @@ code {
     pointer-events: none;
   }
 
-  .climb-sprite-wrap--slip {
-    animation: climbSlipSlide 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+  /* Climb stage. Durations mirror `climbStageMotion.ts`'s constants — the
+     component's settle timer uses the same numbers, so a change here needs
+     the same change there or the pose will outlast (or undercut) the move. */
+  .climb-stage__climber[data-phase='moving'][data-move='hop'] .climb-stage__arc {
+    animation: climbHopArc 400ms ease-out 1;
   }
-  .climb-slip-dust--1 {
+  .climb-stage__climber[data-phase='moving'][data-move='hop'] .climb-stage__pose {
+    animation: climbHopPose 400ms ease-out 1;
+  }
+  .climb-stage__climber[data-phase='moving'][data-move='bigHop'] .climb-stage__arc {
+    animation: climbBigHopArc 520ms ease-out 1;
+  }
+  .climb-stage__climber[data-phase='moving'][data-move='bigHop'] .climb-stage__pose {
+    animation: climbBigHopPose 520ms ease-out 1;
+  }
+  .climb-stage__climber[data-phase='moving'][data-move='drop'] .climb-stage__arc {
+    animation: climbDropArc 500ms ease-in 1;
+  }
+  .climb-stage__climber[data-phase='moving'][data-move='drop'] .climb-stage__pose {
+    animation: climbDropPose 500ms ease-in-out 1;
+  }
+  .climb-stage__climber[data-phase='moving'][data-move='fall'] .climb-stage__arc {
+    animation: climbDropArc 800ms ease-in 1;
+  }
+  .climb-stage__climber[data-phase='moving'][data-move='fall'] .climb-stage__pose {
+    animation: climbFallPose 800ms ease-in 1;
+  }
+  .climb-stage__climber[data-phase='moving'][data-move='summit'] .climb-stage__pose {
+    animation: climbSummitPose 600ms cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+  }
+  .climb-stage__glow {
+    animation: climbBoostGlow 1.4s ease-in-out infinite;
+  }
+  .climb-stage__dust--1 {
     animation: climbSlipDustLeft 0.6s ease-out 1 both;
   }
-  .climb-slip-dust--2 {
+  .climb-stage__dust--2 {
     animation: climbSlipDustRight 0.6s ease-out 1 both 0.05s;
   }
-  .climb-slip-dust--3 {
+  .climb-stage__dust--3 {
     animation: climbSlipDustCenter 0.6s ease-out 1 both 0.1s;
+  }
+  /* F14: something is always moving, even while the player is thinking. */
+  .climb-stage__cloud--1 {
+    animation: climbCloudDrift 46s linear infinite;
+  }
+  .climb-stage__cloud--2 {
+    animation: climbCloudDrift 68s linear infinite 8s;
+  }
+  .climb-stage__bird {
+    animation: climbBirdCross 19s ease-in-out infinite 3s;
   }
 
   .confetti-piece {
@@ -365,23 +727,154 @@ code {
     transform: translateX(140%);
   }
 }
-/* Ends back at (0, 0), not left displaced — this plays during the ~1.5s
- * post-answer reveal beat while the character sprite still needs to sit in
- * its normal spot once the next question starts. Kept clear of the sprite
- * wrap's own margin-bottom (28px > this animation's 22px max) so the
- * transformed sprite's bounding box never overlaps a sibling element mid-
- * motion — that overlap otherwise reproduces a real Chromium compositing
- * artifact (a smeared ghost trail), confirmed while prototyping this
- * concept. */
-@keyframes climbSlipSlide {
+/* Hop: the arc is the lift, the pose is the squash-and-stretch, and they run
+ * on two different elements on purpose (see the PR #84 note above). Both end
+ * exactly where they started, so the climber's resting transform is only ever
+ * the translate from `--climb-progress`. */
+@keyframes climbHopArc {
   0% {
-    transform: translate(0, 0);
+    transform: translateY(0);
   }
-  35% {
-    transform: translate(-10px, 22px);
+  45% {
+    transform: translateY(-14px);
   }
   100% {
-    transform: translate(0, 0);
+    transform: translateY(0);
+  }
+}
+@keyframes climbHopPose {
+  0% {
+    transform: scale(1.16, 0.84);
+  }
+  22% {
+    transform: scale(0.86, 1.18);
+  }
+  60% {
+    transform: scale(1.08, 0.92);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+@keyframes climbBigHopArc {
+  0% {
+    transform: translateY(0);
+  }
+  42% {
+    transform: translateY(-28px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+@keyframes climbBigHopPose {
+  0% {
+    transform: scale(1.26, 0.74);
+  }
+  20% {
+    transform: scale(0.78, 1.28);
+  }
+  55% {
+    transform: scale(1.14, 0.88);
+  }
+  80% {
+    transform: scale(0.96, 1.05);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+@keyframes climbDropArc {
+  0% {
+    transform: translateY(-8px);
+  }
+  60% {
+    transform: translateY(7px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+@keyframes climbDropPose {
+  0% {
+    transform: scale(0.9, 1.12) rotate(-6deg);
+  }
+  55% {
+    transform: scale(1.18, 0.84) rotate(4deg);
+  }
+  100% {
+    transform: scale(1, 1) rotate(0deg);
+  }
+}
+@keyframes climbFallPose {
+  0% {
+    transform: scale(0.92, 1.1) rotate(0deg);
+  }
+  70% {
+    transform: scale(1.05, 0.95) rotate(-14deg);
+  }
+  100% {
+    transform: scale(1, 1) rotate(-8deg);
+  }
+}
+@keyframes climbSummitPose {
+  0% {
+    transform: scale(1.2, 0.8);
+  }
+  35% {
+    transform: scale(0.85, 1.22);
+  }
+  70% {
+    transform: scale(1.06, 0.96);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+@keyframes climbBoostGlow {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.06);
+  }
+}
+@keyframes climbCloudDrift {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(160vw);
+  }
+}
+@keyframes climbBirdCross {
+  0% {
+    transform: translate(0, 0) rotate(-45deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(55vw, -5svh) rotate(-45deg);
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(115vw, 3svh) rotate(-45deg);
+    opacity: 0;
+  }
+}
+@keyframes climbReducedFade {
+  0% {
+    opacity: 0.25;
+  }
+  100% {
+    opacity: 1;
   }
 }
 @keyframes climbSlipDustLeft {

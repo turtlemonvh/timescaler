@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import type { Question } from './engine/questions';
+import { REVEAL_MS } from './ui/screens/Climb';
 
 const FIXED_QUESTION: Question = {
   id: 'test-question',
@@ -17,8 +18,6 @@ vi.mock('./engine/questions', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./engine/questions')>();
   return { ...actual, generateQuestion: vi.fn(() => FIXED_QUESTION) };
 });
-
-const REVEAL_MS = 1500;
 
 /** Clicks the correct answer repeatedly until Climb hands off to Summit/Fell (or the safety cap
  * is hit) — bounded rather than a fixed count since the exact number of correct answers needed
