@@ -1,0 +1,40 @@
+{
+  "animal": "bunny",
+  "displayName": "Bunny",
+  "frameSize": 96,
+  "source": {
+    "kind": "dir",
+    "path": "vendor/kenney_jumper-pack/PNG/Players"
+  },
+  "licenseFile": "vendor/kenney_jumper-pack/License.txt",
+  "credit": {
+    "pack": "Jumper Pack",
+    "author": "Kenney Vleugels (Kenney)",
+    "url": "https://kenney.nl/assets/jumper-pack",
+    "downloadUrl": "https://kenney.nl/media/pages/assets/jumper-pack/4654b2d2e5-1677666699/kenney_jumper-pack.zip",
+    "license": "CC0 1.0 Universal (public domain dedication)",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  "poses": {
+    "idle": {
+      "frames": ["bunny1_stand.png", "bunny1_ready.png"],
+      "fps": 2,
+      "loop": true
+    },
+    "move": {
+      "frames": ["bunny1_walk1.png", "bunny1_stand.png", "bunny1_walk2.png", "bunny1_stand.png"],
+      "fps": 8,
+      "loop": true
+    },
+    "hurt": {
+      "frames": ["bunny1_hurt.png"],
+      "fps": 4,
+      "loop": false
+    },
+    "celebrate": {
+      "frames": ["bunny1_ready.png", "bunny1_jump.png", "bunny1_stand.png", "bunny1_jump.png"],
+      "fps": 6,
+      "loop": true
+    }
+  }
+}

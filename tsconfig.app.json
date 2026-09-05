@@ -6,6 +6,10 @@
     "module": "esnext",
     "types": ["vite/client", "vite-plugin-pwa/client"],
     "allowArbitraryExtensions": true,
+    // The generated sprite manifest (public/sprites/<animal>/manifest.json) is
+    // imported directly by src/ui/sprites — one copy, no drift between what is
+    // shipped next to the frames and what the app reads.
+    "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
 

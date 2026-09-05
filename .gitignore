@@ -33,5 +33,10 @@ public/favicon-32x32.png
 public/apple-touch-icon.png
 dev-dist/
 
+# Raw art packs downloaded for `pnpm sprites:normalize`. Only the normalized
+# output under public/sprites/ is checked in — see public/sprites/README.md for
+# the exact download commands.
+vendor/
+
 .claude/*
 !.claude/night-crew.json
