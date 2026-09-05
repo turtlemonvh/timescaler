@@ -55,11 +55,7 @@ export default function MiniMap({ position, height, compact = false }: MiniMapPr
   const drawnHeight = compact ? Math.round(SVG_HEIGHT * COMPACT_SCALE) : SVG_HEIGHT;
 
   return (
-    <div
-      data-testid="mini-map"
-      data-compact={compact ? 'true' : 'false'}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
-    >
+    <div className="mini-map" data-testid="mini-map" data-compact={compact ? 'true' : 'false'}>
       <div
         {...(compact
           ? { 'aria-hidden': true }

@@ -153,7 +153,15 @@ export default function ClimbStage({
         <span className="climb-stage__cloud climb-stage__cloud--2" />
         {/* F17: something alive that isn't the player, crossing the sky. */}
         <span className="climb-stage__bird" />
-        <div className="climb-stage__holds">
+      </div>
+
+      {/* Everything the climber can reach. It is a flex child that takes
+          whatever the card leaves, and every vertical position inside it is a
+          percentage of *it* — so a tall question (a calendar, a clock plus
+          four choices) shortens the climb rather than burying the character
+          behind the card. */}
+      <div className="climb-stage__field" data-testid="climb-stage-field">
+        <div className="climb-stage__holds" aria-hidden="true">
           {HOLDS.map((hold) => (
             <span
               key={hold.key}
@@ -162,66 +170,69 @@ export default function ClimbStage({
               style={holdStyle(hold.fraction, hold.side)}
             />
           ))}
+          <span className="climb-stage__summit-flag" />
         </div>
-        <div className="climb-stage__summit-flag" />
-      </div>
 
-      <div
-        className="climb-stage__climber"
-        data-testid="climb-stage-climber"
-        data-move={move.kind}
-        data-phase={phase}
-        data-boosted={boosted ? 'true' : 'false'}
-      >
-        {boosted ? <span className="climb-stage__glow" aria-hidden="true" /> : null}
-        <div className="climb-stage__arc">
-          <div className="climb-stage__pose">
-            <SpriteAnimator
-              manifest={animal}
-              pose={pose}
-              size={SPRITE_SIZE}
-              hideReducedMotionLabel
-            />
+        <div
+          className="climb-stage__climber"
+          data-testid="climb-stage-climber"
+          data-move={move.kind}
+          data-phase={phase}
+          data-boosted={boosted ? 'true' : 'false'}
+        >
+          <div className="climb-stage__perch">
+            {boosted ? <span className="climb-stage__glow" aria-hidden="true" /> : null}
+            <div className="climb-stage__arc">
+              <div className="climb-stage__pose">
+                <SpriteAnimator
+                  manifest={animal}
+                  pose={pose}
+                  size={SPRITE_SIZE}
+                  hideReducedMotionLabel
+                />
+              </div>
+            </div>
+            {slipping ? (
+              <>
+                <span
+                  className="climb-stage__dust climb-stage__dust--1"
+                  data-testid="climb-stage-dust"
+                />
+                <span
+                  className="climb-stage__dust climb-stage__dust--2"
+                  data-testid="climb-stage-dust"
+                />
+                <span
+                  className="climb-stage__dust climb-stage__dust--3"
+                  data-testid="climb-stage-dust"
+                />
+              </>
+            ) : null}
           </div>
         </div>
-        {slipping ? (
-          <>
-            <span
-              className="climb-stage__dust climb-stage__dust--1"
-              data-testid="climb-stage-dust"
-            />
-            <span
-              className="climb-stage__dust climb-stage__dust--2"
-              data-testid="climb-stage-dust"
-            />
-            <span
-              className="climb-stage__dust climb-stage__dust--3"
-              data-testid="climb-stage-dust"
-            />
-          </>
-        ) : null}
+
+        <div
+          className="climb-stage__readout"
+          data-testid="climb-stage-readout"
+          role="progressbar"
+          aria-label={`Height climbed on ${peak.name}`}
+          aria-valuenow={position}
+          aria-valuemin={0}
+          aria-valuemax={height}
+          aria-valuetext={`${position} of ${height}`}
+        >
+          <span className="climb-stage__readout-number">{position}</span>
+          <span className="climb-stage__readout-total">/ {height}</span>
+          {reducedMotion ? (
+            <span className="climb-stage__pose-label" data-testid="climb-stage-pose-label">
+              {pose}
+            </span>
+          ) : null}
+        </div>
+
+        {hud === undefined ? null : <div className="climb-stage__hud">{hud}</div>}
       </div>
 
-      <div
-        className="climb-stage__readout"
-        data-testid="climb-stage-readout"
-        role="progressbar"
-        aria-label={`Height climbed on ${peak.name}`}
-        aria-valuenow={position}
-        aria-valuemin={0}
-        aria-valuemax={height}
-        aria-valuetext={`${position} of ${height}`}
-      >
-        <span className="climb-stage__readout-number">{position}</span>
-        <span className="climb-stage__readout-total">/ {height}</span>
-        {reducedMotion ? (
-          <span className="climb-stage__pose-label" data-testid="climb-stage-pose-label">
-            {pose}
-          </span>
-        ) : null}
-      </div>
-
-      {hud === undefined ? null : <div className="climb-stage__hud">{hud}</div>}
       {children === undefined ? null : (
         <div className="climb-stage__card" data-testid="climb-stage-card">
           {children}

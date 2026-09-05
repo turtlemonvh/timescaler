@@ -254,6 +254,15 @@ code {
    desktop layout inside a narrow box, which is precisely the bug that makes
    width toggles untrustworthy. Anything that hosts a `.climb-stage` needs to
    be a container. */
+/* Layout lives here rather than in an inline style so the climb stage's
+   container query can hide the chip — an inline `display` would outrank it. */
+.mini-map {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
 .climb-screen,
 .climb-stage-frame {
   container-type: inline-size;
@@ -271,18 +280,31 @@ code {
   --climb-move-ms: 0ms;
   --climb-rock: #6b6459;
   --climb-snow: #f4f4f4;
-  /* The travel band: the climber sits at --climb-floor at position 0 and
-     rises --climb-span from there. Viewport units, so "climbs the height of
-     the viewport" is literally true rather than a fixed-height box. */
-  --climb-floor: 24svh;
-  --climb-span: 54svh;
+  /* The travel band, as percentages of `.climb-stage__field` — the space the
+     question card leaves. Percentages, not viewport units, because the card's
+     height is not knowable in CSS: a calendar question is twice the height of
+     a four-choice one, and a fixed svh band would park the character behind
+     the card on a phone. */
+  --climb-floor: 5%;
+  --climb-span: 74%;
 
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   min-height: 100svh;
   overflow: hidden;
   isolation: isolate;
   text-align: center;
+}
+
+/* Everything the climber can reach: takes whatever vertical space the card
+   leaves, and never collapses to nothing. */
+.climb-stage__field {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 260px;
 }
 
 .climb-stage__wall {
@@ -305,7 +327,9 @@ code {
    bitmaps, so nothing new has to enter the service worker's precache list. */
 .climb-stage__band--base {
   bottom: 0;
-  height: 42%;
+  height: 46%;
+  -webkit-mask-image: linear-gradient(to top, #000 55%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 55%, transparent 100%);
   background:
     repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 22px),
     repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.07) 0 3px, transparent 3px 40px),
@@ -349,6 +373,9 @@ code {
   height: 100%;
   opacity: 0.55;
   pointer-events: none;
+  /* Rock chips belong on rock, not on the sky above the summit. */
+  -webkit-mask-image: linear-gradient(to top, #000 55%, rgba(0, 0, 0, 0.15) 100%);
+  mask-image: linear-gradient(to top, #000 55%, rgba(0, 0, 0, 0.15) 100%);
 }
 
 .climb-stage__cloud {
@@ -403,14 +430,15 @@ code {
     0 3px 6px rgba(0, 0, 0, 0.35);
 }
 
+/* Offset from centre so the climber standing on the summit doesn't hide it. */
 .climb-stage__summit-flag {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--climb-floor) + var(--climb-span) + 52px);
+  bottom: calc(var(--climb-floor) + var(--climb-span) + 5%);
   width: 3px;
   height: 34px;
   background: color-mix(in srgb, var(--climb-rock) 40%, #000);
-  transform: translateX(-50%);
+  transform: translateX(58px);
 }
 .climb-stage__summit-flag::after {
   content: '';
@@ -422,15 +450,26 @@ code {
   border-bottom: 10px solid transparent;
 }
 
-/* MOVEMENT ONLY. Nothing else may be added to this element's transform. */
+/* MOVEMENT ONLY. Nothing else may be added to this element's transform.
+   It fills the field so that a percentage in `translateY` — which resolves
+   against the element's *own* height — is a percentage of the travel band. */
 .climb-stage__climber {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  transform: translate3d(0, calc(var(--climb-progress) * var(--climb-span) * -1), 0);
+  transition: transform var(--climb-move-ms) cubic-bezier(0.34, 1.24, 0.64, 1);
+  will-change: transform;
+}
+
+/* Static placement of the sprite within the moving layer. Separate from the
+   climber so the movement transform stays a single translate. */
+.climb-stage__perch {
   position: absolute;
   left: 50%;
   bottom: var(--climb-floor);
-  z-index: 2;
-  transform: translate3d(-50%, calc(var(--climb-progress) * var(--climb-span) * -1), 0);
-  transition: transform var(--climb-move-ms) cubic-bezier(0.34, 1.24, 0.64, 1);
-  will-change: transform;
+  transform: translateX(-50%);
 }
 /* A drop and a fall accelerate downward instead of easing out — gravity, not
    a hop played backwards. */
@@ -460,11 +499,14 @@ code {
 
 .climb-stage__dust {
   position: absolute;
-  bottom: 4px;
-  width: 8px;
-  height: 8px;
+  bottom: 2px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--climb-rock) 60%, #fff);
+  /* Light enough to read against the rock it is kicked off; the wall is
+     always some shade of --climb-rock, so a rock-tinted puff disappears. */
+  background: rgba(252, 248, 240, 0.85);
+  box-shadow: 0 0 6px rgba(252, 248, 240, 0.6);
   opacity: 0;
 }
 .climb-stage__dust--1 {
@@ -479,8 +521,8 @@ code {
 
 .climb-stage__readout {
   position: absolute;
-  top: 12px;
-  left: 14px;
+  top: 10px;
+  left: 12px;
   z-index: 3;
   display: inline-flex;
   align-items: baseline;
@@ -508,8 +550,8 @@ code {
 
 .climb-stage__hud {
   position: absolute;
-  top: 10px;
-  right: 14px;
+  top: 8px;
+  right: 12px;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -523,14 +565,10 @@ code {
 /* The card is the most readable thing on screen: opaque, bordered, and on
    top of everything. On a 390px phone it docks flush to the bottom edge. */
 .climb-stage__card {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
+  position: relative;
   z-index: 4;
+  align-self: center;
   width: min(720px, 100%);
-  max-height: 60svh;
-  overflow-y: auto;
-  transform: translateX(-50%);
   padding: 0.75rem 1rem 1.1rem;
   box-sizing: border-box;
   border: 2px solid var(--border);
@@ -551,23 +589,43 @@ code {
 }
 
 @container (max-width: 560px) {
-  .climb-stage {
-    --climb-floor: 20svh;
-    --climb-span: 40svh;
+  .climb-stage__field {
+    min-height: 210px;
   }
   .climb-stage__card {
     width: 100%;
-    max-height: 64svh;
     border-radius: 14px 14px 0 0;
     padding: 0.6rem 0.7rem 0.9rem;
   }
   .climb-stage__hud {
-    gap: 0.5rem;
-    padding: 6px 8px;
+    top: 6px;
+    right: 6px;
+    gap: 0.35rem;
+    padding: 5px 7px;
+    border-radius: 10px;
+  }
+  /* No room for both, and the readout is the labelled one. */
+  .climb-stage__hud .mini-map {
+    display: none;
+  }
+  /* The HUD bar owns the top edge on a phone, so the readout drops to the
+     foot of the wall rather than sitting underneath it. */
+  .climb-stage__readout {
+    top: auto;
+    bottom: 8px;
+    left: 8px;
+    padding: 4px 10px;
+  }
+  .climb-stage__readout-number {
+    font-size: 1.05rem;
   }
   .climb-stage__hold {
-    width: 28px;
-    transform: translateX(calc(-50% + var(--hold-side) * 38px));
+    width: 26px;
+    height: 10px;
+    transform: translateX(calc(-50% + var(--hold-side) * 40px));
+  }
+  .climb-stage__summit-flag {
+    transform: translateX(44px);
   }
 }
 
