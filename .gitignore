@@ -33,4 +33,5 @@ public/favicon-32x32.png
 public/apple-touch-icon.png
 dev-dist/
 
-.claude/
+.claude/*
+!.claude/night-crew.json
