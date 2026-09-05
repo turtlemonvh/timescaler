@@ -1,30 +1,7 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
+import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
 import { frameAt } from './frameAt';
 import type { SpriteManifest } from './manifest';
-
-const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-
-function reducedMotionQuery(): MediaQueryList | null {
-  return typeof window.matchMedia === 'function' ? window.matchMedia(REDUCED_MOTION_QUERY) : null;
-}
-
-function subscribeToReducedMotion(onChange: () => void): () => void {
-  const query = reducedMotionQuery();
-  if (query === null || typeof query.addEventListener !== 'function') return () => {};
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
-}
-
-/**
- * Reads `prefers-reduced-motion`, and keeps up if it changes mid-session.
- *
- * A missing or listener-less `matchMedia` means "animate", which is what every
- * CSS animation in `index.css` already does — the media query there is
- * `no-preference`, so an environment that reports nothing gets motion.
- */
-function reducedMotionSnapshot(): boolean {
-  return reducedMotionQuery()?.matches ?? false;
-}
 
 export type SpriteAnimatorProps = {
   manifest: SpriteManifest;
@@ -33,6 +10,9 @@ export type SpriteAnimatorProps = {
   /** Rendered size in CSS pixels. Defaults to the manifest's native frame size. */
   size?: number;
   className?: string;
+  /** Hides the reduced-motion pose caption. `ClimbStage` shows its own,
+   * placed against the wall rather than under the sprite. */
+  hideReducedMotionLabel?: boolean;
 };
 
 /**
@@ -46,13 +26,15 @@ export type SpriteAnimatorProps = {
  * `prefers-reduced-motion: reduce` shows a static frame plus the pose name as a
  * visible label instead of animating (`docs/fun-bar.md` F15).
  */
-export default function SpriteAnimator({ manifest, pose, size, className }: SpriteAnimatorProps) {
+export default function SpriteAnimator({
+  manifest,
+  pose,
+  size,
+  className,
+  hideReducedMotionLabel = false,
+}: SpriteAnimatorProps) {
   const poseSpec = manifest.poses[pose] as SpriteManifest['poses'][string] | undefined;
-  const reducedMotion = useSyncExternalStore(
-    subscribeToReducedMotion,
-    reducedMotionSnapshot,
-    () => false,
-  );
+  const reducedMotion = usePrefersReducedMotion();
 
   // Keyed by pose so a pose change resets to frame 0 during render rather than
   // showing a stale frame index for one paint.
@@ -109,7 +91,7 @@ export default function SpriteAnimator({ manifest, pose, size, className }: Spri
         style={{ width: px, height: px, display: 'block' }}
         draggable={false}
       />
-      {reducedMotion ? (
+      {reducedMotion && !hideReducedMotionLabel ? (
         <span data-testid="sprite-pose-label" style={{ fontSize: '0.75rem' }}>
           {pose}
         </span>

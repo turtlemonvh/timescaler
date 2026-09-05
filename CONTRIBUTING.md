@@ -15,6 +15,8 @@ of production builds — they're never reachable on the live site, only when run
 - `/debug/sprites` — every character pose, palette, and mountain theme
 - `/debug/widgets` — every answer/display widget (clocks, calendar, choice grid, entry fields)
 - `/debug/hud` — the in-climb HUD components (timer, boost/fall-risk meters, mini-map, profile chip)
+- `/debug/climb-stage` — the full-bleed climb stage, with buttons for every move (correct, fast
+  correct, miss, fill boost, summit, fall) and a 390 px width toggle
 - `/debug/screens` — every M4 screen rendered standalone, for visual QA as each one is built
 - `/debug/preview` — `PreviewPlayer`, the click-through question-engine preview that used to be the
   production landing page before the real game (`App.tsx`) existed

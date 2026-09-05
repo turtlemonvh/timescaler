@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PEAKS } from '../../engine/peaks';
-import { MOUNTAIN_THEMES, pixelPeakHeight } from './mountainThemes';
+import { MOUNTAIN_THEMES, mountainThemeFor, pixelPeakHeight } from './mountainThemes';
 
 describe('MOUNTAIN_THEMES', () => {
   it('has exactly one entry per peak, in PEAKS order', () => {
@@ -27,6 +27,14 @@ describe('pixelPeakHeight', () => {
     for (let i = 1; i < heights.length; i++) {
       expect(heights[i]).toBeGreaterThanOrEqual(heights[i - 1]);
     }
+  });
+
+  it('looks a theme up by peak id, and falls back rather than throwing on an unknown one', () => {
+    for (const theme of MOUNTAIN_THEMES) {
+      expect(mountainThemeFor(theme.peak.id)).toBe(theme);
+    }
+    // A debug page or a test fixture peak must not blank the climb screen.
+    expect(mountainThemeFor(999)).toBe(MOUNTAIN_THEMES[0]);
   });
 
   it('stays within the intended 14-22 pixel range for every peak', () => {

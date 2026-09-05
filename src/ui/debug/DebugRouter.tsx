@@ -1,4 +1,5 @@
 import PreviewPlayer from '../preview/PreviewPlayer';
+import DebugClimbStagePage from './DebugClimbStagePage';
 import DebugHudPage from './DebugHudPage';
 import DebugQuestionsPage from './DebugQuestionsPage';
 import DebugScreensPage from './DebugScreensPage';
@@ -28,6 +29,8 @@ export default function DebugRouter({ pathname }: { pathname: string }) {
       return <DebugWidgetsPage />;
     case 'hud':
       return <DebugHudPage />;
+    case 'climb-stage':
+      return <DebugClimbStagePage />;
     case 'screens':
       return <DebugScreensPage />;
     case 'preview':
@@ -51,6 +54,9 @@ export default function DebugRouter({ pathname }: { pathname: string }) {
             </li>
             <li>
               <a href="/debug/hud">/debug/hud</a>
+            </li>
+            <li>
+              <a href="/debug/climb-stage">/debug/climb-stage</a>
             </li>
             <li>
               <a href="/debug/screens">/debug/screens</a>

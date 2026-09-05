@@ -36,6 +36,17 @@ export const MOUNTAIN_THEMES: readonly MountainTheme[] = PEAKS.map((peak) => {
 });
 
 /**
+ * The theme for one peak id, for callers that hold a `Peak` rather than an
+ * index into `MOUNTAIN_THEMES` (the climb stage tints its whole wall from
+ * this). Falls back to the first peak's palette rather than throwing: an
+ * unknown id here means a debug page or a test fixture peak, and a
+ * mis-coloured wall is a better failure than a blank climb screen.
+ */
+export function mountainThemeFor(peakId: number): MountainTheme {
+  return MOUNTAIN_THEMES.find((theme) => theme.peak.id === peakId) ?? MOUNTAIN_THEMES[0];
+}
+
+/**
  * Maps a peak's `id` (1-10, always ascending) to a pixel peak-height
  * (14-22) — deliberately independent of `peak.height`. `height` is now a
  * pacing-tuning number that doesn't rise smoothly with peak order (see

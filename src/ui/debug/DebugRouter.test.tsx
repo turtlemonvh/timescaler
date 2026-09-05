@@ -28,6 +28,25 @@ describe('DebugRouter', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Debug: hud' })).toBeInTheDocument();
   });
 
+  it('renders the climb stage page at /debug/climb-stage', () => {
+    render(<DebugRouter pathname="/debug/climb-stage" />);
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Debug: climb-stage' }),
+    ).toBeInTheDocument();
+    // Every move the issue asks to be able to trigger by hand.
+    for (const id of [
+      'stage-correct',
+      'stage-fast-correct',
+      'stage-miss',
+      'stage-fill-boost',
+      'stage-summit',
+      'stage-fall',
+      'stage-narrow-toggle',
+    ]) {
+      expect(screen.getByTestId(id)).toBeInTheDocument();
+    }
+  });
+
   it('renders the screens page at /debug/screens', () => {
     render(<DebugRouter pathname="/debug/screens" />);
     expect(screen.getByRole('heading', { level: 1, name: 'Debug: screens' })).toBeInTheDocument();

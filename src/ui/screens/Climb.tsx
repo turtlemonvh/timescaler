@@ -18,14 +18,13 @@ import {
 } from '../../engine/questions';
 import { mulberry32 } from '../../engine/rng';
 import type { TimeOfDay } from '../../engine/timeMath';
-import { buildCharacterLayers } from '../character/buildCharacterLayers';
 import type { CharacterPreset } from '../character/presets';
+import ClimbStage, { NO_MOVE, type ClimbStageMove } from '../climb/ClimbStage';
+import { moveKindFor } from '../climb/climbStageMotion';
 import BoostMeter from '../hud/BoostMeter';
 import FallRiskMeter from '../hud/FallRiskMeter';
 import MiniMap from '../hud/MiniMap';
 import TimerBar from '../hud/TimerBar';
-import PixelLayers from '../pixel/PixelLayers';
-import { bodyCheer, bodyClimb, bodyIdle, bodySlip } from '../pixel/sprites/body';
 import { defaultSetHandsDraft } from '../questionDisplay';
 import AnalogClock from '../widgets/AnalogClock';
 import CalendarMonth from '../widgets/CalendarMonth';
@@ -33,12 +32,17 @@ import ChoiceGrid from '../widgets/ChoiceGrid';
 import DatePicker from '../widgets/DatePicker';
 import NumberEntry from '../widgets/NumberEntry';
 
-/** Matches the design spec's ~1.5s post-answer beat, applied to both correct and wrong answers
- * (the spec only calls it out for wrong ones, but the reveal/pose change needs the same beat
- * either way for legibility). */
-const REVEAL_MS = 1500;
+/**
+ * Matches the design spec's ~1.5s post-answer beat, applied to both correct and
+ * wrong answers (the spec only calls it out for wrong ones, but the reveal/pose
+ * change needs the same beat either way for legibility).
+ *
+ * Exported because the tests need to advance fake timers by exactly this, and
+ * two copies of the number in two files is one copy too many — it drifted once
+ * already.
+ */
+export const REVEAL_MS = 1500;
 const TICK_MS = 100;
-const CHARACTER_SCALE = 6;
 
 const NOON: TimeOfDay = { hour: 12, minute: 0, second: 0 };
 
@@ -48,10 +52,6 @@ const NOON: TimeOfDay = { hour: 12, minute: 0, second: 0 };
 function defaultDraftTime(question: Question): TimeOfDay {
   return question.answer.kind === 'setHands' ? defaultSetHandsDraft(question.answer.target) : NOON;
 }
-
-type Pose = 'idle' | 'climb' | 'slip' | 'cheer';
-
-const POSE_SPRITES = { idle: bodyIdle, climb: bodyClimb, slip: bodySlip, cheer: bodyCheer };
 
 function renderDisplay(display: DisplaySpec) {
   switch (display.kind) {
@@ -79,6 +79,13 @@ function renderDisplay(display: DisplaySpec) {
 export interface ClimbProps {
   peak: Peak;
   difficulty: number;
+  /**
+   * The player's procedural pixel character. Not drawn on this screen any
+   * more — since #94 the climber on the wall is a normalized animal sprite
+   * from `public/sprites/` (#93), and character select against that roster is
+   * its own issue — but still carried through, because `CharacterPick`,
+   * `Summit` and `Fell` all draw it and this screen sits between them.
+   */
   characterPreset: CharacterPreset;
   /** Caller-supplied so a retry after falling isn't byte-identical to the failed run. */
   seed: number;
@@ -100,16 +107,20 @@ export interface ClimbProps {
  * (a click IS the discrete gesture); `setHands` and `number` need an
  * explicit Submit button, since dragging hands or typing a number has no
  * natural "this is my final answer" moment the way a click does. All four
- * route through the same `applyCorrect`/`applyMiss`/reveal/pose logic below
+ * route through the same `applyCorrect`/`applyMiss`/reveal logic below
  * — only how the answer is captured and graded differs per kind. A "Bail"
  * button offers a third way out at any time (except mid-reveal): it skips
  * `climb.ts` entirely — no correct/miss applied — and just reports elapsed
  * time to `onBail`.
+ *
+ * Since #94 the whole screen is a `ClimbStage`: a full-bleed cliff the
+ * character climbs, with the question card docked over the bottom of it. This
+ * component still owns every game decision; the stage only knows where the
+ * climber is and what just happened to them.
  */
 export default function Climb({
   peak,
   difficulty,
-  characterPreset,
   seed,
   onSummit,
   onFall,
@@ -125,7 +136,7 @@ export default function Climb({
   const [draftTime, setDraftTime] = useState<TimeOfDay>(() => defaultDraftTime(question));
   const [draftNumber, setDraftNumber] = useState<number | ''>('');
   const [revealing, setRevealing] = useState(false);
-  const [pose, setPose] = useState<Pose>('idle');
+  const [move, setMove] = useState<ClimbStageMove>(NO_MOVE);
   const [timeLeftMs, setTimeLeftMs] = useState(question.timeLimitMs);
 
   // `Date.now()` is impure and refs can't be read or written during render
@@ -157,7 +168,14 @@ export default function Climb({
     const nextState = correct ? applyCorrect(climbState, fast) : applyMiss(climbState);
 
     setRevealing(true);
-    setPose(correct ? (nextState.status === 'summited' ? 'cheer' : 'climb') : 'slip');
+    // The stage animates the transition `climb.ts` actually made — it is
+    // handed the before and after states rather than "correct" / "wrong", so
+    // it can't show a hop the rules didn't grant. The bumped `seq` is what
+    // replays the animation when two answers in a row produce the same kind.
+    setMove((previous) => ({
+      kind: moveKindFor(climbState, nextState, { fast }),
+      seq: previous.seq + 1,
+    }));
     setClimbState(nextState);
     onQuestionAnswered?.(question.typeId, correct, elapsedMs);
 
@@ -178,7 +196,7 @@ export default function Climb({
       setDraftTime(defaultDraftTime(nextQuestion));
       setDraftNumber('');
       setRevealing(false);
-      setPose('idle');
+      setMove((previous) => ({ kind: 'none', seq: previous.seq + 1 }));
     }, REVEAL_MS);
   }
 
@@ -298,48 +316,44 @@ export default function Climb({
   }
 
   return (
-    <main>
-      <h1>{peak.name}</h1>
-      <div data-testid="climb-hud" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        <BoostMeter boost={climbState.boost} boostCapacity={climbState.boostCapacity} />
-        <FallRiskMeter
-          fallRisk={climbState.fallRisk}
-          fallRiskCapacity={climbState.fallRiskCapacity}
-        />
-        <MiniMap position={climbState.position} height={climbState.height} />
-        <button
-          type="button"
-          data-variant="secondary"
-          data-testid="climb-bail"
-          onClick={handleBail}
-          disabled={revealing}
-        >
-          Bail
-        </button>
-      </div>
-      <TimerBar fraction={timeLeftMs / question.timeLimitMs} />
-      <div
-        data-testid="climb-sprite-wrap"
-        className={
-          pose === 'slip' ? 'climb-sprite-wrap climb-sprite-wrap--slip' : 'climb-sprite-wrap'
+    <main className="climb-screen">
+      <ClimbStage
+        peak={peak}
+        position={climbState.position}
+        height={climbState.height}
+        status={climbState.status}
+        move={move}
+        boosted={climbState.boost >= climbState.boostCapacity}
+        hud={
+          <div
+            data-testid="climb-hud"
+            style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}
+          >
+            <BoostMeter boost={climbState.boost} boostCapacity={climbState.boostCapacity} />
+            <FallRiskMeter
+              fallRisk={climbState.fallRisk}
+              fallRiskCapacity={climbState.fallRiskCapacity}
+            />
+            <MiniMap position={climbState.position} height={climbState.height} compact />
+            <button
+              type="button"
+              data-variant="secondary"
+              data-testid="climb-bail"
+              onClick={handleBail}
+              disabled={revealing}
+            >
+              Bail
+            </button>
+          </div>
         }
       >
-        {pose === 'slip' && (
-          <>
-            <span className="climb-slip-dust climb-slip-dust--1" />
-            <span className="climb-slip-dust climb-slip-dust--2" />
-            <span className="climb-slip-dust climb-slip-dust--3" />
-          </>
-        )}
-        <PixelLayers
-          layers={buildCharacterLayers(characterPreset, POSE_SPRITES[pose], { harness: true })}
-          scale={CHARACTER_SCALE}
-        />
-      </div>
-      <p data-testid="climb-prompt">{question.prompt}</p>
-      <div data-testid="climb-display">{renderDisplay(question.display)}</div>
-      <div data-testid="climb-answer">{renderAnswerSection()}</div>
-      {revealing && <p data-testid="climb-explain">{question.explainCorrect}</p>}
+        <h1 className="climb-stage__title">{peak.name}</h1>
+        <TimerBar fraction={timeLeftMs / question.timeLimitMs} />
+        <p data-testid="climb-prompt">{question.prompt}</p>
+        <div data-testid="climb-display">{renderDisplay(question.display)}</div>
+        <div data-testid="climb-answer">{renderAnswerSection()}</div>
+        {revealing && <p data-testid="climb-explain">{question.explainCorrect}</p>}
+      </ClimbStage>
     </main>
   );
 }

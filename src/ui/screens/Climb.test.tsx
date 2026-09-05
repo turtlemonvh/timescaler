@@ -1,13 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import Climb from './Climb';
+import Climb, { REVEAL_MS } from './Climb';
 import { CHARACTER_PRESETS } from '../character/presets';
 import type { Peak } from '../../engine/peaks';
 import { generateQuestion, type Question } from '../../engine/questions';
-
-// Matches Climb.tsx's internal REVEAL_MS — kept as a separate constant here
-// since the component doesn't export it.
-const REVEAL_MS = 1500;
 
 const FIXED_QUESTION: Question = {
   id: 'test-question',
@@ -228,7 +224,7 @@ describe('Climb', () => {
     expect(screen.getByTestId('climb-explain')).toHaveTextContent('Because Right is right.');
   });
 
-  it('applies the slip animation and renders dust puffs during the reveal beat after a miss', () => {
+  it('drops the climber back down the stage and kicks up dust after a miss', () => {
     render(
       <Climb
         peak={shortPeak}
@@ -240,20 +236,25 @@ describe('Climb', () => {
         onBail={vi.fn()}
       />,
     );
+    answerCorrect();
+    expect(screen.getByTestId('climb-stage').style.getPropertyValue('--climb-progress')).toBe(
+      String(1 / 3),
+    );
+
     fireEvent.click(screen.getByTestId('choice-option-1'));
-    expect(screen.getByTestId('climb-sprite-wrap').className).toContain('climb-sprite-wrap--slip');
-    expect(document.querySelectorAll('.climb-slip-dust')).toHaveLength(3);
+    expect(screen.getByTestId('climb-stage-climber')).toHaveAttribute('data-move', 'drop');
+    expect(screen.getAllByTestId('climb-stage-dust')).toHaveLength(3);
+    // The engine really moved the climber back, and the stage really follows it.
+    expect(screen.getByTestId('climb-stage').style.getPropertyValue('--climb-progress')).toBe('0');
 
     act(() => {
       vi.advanceTimersByTime(REVEAL_MS);
     });
-    expect(screen.getByTestId('climb-sprite-wrap').className).not.toContain(
-      'climb-sprite-wrap--slip',
-    );
-    expect(document.querySelectorAll('.climb-slip-dust')).toHaveLength(0);
+    expect(screen.getByTestId('climb-stage-climber')).toHaveAttribute('data-move', 'none');
+    expect(screen.queryAllByTestId('climb-stage-dust')).toHaveLength(0);
   });
 
-  it('does not apply the slip animation after a correct answer', () => {
+  it('hops instead of dropping after a correct answer, and moves the climber up', () => {
     render(
       <Climb
         peak={shortPeak}
@@ -266,10 +267,36 @@ describe('Climb', () => {
       />,
     );
     fireEvent.click(screen.getByTestId('choice-option-0'));
-    expect(screen.getByTestId('climb-sprite-wrap').className).not.toContain(
-      'climb-sprite-wrap--slip',
+    // An instant answer under fake timers is "fast", which earns the bigger hop.
+    expect(screen.getByTestId('climb-stage-climber')).toHaveAttribute('data-move', 'bigHop');
+    expect(screen.queryAllByTestId('climb-stage-dust')).toHaveLength(0);
+    expect(screen.getByTestId('climb-stage').style.getPropertyValue('--climb-progress')).toBe(
+      String(1 / 3),
     );
-    expect(document.querySelectorAll('.climb-slip-dust')).toHaveLength(0);
+  });
+
+  it('shows the boost glow once the meter is full, and loses it on a miss', () => {
+    const tallPeak: Peak = { id: 98, name: 'Tall Peak', emphasis: 'Testing', height: 30 };
+    const { container } = render(
+      <Climb
+        peak={tallPeak}
+        difficulty={5}
+        characterPreset={preset}
+        seed={1}
+        onSummit={vi.fn()}
+        onFall={vi.fn()}
+        onBail={vi.fn()}
+      />,
+    );
+    expect(container.querySelector('.climb-stage__glow')).toBeNull();
+    // Three instant (fast, +2) answers fill the 5-pip meter.
+    answerCorrect();
+    answerCorrect();
+    answerCorrect();
+    expect(container.querySelector('.climb-stage__glow')).not.toBeNull();
+
+    answerWrong();
+    expect(container.querySelector('.climb-stage__glow')).toBeNull();
   });
 
   it('reports every answer via onQuestionAnswered, including correctness and elapsed time', () => {

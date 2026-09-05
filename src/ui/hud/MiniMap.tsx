@@ -3,6 +3,15 @@ import { useId } from 'react';
 export interface MiniMapProps {
   position: number;
   height: number;
+  /**
+   * Shrink to a HUD chip. Since #94 the climb screen's primary progress
+   * display is `ClimbStage` — the character on the wall — and this drops to a
+   * small "how much further" glance next to the meters. It also stops
+   * exposing itself as a progressbar in that mode: the stage's own readout is
+   * the labelled one, and two progressbars reporting the same number is noise
+   * for anyone on a screen reader.
+   */
+  compact?: boolean;
 }
 
 const WIDTH = 32;
@@ -12,6 +21,9 @@ const SVG_HEIGHT = CLIMB_HEIGHT + FLAG_HEADROOM;
 const MARKER_TOP_MARGIN = 6;
 const MARKER_BOTTOM_MARGIN = 10;
 const MARKER_X = 19;
+/** Same drawing, ~40% smaller, so the HUD chip and the standalone widget can
+ * never drift apart. */
+const COMPACT_SCALE = 0.62;
 
 const CLIFF_PATH = 'M10,100 L5,80 L16,68 L7,50 L18,32 L11,15 L21,0 L30,0 L30,100 Z';
 const ROPE_PATH = 'M17,96 C25,82 12,66 20,50 C27,36 14,22 19,6';
@@ -32,29 +44,32 @@ const PEG_POSITIONS: readonly [number, number][] = [
  * the Climbing Direction Concepts review, replacing the earlier plain
  * filled bar.
  */
-export default function MiniMap({ position, height }: MiniMapProps) {
+export default function MiniMap({ position, height, compact = false }: MiniMapProps) {
   const gradientId = useId();
   const fraction = height > 0 ? Math.max(0, Math.min(1, position / height)) : 0;
   const markerY =
     CLIMB_HEIGHT -
     MARKER_BOTTOM_MARGIN -
     fraction * (CLIMB_HEIGHT - MARKER_BOTTOM_MARGIN - MARKER_TOP_MARGIN);
+  const drawnWidth = compact ? Math.round(WIDTH * COMPACT_SCALE) : WIDTH;
+  const drawnHeight = compact ? Math.round(SVG_HEIGHT * COMPACT_SCALE) : SVG_HEIGHT;
 
   return (
-    <div
-      data-testid="mini-map"
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
-    >
+    <div className="mini-map" data-testid="mini-map" data-compact={compact ? 'true' : 'false'}>
       <div
-        role="progressbar"
-        aria-valuenow={position}
-        aria-valuemin={0}
-        aria-valuemax={height}
-        style={{ width: WIDTH, height: SVG_HEIGHT }}
+        {...(compact
+          ? { 'aria-hidden': true }
+          : {
+              role: 'progressbar',
+              'aria-valuenow': position,
+              'aria-valuemin': 0,
+              'aria-valuemax': height,
+            })}
+        style={{ width: drawnWidth, height: drawnHeight }}
       >
         <svg
-          width={WIDTH}
-          height={SVG_HEIGHT}
+          width={drawnWidth}
+          height={drawnHeight}
           viewBox={`0 -${FLAG_HEADROOM} ${WIDTH} ${SVG_HEIGHT}`}
         >
           <defs>
@@ -86,7 +101,7 @@ export default function MiniMap({ position, height }: MiniMapProps) {
           />
         </svg>
       </div>
-      <span data-testid="mini-map-label" style={{ fontSize: 12 }}>
+      <span data-testid="mini-map-label" style={{ fontSize: compact ? 11 : 12 }}>
         {position} / {height}
       </span>
     </div>
