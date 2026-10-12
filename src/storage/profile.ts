@@ -153,6 +153,12 @@ function updateProfile(
   };
 }
 
+/** Changes which animal climbs for this profile. The id is stored as-is;
+ * `resolveAnimal` on the read side tolerates legacy and unknown ids. */
+export function setCharacter(save: SaveFile, profileId: string, characterId: string): SaveFile {
+  return updateProfile(save, profileId, (profile) => ({ ...profile, characterId }));
+}
+
 /** Sets a single peak's current/selected difficulty, independent of any
  * other peak's — this is what "picking a level" on the map persists. */
 export function setPeakDifficulty(

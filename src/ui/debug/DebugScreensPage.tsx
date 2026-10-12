@@ -143,6 +143,7 @@ export default function DebugScreensPage() {
         onViewFullHistory={(peakId, difficulty) =>
           setMapAction(`Viewed full history: peak ${peakId} level ${difficulty}`)
         }
+        onOpenProfile={(section) => setMapAction(`Opened profile: ${section}`)}
       />
 
       <h2>Review</h2>

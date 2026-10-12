@@ -12,7 +12,7 @@ export interface CharacterPickProps {
 /**
  * One-time-per-profile choice of animal, reached right after naming a new
  * profile. Six live turntables; hovering or focusing one makes it cheer.
- * The choice sticks as `Profile.characterId`.
+ * Stored as `Profile.characterId`; changeable later on the profile screen.
  */
 export default function CharacterPick({ onPick }: CharacterPickProps) {
   const [hovered, setHovered] = useState<AnimalId | null>(null);
@@ -25,7 +25,9 @@ export default function CharacterPick({ onPick }: CharacterPickProps) {
   return (
     <main className="page pick-screen">
       <h1>Pick your climber</h1>
-      <p className="page__lead">Choose who climbs with you. You can&apos;t change this later.</p>
+      <p className="page__lead">
+        Choose who climbs with you. You can switch later from your profile.
+      </p>
       <div className="pick-grid" data-testid="character-grid">
         {ANIMALS.map((animal) => (
           <button
