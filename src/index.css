@@ -240,6 +240,42 @@ td {
   position: absolute;
   inset: 0;
 }
+.scene-fallback--sky {
+  background: linear-gradient(#4f8fd6, #cfe6ff);
+  display: grid;
+  place-items: center;
+}
+.scene-loading {
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #2a1f14;
+  font-weight: 700;
+  animation: loadingPulse 1.2s ease-in-out infinite;
+}
+@keyframes loadingPulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.map-screen__hint {
+  position: absolute;
+  left: 50%;
+  bottom: 0.6rem;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(42, 31, 20, 0.55);
+  color: #fff;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .climb-screen__scene {
   position: fixed;
   inset: 0;
@@ -516,7 +552,7 @@ td {
   font-weight: 700;
 }
 
-@media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+@media (min-width: 720px) and (min-aspect-ratio: 1/1) {
   .climb-card {
     left: auto;
     right: 1rem;
@@ -524,11 +560,26 @@ td {
     bottom: 1rem;
     width: min(44vw, 560px);
     max-height: none;
+    overflow: auto;
     border-radius: var(--radius);
     display: flex;
     flex-direction: column;
     justify-content: center;
     padding: 1.25rem 1.25rem;
+  }
+}
+
+@media (min-width: 720px) and (min-aspect-ratio: 1/1) and (max-height: 520px) {
+  .climb-card {
+    top: 3.4rem;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    padding: 0.6rem 0.9rem;
+    justify-content: flex-start;
+  }
+  .climb-card__prompt {
+    font-size: 1rem;
+    margin: 0.4rem 0 0.3rem;
   }
 }
 
@@ -590,7 +641,7 @@ td {
   left: 50%;
   pointer-events: none;
 }
-@media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+@media (min-width: 720px) and (min-aspect-ratio: 1/1) {
   .result-screen {
     place-items: center end;
     padding-right: 2rem;

@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, memo, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useCursor } from '@react-three/drei';
 import * as THREE from 'three';
@@ -19,7 +19,23 @@ export interface MapSceneProps {
   summitedPeakIds: readonly number[];
   animalId: AnimalId;
   onSelectPeak: (peakId: number) => void;
+  /** Bump to glide the camera back to the selected peak. */
+  recenterKey?: number;
   reducedMotion?: boolean;
+}
+
+/** Player-driven camera offset: drag to pan, wheel or pinch to zoom. */
+interface ViewControl {
+  panX: number;
+  panZ: number;
+  zoom: number;
+}
+
+const MIN_ZOOM = 0.55;
+const MAX_ZOOM = 1.6;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 const ISLAND_TOP = 0.75;
@@ -260,35 +276,128 @@ function Wanderer({
   );
 }
 
+const PAN_LIMIT = ISLAND_RADIUS + 2;
+
+/**
+ * Drag anywhere on the canvas to pan the island, wheel or pinch to zoom.
+ * Clicks still select peaks: react-three-fiber only fires `onClick` when the
+ * pointer moved less than a couple of pixels between down and up.
+ */
+function PanControls({ viewRef }: { viewRef: RefObject<ViewControl> }) {
+  const { gl, size } = useThree();
+  const dragRef = useRef({
+    pointers: new Map<number, { x: number; y: number }>(),
+    last: { x: 0, y: 0 },
+    pinch: 0,
+  });
+  useEffect(() => {
+    const element = gl.domElement;
+    const drag = dragRef.current;
+    const pinchDistance = () => {
+      const [a, b] = [...drag.pointers.values()];
+      return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+    };
+    const onDown = (event: PointerEvent) => {
+      drag.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      drag.last = { x: event.clientX, y: event.clientY };
+      if (drag.pointers.size === 2) drag.pinch = pinchDistance();
+      element.setPointerCapture?.(event.pointerId);
+    };
+    const onMove = (event: PointerEvent) => {
+      if (!drag.pointers.has(event.pointerId)) return;
+      drag.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const view = viewRef.current;
+      if (!view) return;
+      if (drag.pointers.size >= 2) {
+        const distance = pinchDistance();
+        if (drag.pinch > 0 && distance > 0) {
+          view.zoom = clamp(view.zoom * (drag.pinch / distance), MIN_ZOOM, MAX_ZOOM);
+        }
+        drag.pinch = distance;
+        return;
+      }
+      const dx = event.clientX - drag.last.x;
+      const dy = event.clientY - drag.last.y;
+      drag.last = { x: event.clientX, y: event.clientY };
+      // World units per pixel at the island, roughly, for this zoom and viewport.
+      const k = (24 * view.zoom) / Math.max(320, size.width);
+      view.panX = clamp(view.panX - dx * k, -PAN_LIMIT, PAN_LIMIT);
+      view.panZ = clamp(view.panZ - dy * k * 1.4, -PAN_LIMIT, PAN_LIMIT);
+    };
+    const onUp = (event: PointerEvent) => {
+      drag.pointers.delete(event.pointerId);
+      if (drag.pointers.size < 2) drag.pinch = 0;
+    };
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const view = viewRef.current;
+      if (!view) return;
+      view.zoom = clamp(view.zoom * (1 + event.deltaY * 0.0012), MIN_ZOOM, MAX_ZOOM);
+    };
+    element.addEventListener('pointerdown', onDown);
+    element.addEventListener('pointermove', onMove);
+    element.addEventListener('pointerup', onUp);
+    element.addEventListener('pointercancel', onUp);
+    element.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      element.removeEventListener('pointerdown', onDown);
+      element.removeEventListener('pointermove', onMove);
+      element.removeEventListener('pointerup', onUp);
+      element.removeEventListener('pointercancel', onUp);
+      element.removeEventListener('wheel', onWheel);
+    };
+  }, [gl, size.width, viewRef]);
+  return null;
+}
+
+const desiredCamera = new THREE.Vector3();
+const desiredLook = new THREE.Vector3();
+
 function MapCamera({
   selectedPeakId,
+  recenterKey,
+  viewRef,
   reducedMotion,
 }: {
   selectedPeakId: number;
+  recenterKey: number;
+  viewRef: RefObject<ViewControl>;
   reducedMotion: boolean;
 }) {
   const { camera, size } = useThree();
-  const target = useRef(new THREE.Vector3());
-  const look = useRef(new THREE.Vector3());
-  const desired = useMemo(() => new THREE.Vector3(), []);
-  const first = useRef(true);
+  const lookRef = useRef(new THREE.Vector3());
+  const firstRef = useRef(true);
+  const seenRef = useRef(`${selectedPeakId}:${recenterKey}`);
   useFrame((_, delta) => {
+    const view = viewRef.current;
+    if (!view) return;
+    const key = `${selectedPeakId}:${recenterKey}`;
+    if (key !== seenRef.current) {
+      // A new selection or an explicit recenter glides the view back onto the climber.
+      seenRef.current = key;
+      view.panX = 0;
+      view.panZ = 0;
+      view.zoom = 1;
+    }
     const spot = peakSpotFor(selectedPeakId);
     const portrait = size.height > size.width;
     const stand = standPoint(spot);
-    desired.set(stand.x * 0.6, ISLAND_TOP + (portrait ? 11 : 8.5), stand.z + (portrait ? 13 : 11));
-    const lookAt = new THREE.Vector3(stand.x * 0.6, ISLAND_TOP + spot.height * 0.35, stand.z - 2.5);
-    if (first.current || reducedMotion) {
-      camera.position.copy(desired);
-      look.current.copy(lookAt);
-      first.current = false;
+    const cx = stand.x * 0.6 + view.panX;
+    const cz = stand.z + view.panZ;
+    const height = (portrait ? 11 : 8.5) * view.zoom;
+    const back = (portrait ? 13 : 11) * view.zoom;
+    desiredCamera.set(cx, ISLAND_TOP + height, cz + back);
+    desiredLook.set(cx, ISLAND_TOP + spot.height * 0.35, cz - 2.5);
+    if (firstRef.current || reducedMotion) {
+      camera.position.copy(desiredCamera);
+      lookRef.current.copy(desiredLook);
+      firstRef.current = false;
     } else {
-      const k = 1 - Math.exp(-delta * 2.6);
-      camera.position.lerp(desired, k);
-      look.current.lerp(lookAt, k);
+      const k = 1 - Math.exp(-delta * 3.2);
+      camera.position.lerp(desiredCamera, k);
+      lookRef.current.lerp(desiredLook, k);
     }
-    target.current.copy(look.current);
-    camera.lookAt(look.current);
+    camera.lookAt(lookRef.current);
   });
   return null;
 }
@@ -298,14 +407,16 @@ function MapCamera({
  * selected one and trotting over when the selection changes. Clicking a
  * mountain selects it; the DOM list beside the scene does the rest.
  */
-export default function MapScene({
+function MapScene({
   selectedPeakId,
   summitedPeakIds,
   animalId,
   onSelectPeak,
+  recenterKey = 0,
   reducedMotion = false,
 }: MapSceneProps) {
   const pines = useMemo(() => islandPines(), []);
+  const viewRef = useRef<ViewControl>({ panX: 0, panZ: 0, zoom: 1 });
   if (!hasWebGL()) {
     return (
       <div
@@ -318,10 +429,10 @@ export default function MapScene({
   return (
     <Canvas
       shadows="percentage"
-      dpr={[1, 1.75]}
+      dpr={[1, 1.5]}
       camera={{ fov: 38, near: 0.1, far: 400, position: [0, 9, 14] }}
       gl={{ antialias: true }}
-      style={{ position: 'absolute', inset: 0 }}
+      style={{ position: 'absolute', inset: 0, touchAction: 'none' }}
       data-testid="map-scene"
     >
       <color attach="background" args={[SKY.bottom]} />
@@ -385,9 +496,17 @@ export default function MapScene({
           reducedMotion={reducedMotion}
         />
       </Suspense>
-      <MapCamera selectedPeakId={selectedPeakId} reducedMotion={reducedMotion} />
+      <PanControls viewRef={viewRef} />
+      <MapCamera
+        selectedPeakId={selectedPeakId}
+        recenterKey={recenterKey}
+        viewRef={viewRef}
+        reducedMotion={reducedMotion}
+      />
     </Canvas>
   );
 }
 
 export { PEAK_THEMES };
+
+export default memo(MapScene);

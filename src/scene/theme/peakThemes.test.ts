@@ -11,8 +11,9 @@ describe('peakThemes', () => {
 
   it('uses valid hex colours everywhere and a daylight in 0..1', () => {
     for (const theme of PEAK_THEMES) {
-      const { peak, daylight, ...colours } = theme;
+      const { peak, daylight, weather, ...colours } = theme;
       void peak;
+      expect(['none', 'snow', 'leaves']).toContain(weather);
       for (const [key, value] of Object.entries(colours)) expect(value, key).toMatch(HEX);
       expect(daylight).toBeGreaterThan(0);
       expect(daylight).toBeLessThanOrEqual(1);

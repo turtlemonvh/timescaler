@@ -14,9 +14,10 @@ export interface Vec3 {
   z: number;
 }
 
-/** Vertical distance between consecutive positions — a bit more than one
- * fox height, so a hop is visibly "a body length or more" (fun bar F2). */
-export const LEDGE_DY = 1.15;
+/** Vertical distance between consecutive positions. Taller than the tallest
+ * animal (the stag, 1.6), so the ledge above never hides a climber's back or
+ * antlers, and a hop is visibly "a body length or more" (fun bar F2). */
+export const LEDGE_DY = 1.8;
 /** Horizontal swing of the zig-zag route. */
 export const ROUTE_AMPLITUDE = 1.5;
 /** How far the wall leans back per unit of height. */

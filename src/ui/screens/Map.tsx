@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { formatDateLong } from '../../engine/dateMath';
 import { describeDifficultyComparisonTable } from '../../engine/difficultyDescribe';
 import { PEAKS, type Peak } from '../../engine/peaks';
 import { resolveAnimal } from '../../scene/animals/roster';
 import { playCue } from '../../scene/audio/synth';
-import MapScene from '../../scene/map/MapScene';
+import { MapScene } from '../../scene/lazy';
+import { preloadAnimal } from '../../scene/lazyPreload';
 import { peakTheme } from '../../scene/theme/peakThemes';
 import {
   bestTimeForDifficulty,
@@ -245,6 +246,12 @@ export default function Map({ profile, onClimb, onReview, onViewFullHistory }: M
   const animal = resolveAnimal(profile.characterId);
   const reducedMotion = usePrefersReducedMotion();
   const [selectedPeakId, setSelectedPeakId] = useState(() => firstOpenPeak(profile));
+  const [recenterKey, setRecenterKey] = useState(0);
+
+  // The climb needs this model; start fetching while the player is still choosing.
+  useEffect(() => {
+    preloadAnimal(animal.id);
+  }, [animal.id]);
   const summitedPeakIds = useMemo(
     () =>
       PEAKS.filter((peak) => {
@@ -262,13 +269,25 @@ export default function Map({ profile, onClimb, onReview, onViewFullHistory }: M
   return (
     <main className="map-screen">
       <div className="map-screen__scene" data-testid="map-stage">
-        <MapScene
-          selectedPeakId={selectedPeakId}
-          summitedPeakIds={summitedPeakIds}
-          animalId={animal.id}
-          onSelectPeak={select}
-          reducedMotion={reducedMotion}
-        />
+        <Suspense
+          fallback={
+            <div className="scene-fallback scene-fallback--sky">
+              <span className="scene-loading">Loading the mountain…</span>
+            </div>
+          }
+        >
+          <MapScene
+            selectedPeakId={selectedPeakId}
+            summitedPeakIds={summitedPeakIds}
+            animalId={animal.id}
+            onSelectPeak={select}
+            recenterKey={recenterKey}
+            reducedMotion={reducedMotion}
+          />
+        </Suspense>
+        <p className="map-screen__hint" aria-hidden="true">
+          Drag to look around · tap a peak to pick it
+        </p>
         <div className="map-screen__bar">
           <ProfileChip
             name={profile.name}
@@ -284,6 +303,15 @@ export default function Map({ profile, onClimb, onReview, onViewFullHistory }: M
           />
           <h1 className="map-screen__title">Choose a peak</h1>
           <div className="map-screen__bar-actions">
+            <button
+              type="button"
+              data-variant="ghost"
+              data-testid="map-recenter"
+              title="Back to your climber"
+              onClick={() => setRecenterKey((key) => key + 1)}
+            >
+              Recenter
+            </button>
             <MuteButton />
             <button
               type="button"

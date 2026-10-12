@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { preloadAnimal } from '../../scene/animals/preload';
+import { Suspense, useEffect, useState } from 'react';
 import { ANIMALS, type AnimalId } from '../../scene/animals/roster';
 import { playCue } from '../../scene/audio/synth';
-import AnimalShowcase from '../../scene/pedestal/AnimalShowcase';
+import { AnimalShowcase } from '../../scene/lazy';
+import { preloadAnimal } from '../../scene/lazyPreload';
 import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
 
 export interface CharacterPickProps {
@@ -44,12 +44,14 @@ export default function CharacterPick({ onPick }: CharacterPickProps) {
             }}
           >
             <span className="pick-card__stage" aria-hidden="true">
-              <AnimalShowcase
-                animalId={animal.id}
-                accent={animal.accent}
-                pose={hovered === animal.id ? 'cheer' : 'idle'}
-                reducedMotion={reducedMotion}
-              />
+              <Suspense fallback={<span className="scene-fallback" />}>
+                <AnimalShowcase
+                  animalId={animal.id}
+                  accent={animal.accent}
+                  pose={hovered === animal.id ? 'cheer' : 'idle'}
+                  reducedMotion={reducedMotion}
+                />
+              </Suspense>
             </span>
             <span className="pick-card__name">{animal.name}</span>
             <span className="pick-card__tagline">{animal.tagline}</span>

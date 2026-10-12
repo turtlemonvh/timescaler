@@ -1,7 +1,7 @@
-import { useState, type CSSProperties } from 'react';
+import { Suspense, useState, type CSSProperties } from 'react';
 import type { Peak } from '../../engine/peaks';
 import type { AnimalId } from '../../scene/animals/roster';
-import ClimbScene from '../../scene/climb/ClimbScene';
+import { ClimbScene } from '../../scene/lazy';
 import type { SummitTier } from '../../storage/profile';
 import { formatDuration } from '../formatDuration';
 import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
@@ -78,15 +78,23 @@ export default function Summit({
   return (
     <main className="result-screen result-screen--summit">
       <div className="climb-screen__scene" aria-hidden="true">
-        <ClimbScene
-          peakId={peak.id}
-          animalId={animalId}
-          position={peak.height}
-          height={peak.height}
-          move={null}
-          phase="summit"
-          reducedMotion={reducedMotion}
-        />
+        <Suspense
+          fallback={
+            <div className="scene-fallback scene-fallback--sky">
+              <span className="scene-loading">Loading the mountain…</span>
+            </div>
+          }
+        >
+          <ClimbScene
+            peakId={peak.id}
+            animalId={animalId}
+            position={peak.height}
+            height={peak.height}
+            move={null}
+            phase="summit"
+            reducedMotion={reducedMotion}
+          />
+        </Suspense>
       </div>
       <section className="result-card" data-testid="summit-celebration">
         <div className="result-card__burst" aria-hidden="true">

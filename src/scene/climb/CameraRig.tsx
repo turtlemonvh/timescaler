@@ -47,7 +47,7 @@ export default function CameraRig({
       orbitRef.current += delta;
       const angle = Math.sin(orbitRef.current * 0.45) * 0.85;
       const radius = portrait ? 6.5 : 5.2;
-      const sideShift = !portrait && size.width >= 900 ? 1.6 : 0;
+      const sideShift = !portrait && size.width >= 720 ? 1.6 : 0;
       desired.set(
         t.x + Math.sin(angle) * radius + sideShift,
         t.y + 2.2,
@@ -60,7 +60,7 @@ export default function CameraRig({
       // in the open left half of the viewport.
       const follow = portrait ? 1 : 0.5;
       // Matches the CSS breakpoint that docks the card on the right.
-      const sideShift = !portrait && size.width >= 900 ? 2.1 : 0;
+      const sideShift = !portrait && size.width >= 720 ? 2.1 : 0;
       desired.set(t.x * follow + sideShift, t.y + lift, t.z + distance);
       look.set(t.x * follow + sideShift, t.y + 0.6 + lookDrop, t.z);
     }

@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mulberry32 } from '../../engine/rng';
 import type { PeakTheme } from '../theme/peakThemes';
 import Clouds from '../world/Clouds';
@@ -58,7 +59,10 @@ function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
     const routeDamp = clamp01((nearest - 0.7) / 1.2);
     const n = noise(x, y, theme.peak.id) + (rng() - 0.5) * 0.35;
     const edgeRecede = Math.abs(x) > 3.3 ? (Math.abs(x) - 3.3) * 0.75 : 0;
-    const z = wallZ(y) + n * 0.5 * (0.25 + 0.75 * routeDamp) - edgeRecede;
+    // A shallow groove follows the route: calmer rock near the ledges, and
+    // room for the rope to lie against the wall behind the climber.
+    const groove = 0.3 * (1 - routeDamp);
+    const z = wallZ(y) + n * 0.5 * (0.25 + 0.75 * routeDamp) - edgeRecede - groove;
     positions.setZ(i, z);
 
     const shade = clamp01(0.5 - n * 0.9) * 0.75;
@@ -132,13 +136,13 @@ function Ledge({
   const depth = 0.9 + rng() * 0.3;
   return (
     <group position={[point.x, point.y - 0.12, point.z + 0.2]}>
-      {/* A boulder tucked under the slab, towards the wall, so it never hides the climber. */}
+      {/* A boulder tucked under the slab and into the wall, so it never hides the climber. */}
       <mesh
         castShadow
         receiveShadow
-        position={[0.1, -0.42, -0.25]}
+        position={[0.1, -0.5, -0.5]}
         rotation={[tilt * 0.3, yaw, tilt]}
-        scale={[0.6, 0.45, 0.5]}
+        scale={[0.55, 0.4, 0.5]}
       >
         <dodecahedronGeometry args={[1, 0]} />
         <meshStandardMaterial color={theme.rockDark} flatShading roughness={1} />
@@ -151,7 +155,7 @@ function Ledge({
           roughness={1}
         />
       </mesh>
-      {snowy && (
+      {snowy && !active && (
         <mesh
           position={[0, 0.13, 0]}
           rotation={[0, yaw * 0.4, 0]}
@@ -162,23 +166,37 @@ function Ledge({
         </mesh>
       )}
       {active && (
-        <mesh position={[0, 0.12, 0.1]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.55, 0.7, 24]} />
-          <meshBasicMaterial color={theme.flag} transparent opacity={0.65} />
+        <mesh
+          position={[0, 0.13, 0]}
+          rotation={[0, yaw * 0.4, 0]}
+          scale={[width * 0.98, 0.03, depth * 0.94]}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshBasicMaterial color={theme.flag} transparent opacity={0.6} />
         </mesh>
       )}
     </group>
   );
 }
 
-/** A fixed rope running past every ledge — the climbing route, readable at a glance. */
+/** Rope segments slung between consecutive ledges, lying against the wall
+ * behind the climber so they never cross in front of it. */
 function Rope({ route, color }: { route: Vec3[]; color: string }) {
   const geometry = useMemo(() => {
-    const points = route.map(
-      (p, i) => new THREE.Vector3(p.x + (i % 2 === 0 ? 0.55 : -0.55), p.y + 0.05, p.z + 0.08),
-    );
-    const curve = new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.3);
-    return new THREE.TubeGeometry(curve, route.length * 6, 0.035, 5, false);
+    const pieces: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < route.length - 1; i++) {
+      const a = route[i];
+      const b = route[i + 1];
+      const dir = Math.sign(b.x - a.x) || 1;
+      const reach = Math.abs(b.x - a.x) < 1.2 ? 0.3 : 0.6;
+      const start = new THREE.Vector3(a.x + dir * reach, a.y + 0.02, a.z - 0.22);
+      const end = new THREE.Vector3(b.x - dir * reach, b.y - 0.08, b.z - 0.22);
+      const mid = start.clone().lerp(end, 0.5);
+      mid.y -= 0.3;
+      const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+      pieces.push(new THREE.TubeGeometry(curve, 8, 0.045, 5, false));
+    }
+    return mergeGeometries(pieces) ?? new THREE.BufferGeometry();
   }, [route]);
   return (
     <mesh geometry={geometry}>
@@ -298,9 +316,9 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
       <Clouds
         count={14}
         seed={theme.peak.id}
-        xRange={[-26, 26]}
-        yRange={[5, top + 8]}
-        zRange={[-7, 0.5]}
+        xRange={[-28, 28]}
+        yRange={[4, top + 9]}
+        zRange={[-18, -9]}
         speed={0.45}
       />
     </group>

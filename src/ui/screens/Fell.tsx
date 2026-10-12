@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import type { Peak } from '../../engine/peaks';
 import type { AnimalId } from '../../scene/animals/roster';
-import ClimbScene from '../../scene/climb/ClimbScene';
+import { ClimbScene } from '../../scene/lazy';
 import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
 
 /** Playful, low-stakes tone — a fall is part of the game, not a failure to be coached through. */
@@ -35,15 +35,23 @@ export default function Fell({ peak, animalId, onRetry, onReturnToMap }: FellPro
   return (
     <main className="result-screen result-screen--fell">
       <div className="climb-screen__scene" aria-hidden="true">
-        <ClimbScene
-          peakId={peak.id}
-          animalId={animalId}
-          position={0}
-          height={peak.height}
-          move={null}
-          phase="fell"
-          reducedMotion={reducedMotion}
-        />
+        <Suspense
+          fallback={
+            <div className="scene-fallback scene-fallback--sky">
+              <span className="scene-loading">Loading the mountain…</span>
+            </div>
+          }
+        >
+          <ClimbScene
+            peakId={peak.id}
+            animalId={animalId}
+            position={0}
+            height={peak.height}
+            move={null}
+            phase="fell"
+            reducedMotion={reducedMotion}
+          />
+        </Suspense>
       </div>
       <section className="result-card">
         <h1>You slipped!</h1>

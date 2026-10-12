@@ -14,66 +14,67 @@ afterEach(() => {
 // *what the scene was asked to do* (phase, position, last move); the scenes
 // themselves are verified visually from the dev server and their pure
 // helpers (cliff path, move description, themes, layout) have real tests.
-vi.mock('./scene/climb/ClimbScene', () => ({
-  default: (props: {
-    peakId: number;
-    animalId: string;
-    position: number;
-    height: number;
-    move: { kind: string; steps: number; fast: boolean } | null;
-    phase: string;
-    boosted?: boolean;
-  }) =>
-    createElement('div', {
-      'data-testid': 'climb-scene',
-      'data-peak': props.peakId,
-      'data-animal': props.animalId,
-      'data-position': props.position,
-      'data-height': props.height,
-      'data-phase': props.phase,
-      'data-move': props.move?.kind ?? 'none',
-      'data-move-steps': props.move?.steps ?? 0,
-      'data-move-fast': props.move?.fast ? 'true' : 'false',
-      'data-boosted': props.boosted ? 'true' : 'false',
-    }),
-}));
+const ClimbSceneStub = (props: {
+  peakId: number;
+  animalId: string;
+  position: number;
+  height: number;
+  move: { kind: string; steps: number; fast: boolean } | null;
+  phase: string;
+  boosted?: boolean;
+}) =>
+  createElement('div', {
+    'data-testid': 'climb-scene',
+    'data-peak': props.peakId,
+    'data-animal': props.animalId,
+    'data-position': props.position,
+    'data-height': props.height,
+    'data-phase': props.phase,
+    'data-move': props.move?.kind ?? 'none',
+    'data-move-steps': props.move?.steps ?? 0,
+    'data-move-fast': props.move?.fast ? 'true' : 'false',
+    'data-boosted': props.boosted ? 'true' : 'false',
+  });
 
-vi.mock('./scene/map/MapScene', () => ({
-  default: (props: {
-    selectedPeakId: number;
-    summitedPeakIds: readonly number[];
-    animalId: string;
-    onSelectPeak: (peakId: number) => void;
-  }) =>
+const MapSceneStub = (props: {
+  selectedPeakId: number;
+  summitedPeakIds: readonly number[];
+  animalId: string;
+  onSelectPeak: (peakId: number) => void;
+}) =>
+  createElement(
+    'div',
+    {
+      'data-testid': 'map-scene',
+      'data-selected': props.selectedPeakId,
+      'data-summited': props.summitedPeakIds.join(','),
+      'data-animal': props.animalId,
+    },
+    // A stand-in for clicking a mountain in 3D.
     createElement(
-      'div',
+      'button',
       {
-        'data-testid': 'map-scene',
-        'data-selected': props.selectedPeakId,
-        'data-summited': props.summitedPeakIds.join(','),
-        'data-animal': props.animalId,
+        type: 'button',
+        'data-testid': 'map-scene-select-next',
+        onClick: () => props.onSelectPeak(props.selectedPeakId + 1),
       },
-      // A stand-in for clicking a mountain in 3D.
-      createElement(
-        'button',
-        {
-          type: 'button',
-          'data-testid': 'map-scene-select-next',
-          onClick: () => props.onSelectPeak(props.selectedPeakId + 1),
-        },
-        'next peak',
-      ),
+      'next peak',
     ),
-}));
+  );
 
-vi.mock('./scene/pedestal/AnimalShowcase', () => ({
-  default: (props: { animalId: string; pose?: string }) =>
-    createElement('div', {
-      'data-testid': 'animal-showcase',
-      'data-animal': props.animalId,
-      'data-pose': props.pose ?? 'idle',
-    }),
+const AnimalShowcaseStub = (props: { animalId: string; pose?: string }) =>
+  createElement('div', {
+    'data-testid': 'animal-showcase',
+    'data-animal': props.animalId,
+    'data-pose': props.pose ?? 'idle',
+  });
+
+vi.mock('./scene/lazy', () => ({
+  ClimbScene: ClimbSceneStub,
+  MapScene: MapSceneStub,
+  AnimalShowcase: AnimalShowcaseStub,
 }));
+vi.mock('./scene/lazyPreload', () => ({ preloadAnimal: () => undefined }));
 
 vi.mock('./scene/animals/Animal', () => ({ default: () => null }));
 vi.mock('./scene/animals/preload', () => ({ preloadAnimal: () => undefined }));

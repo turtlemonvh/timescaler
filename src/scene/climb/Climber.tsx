@@ -68,7 +68,7 @@ function buildSegments(move: ClimbMove, peakId: number): Segment[] {
       segments.push({
         from: ledgePoint(move.from + step - 1, peakId),
         to: ledgePoint(move.from + step, peakId),
-        apex: move.fast ? 1.0 : 0.7,
+        apex: move.fast ? 1.3 : 0.95,
         ms: step === 1 ? (move.kind === 'summit' ? SUMMIT_HOP_MS : HOP_MS) : EXTRA_STEP_MS,
         ease: easeInOut,
         squashOnLand: true,
@@ -80,7 +80,7 @@ function buildSegments(move: ClimbMove, peakId: number): Segment[] {
     segments.push({
       from,
       to: move.steps === 0 ? from : to,
-      apex: move.steps === 0 ? 0.12 : -0.35,
+      apex: move.steps === 0 ? 0.12 : -0.45,
       ms: SLIP_MS,
       ease: easeIn,
       squashOnLand: true,
@@ -122,6 +122,7 @@ export default function Climber({
   reducedMotion,
 }: ClimberProps) {
   const glowRef = useRef<THREE.Group>(null);
+  const sparkTimerRef = useRef(0);
   const groupRef = useRef<THREE.Group>(null);
   const bodyRef = useRef<THREE.Group>(null);
   const tweenRef = useRef<Tween | null>(null);
@@ -330,13 +331,32 @@ export default function Climber({
     // Turn smoothly toward the current facing.
     node.rotation.y += (facingRef.current - node.rotation.y) * Math.min(1, delta * 10);
 
-    // Boost glow: a ring and light that breathe under the climber while the meter is full.
+    // Boost glow: a breathing light plus a trickle of sparks while the meter is full.
     const glow = glowRef.current;
+    const glowing = boosted && phase === 'climb';
     if (glow) {
-      const pulse = 0.85 + Math.sin(state.clock.elapsedTime * 6) * 0.15;
-      glow.visible = boosted && phase === 'climb';
-      glow.scale.set(pulse, 1, pulse);
-      glow.rotation.y += delta * 1.5;
+      glow.visible = glowing;
+      const light = glow.children[0] as THREE.PointLight | undefined;
+      if (light) light.intensity = 2.4 + Math.sin(state.clock.elapsedTime * 6) * 0.9;
+    }
+    if (glowing) {
+      sparkTimerRef.current += delta;
+      if (sparkTimerRef.current > 0.45) {
+        sparkTimerRef.current = 0;
+        particlesRef.current?.burst({
+          x: node.position.x,
+          y: node.position.y + 0.2,
+          z: node.position.z + 0.3,
+          count: 3,
+          colors: ['#ffe066', '#fff5b8'],
+          speed: 0.8,
+          gravity: -1.2,
+          life: 0.9,
+          size: 0.07,
+          up: 0.9,
+          spin: 4,
+        });
+      }
     }
 
     worldPositionRef.current?.copy(node.position);
@@ -353,11 +373,7 @@ export default function Climber({
   return (
     <group ref={groupRef}>
       <group ref={glowRef} visible={false}>
-        <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.45, 0.7, 6]} />
-          <meshBasicMaterial color="#ffd13b" transparent opacity={0.8} />
-        </mesh>
-        <pointLight color="#ffd13b" intensity={2.5} distance={3.5} position={[0, 0.6, 0.4]} />
+        <pointLight color="#ffd13b" intensity={3} distance={3.5} position={[0, 0.6, 0.5]} />
       </group>
       <group ref={bodyRef}>
         <Animal

@@ -98,11 +98,17 @@ const CUES: Readonly<Record<Cue, readonly Note[]>> = {
   ],
 };
 
+export interface CueOptions {
+  /** Shift the whole cue up (or down) by this many semitones. */
+  semitones?: number;
+}
+
 /** Plays a cue unless muted or audio is unavailable. Never throws. */
-export function playCue(cue: Cue): void {
+export function playCue(cue: Cue, options: CueOptions = {}): void {
   if (isMuted()) return;
   const ctx = getContext();
   if (!ctx) return;
+  const pitch = Math.pow(2, (options.semitones ?? 0) / 12);
   try {
     if (ctx.state === 'suspended') void ctx.resume();
     const start = ctx.currentTime + 0.01;
@@ -110,9 +116,9 @@ export function playCue(cue: Cue): void {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = note.type ?? 'triangle';
-      osc.frequency.setValueAtTime(note.freq, start + note.at);
+      osc.frequency.setValueAtTime(note.freq * pitch, start + note.at);
       if (note.glide) {
-        osc.frequency.exponentialRampToValueAtTime(note.glide, start + note.at + note.dur);
+        osc.frequency.exponentialRampToValueAtTime(note.glide * pitch, start + note.at + note.dur);
       }
       const peak = note.gain ?? 0.15;
       gain.gain.setValueAtTime(0.0001, start + note.at);

@@ -1,16 +1,17 @@
-import { useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import type { ClimbState } from '../../engine/climb';
 import type { Peak } from '../../engine/peaks';
 import type { DisplaySpec } from '../../engine/questions';
 import type { AnimalId } from '../../scene/animals/roster';
 import { playCue } from '../../scene/audio/synth';
-import ClimbScene from '../../scene/climb/ClimbScene';
+import { ClimbScene } from '../../scene/lazy';
 import type { ClimbMove } from '../../scene/climb/motion';
 import BoostMeter from '../hud/BoostMeter';
 import FallRiskMeter from '../hud/FallRiskMeter';
 import MuteButton from '../hud/MuteButton';
 import TimerBar from '../hud/TimerBar';
 import { useClimbRun } from '../useClimbRun';
+import { useMediaQuery } from '../useMediaQuery';
 import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
 import AnalogClock from '../widgets/AnalogClock';
 import CalendarMonth from '../widgets/CalendarMonth';
@@ -42,7 +43,7 @@ const MOVE_LABEL: Record<ClimbMove['kind'], string> = {
   none: '',
 };
 
-function renderDisplay(display: DisplaySpec) {
+function renderDisplay(display: DisplaySpec, clockSize: number) {
   switch (display.kind) {
     case 'analogClock':
       return (
@@ -50,7 +51,7 @@ function renderDisplay(display: DisplaySpec) {
           time={display.time}
           showSeconds={display.showSeconds}
           showNumerals={display.showNumerals}
-          size={220}
+          size={clockSize}
         />
       );
     case 'calendar':
@@ -84,19 +85,27 @@ export default function Climb({
 }: ClimbProps) {
   const run = useClimbRun({ peak, difficulty, seed, onSummit, onFall, onQuestionAnswered });
   const reducedMotion = usePrefersReducedMotion();
+  // Landscape phones leave little height beside the scene; a smaller clock keeps the answers in view.
+  const shortScreen = useMediaQuery('(max-height: 520px)');
+  const clockSize = shortScreen ? 150 : 220;
   const { climbState, question, revealing, move } = run;
   const answer = question.answer;
 
+  const streakRef = useRef(0);
   useEffect(() => {
     if (!move) return;
     switch (move.kind) {
       case 'hop':
-        playCue(move.fast ? 'hopFast' : 'hop');
+        // Each hop in a row climbs a semitone, so a run of right answers is audible.
+        streakRef.current = Math.min(streakRef.current + 1, 12);
+        playCue(move.fast ? 'hopFast' : 'hop', { semitones: streakRef.current - 1 });
         break;
       case 'slip':
+        streakRef.current = 0;
         playCue('slip');
         break;
       case 'fall':
+        streakRef.current = 0;
         playCue('fall');
         break;
       case 'summit':
@@ -131,7 +140,7 @@ export default function Climb({
               time={run.draftTime}
               precision={answer.precision}
               onHandChange={revealing ? undefined : run.setDraftTime}
-              size={220}
+              size={clockSize}
             />
             <button
               type="button"
@@ -173,16 +182,24 @@ export default function Climb({
   return (
     <main className="climb-screen" data-move={move?.kind ?? 'none'}>
       <div className="climb-screen__scene" aria-hidden="true">
-        <ClimbScene
-          peakId={peak.id}
-          animalId={animalId}
-          position={climbState.position}
-          height={climbState.height}
-          move={move}
-          phase="climb"
-          boosted={climbState.boost >= climbState.boostCapacity}
-          reducedMotion={reducedMotion}
-        />
+        <Suspense
+          fallback={
+            <div className="scene-fallback scene-fallback--sky">
+              <span className="scene-loading">Loading the mountain…</span>
+            </div>
+          }
+        >
+          <ClimbScene
+            peakId={peak.id}
+            animalId={animalId}
+            position={climbState.position}
+            height={climbState.height}
+            move={move}
+            phase="climb"
+            boosted={climbState.boost >= climbState.boostCapacity}
+            reducedMotion={reducedMotion}
+          />
+        </Suspense>
       </div>
 
       <header className="climb-hud" data-testid="climb-hud">
@@ -228,7 +245,7 @@ export default function Climb({
           {question.prompt}
         </p>
         <div className="climb-card__display" data-testid="climb-display">
-          {renderDisplay(question.display)}
+          {renderDisplay(question.display, clockSize)}
         </div>
         <div className="climb-card__answer" data-testid="climb-answer">
           {renderAnswerSection()}

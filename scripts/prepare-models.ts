@@ -16,7 +16,8 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { dedup, prune, quantize, resample, weld } from '@gltf-transform/functions';
+import { dedup, meshopt, prune, quantize, resample, weld } from '@gltf-transform/functions';
+import { MeshoptEncoder } from 'meshoptimizer';
 
 interface Source {
   animal: string;
@@ -57,6 +58,14 @@ const SOURCES: Source[] = [
   },
 ];
 
+const UNUSED_CLIPS = new Set([
+  'Eating',
+  'Attack_Kick',
+  'Idle_Headlow',
+  'Idle_2_HeadLow',
+  'Idle_HitReact_Right',
+]);
+
 const VENDOR_DIR = path.resolve('vendor/models');
 const OUT_DIR = path.resolve('public/models');
 const BUDGET_BYTES = 15 * 1024 * 1024;
@@ -78,7 +87,10 @@ async function fetchToVendor(source: Source): Promise<string> {
 async function main() {
   await mkdir(VENDOR_DIR, { recursive: true });
   await mkdir(OUT_DIR, { recursive: true });
-  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+  await MeshoptEncoder.ready;
+  const io = new NodeIO()
+    .registerExtensions(ALL_EXTENSIONS)
+    .registerDependencies({ 'meshopt.encoder': MeshoptEncoder });
   let total = 0;
   const rows: string[] = [];
 
@@ -87,17 +99,23 @@ async function main() {
     const document = await io.read(rawPath);
 
     // Every clip is present twice; the `Armature|Clip` copies are the
-    // Blender export artefact, the bare names are what the game plays.
+    // Blender export artefact, the bare names are what the game plays. Clips
+    // the game never resolves (see src/scene/animals/clips.ts) go too —
+    // `Eating` alone is up to 12 s of keyframes.
     for (const animation of document.getRoot().listAnimations()) {
-      if (animation.getName().includes('|')) animation.dispose();
+      const name = animation.getName();
+      if (name.includes('|') || UNUSED_CLIPS.has(name)) animation.dispose();
     }
 
     await document.transform(
       dedup(),
       prune(),
       weld(),
-      resample(),
+      resample({ tolerance: 1e-3 }),
       quantize({ quantizePosition: 14, quantizeNormal: 10, quantizeTexcoord: 12 }),
+      // EXT_meshopt_compression: three.js decodes it with its bundled
+      // meshopt_decoder (no CDN, works offline); see Animal.tsx.
+      meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
     );
 
     const clips = document
@@ -137,7 +155,7 @@ required (credited anyway, because it is excellent work).
 - Mirror used for download: [poly.pizza](https://poly.pizza/bundle/Animated-Animal-Pack-ILAPXeUYiS)
 
 The files here are optimized copies produced by \`scripts/prepare-models.ts\` (duplicate clips
-stripped, dedup, prune, weld, resampled animation, quantized attributes). Total:
+stripped, dedup, prune, weld, resampled animation, quantized attributes, meshopt-compressed). Total:
 ${(total / 1024).toFixed(0)} KB.
 
 | Animal | Source | Size |

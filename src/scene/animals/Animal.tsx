@@ -35,7 +35,8 @@ export default function Animal({
   onPoseFinished,
   scale = 1,
 }: AnimalProps) {
-  const { scene, animations } = useGLTF(modelUrl(id));
+  // No draco (never referenced, avoids any CDN path); meshopt decoder is bundled from three.
+  const { scene, animations } = useGLTF(modelUrl(id), false, true);
   const cloned = useMemo(() => SkeletonUtils.clone(scene), [scene]);
   const groupRef = useRef<THREE.Group>(null);
   const { actions, mixer, names } = useAnimations(animations, groupRef);

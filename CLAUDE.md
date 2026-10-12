@@ -40,11 +40,18 @@ especially by a fresh subagent with no prior context on this repo.
 - **Nothing outside `src/scene/` imports `three`.** Screens pass the engine's numbers plus the last
   `ClimbMove` (from `src/scene/climb/motion.ts`, derived from a before/after `ClimbState` pair) and
   the scene renders. If a scene needs a new fact, add it to the props, don't reach into the engine.
-- **jsdom has no WebGL, so `src/setupTests.ts` mocks the three scene entry points**
-  (`ClimbScene`, `MapScene`, `AnimalShowcase`) with DOM stubs that expose their props as data
-  attributes. Screen tests assert `data-move`, `data-position`, `data-phase` etc. on those stubs.
-  Anything new under `src/scene/` that a screen imports directly needs a stub there too, or every
-  screen test will try to create a WebGL context and fail.
+- **Screens import scenes from `src/scene/lazy.tsx` (React.lazy, one code-split three.js chunk)
+  and `src/scene/lazyPreload.ts`, never from the scene files directly.** jsdom has no WebGL, so
+  `src/setupTests.ts` mocks those two modules with DOM stubs that expose scene props as data
+  attributes; screen tests assert `data-move`, `data-position`, `data-phase` etc. on the stubs.
+  A new scene entry point goes through `lazy.tsx` and gets a stub there too, or every screen test
+  will try to create a WebGL context and fail. Importing `three` from anything outside
+  `src/scene/` pulls it into the main bundle — check `pnpm build`'s chunk list if the intro page
+  gets slow.
+- **Models are meshopt-compressed (`EXT_meshopt_compression`).** `useGLTF(url, false, true)` —
+  draco off (it would reference a CDN decoder path), meshopt on (three's bundled
+  `meshopt_decoder`, works offline). Any new loader must pass the same flags or the GLB fails to
+  parse with a cryptic "unsupported extension" error.
 - **The react-hooks lint rules (React Compiler mode) are strict about refs and hook results.** Props
   that carry refs must be named `*Ref` or writes to `.current` are flagged; mutating a hook's return
   value (e.g. an `AnimationAction` from `useAnimations`) is flagged unless the mutation happens in a

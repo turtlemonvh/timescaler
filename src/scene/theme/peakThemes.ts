@@ -16,6 +16,8 @@ export interface PeakTheme {
   flag: string;
   /** Daylight 0 (dusk) … 1 (noon) — scales the key light. */
   daylight: number;
+  /** Ambient falling particles during the climb. */
+  weather: 'none' | 'snow' | 'leaves';
 }
 
 type Palette = Omit<PeakTheme, 'peak'>;
@@ -33,6 +35,7 @@ const PALETTES: Readonly<Record<number, Palette>> = {
     ground: '#6fa05a',
     flag: '#e2552f',
     daylight: 1,
+    weather: 'none',
   },
   2: {
     rock: '#b0785a',
@@ -46,6 +49,7 @@ const PALETTES: Readonly<Record<number, Palette>> = {
     ground: '#9a9a4a',
     flag: '#ffd13b',
     daylight: 0.8,
+    weather: 'none',
   },
   3: {
     rock: '#5f7576',
@@ -59,6 +63,7 @@ const PALETTES: Readonly<Record<number, Palette>> = {
     ground: '#5c9466',
     flag: '#ff6b6b',
     daylight: 0.9,
+    weather: 'leaves',
   },
   4: {
     rock: '#c2a06b',
@@ -72,6 +77,7 @@ const PALETTES: Readonly<Record<number, Palette>> = {
     ground: '#b9a86a',
     flag: '#3b82f6',
     daylight: 1,
+    weather: 'none',
   },
   5: {
     rock: '#8e8e80',
@@ -85,6 +91,7 @@ const PALETTES: Readonly<Record<number, Palette>> = {
     ground: '#6f9a63',
     flag: '#f59e0b',
     daylight: 0.85,
+    weather: 'none',
   },
   6: {
     rock: '#a35b47',
@@ -98,6 +105,7 @@ const PALETTES: Readonly<Record<number, Palette>> = {
     ground: '#9c7f52',
     flag: '#22d3ee',
     daylight: 0.7,
+    weather: 'leaves',
   },
   7: {
     rock: '#6c8191',
@@ -111,6 +119,7 @@ const PALETTES: Readonly<Record<number, Palette>> = {
     ground: '#4f8a6e',
     flag: '#f472b6',
     daylight: 0.8,
+    weather: 'snow',
   },
   8: {
     rock: '#7f6a46',
@@ -124,10 +133,11 @@ const PALETTES: Readonly<Record<number, Palette>> = {
     ground: '#a89550',
     flag: '#10b981',
     daylight: 0.75,
+    weather: 'leaves',
   },
   9: {
-    rock: '#4b4860',
-    rockDark: '#2e2c3d',
+    rock: '#625d7c',
+    rockDark: '#403c54',
     snow: '#dcdff6',
     skyTop: '#2a2f6b',
     skyBottom: '#8e95d6',
@@ -137,10 +147,11 @@ const PALETTES: Readonly<Record<number, Palette>> = {
     ground: '#4d6d73',
     flag: '#facc15',
     daylight: 0.55,
+    weather: 'snow',
   },
   10: {
-    rock: '#5a4870',
-    rockDark: '#392c49',
+    rock: '#6d5a88',
+    rockDark: '#4a3a5f',
     snow: '#ede4fb',
     skyTop: '#3b1f5e',
     skyBottom: '#c89ee0',
@@ -150,6 +161,7 @@ const PALETTES: Readonly<Record<number, Palette>> = {
     ground: '#55786f',
     flag: '#fb7185',
     daylight: 0.6,
+    weather: 'snow',
   },
 };
 
