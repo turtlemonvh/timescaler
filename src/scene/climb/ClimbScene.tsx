@@ -104,7 +104,7 @@ function ClimbScene({
       <CliffWorld theme={theme} height={height} position={position} />
       <Birds y={Math.min(summitY(height), start.y + 4)} z={-5} />
       <Weather
-        kind={theme.weather}
+        kind={reducedMotion ? 'none' : theme.weather}
         followRef={climberPositionRef}
         colors={
           theme.weather === 'snow'

@@ -438,6 +438,15 @@ td {
   color: var(--accent);
   animation: hudPop 420ms ease-out;
 }
+.climb-hud__streak {
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #2a1f14;
+  animation: hudPop 420ms ease-out;
+}
 .climb-hud__meter {
   display: flex;
   align-items: center;
@@ -580,6 +589,43 @@ td {
   .climb-card__prompt {
     font-size: 1rem;
     margin: 0.4rem 0 0.3rem;
+  }
+}
+
+/* The card flashes with the verdict on the same frame as the climber moves. */
+.climb-screen[data-revealing='true'][data-move='hop'] .climb-card,
+.climb-screen[data-revealing='true'][data-move='summit'] .climb-card {
+  animation: cardGood 700ms ease-out;
+}
+.climb-screen[data-revealing='true'][data-move='slip'] .climb-card,
+.climb-screen[data-revealing='true'][data-move='fall'] .climb-card {
+  animation: cardBad 500ms ease-out;
+}
+@keyframes cardGood {
+  0% {
+    box-shadow:
+      0 0 0 0 color-mix(in srgb, var(--pine) 70%, transparent),
+      var(--shadow);
+  }
+  100% {
+    box-shadow:
+      0 0 0 18px transparent,
+      var(--shadow);
+  }
+}
+@keyframes cardBad {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+  75% {
+    transform: translateX(-3px);
   }
 }
 
@@ -988,8 +1034,10 @@ td {
     transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
   }
   .climb-hud__move,
+  .climb-hud__streak,
+  .climb-card,
   .result-card {
-    animation: none;
+    animation: none !important;
   }
 }
 

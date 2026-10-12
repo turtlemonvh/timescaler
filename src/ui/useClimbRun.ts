@@ -62,6 +62,8 @@ export interface ClimbRun {
   timeLeftMs: number;
   /** The last move the rules produced, for the scene and the sound. */
   move: ClimbMove | null;
+  /** Consecutive upward moves; resets on a slip or fall. */
+  streak: number;
   answerChoice: (index: number | undefined) => void;
   submitSetHands: () => void;
   submitNumber: () => void;
@@ -95,6 +97,7 @@ export function useClimbRun({
   const [draftNumber, setDraftNumber] = useState<number | ''>('');
   const [revealing, setRevealing] = useState(false);
   const [move, setMove] = useState<ClimbMove | null>(null);
+  const [streak, setStreak] = useState(0);
   const [timeLeftMs, setTimeLeftMs] = useState(question.timeLimitMs);
 
   // `Date.now()` is impure, so both start times are set from a mount-only
@@ -120,8 +123,12 @@ export function useClimbRun({
     const nextState = correct ? applyCorrect(climbState, fast) : applyMiss(climbState);
     moveCount.current += 1;
 
+    const nextMove = describeMove(climbState, nextState, fast, moveCount.current);
     setRevealing(true);
-    setMove(describeMove(climbState, nextState, fast, moveCount.current));
+    setMove(nextMove);
+    setStreak((current) =>
+      nextMove.kind === 'hop' || nextMove.kind === 'summit' ? current + 1 : 0,
+    );
     setClimbState(nextState);
     onQuestionAnswered?.(question.typeId, correct, elapsedMs);
 
@@ -201,6 +208,7 @@ export function useClimbRun({
     revealing,
     timeLeftMs,
     move,
+    streak,
     answerChoice,
     submitSetHands,
     submitNumber,

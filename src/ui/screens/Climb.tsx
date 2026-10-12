@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect } from 'react';
 import type { ClimbState } from '../../engine/climb';
 import type { Peak } from '../../engine/peaks';
 import type { DisplaySpec } from '../../engine/questions';
@@ -91,21 +91,18 @@ export default function Climb({
   const { climbState, question, revealing, move } = run;
   const answer = question.answer;
 
-  const streakRef = useRef(0);
+  const streak = run.streak;
   useEffect(() => {
     if (!move) return;
     switch (move.kind) {
       case 'hop':
         // Each hop in a row climbs a semitone, so a run of right answers is audible.
-        streakRef.current = Math.min(streakRef.current + 1, 12);
-        playCue(move.fast ? 'hopFast' : 'hop', { semitones: streakRef.current - 1 });
+        playCue(move.fast ? 'hopFast' : 'hop', { semitones: Math.min(streak - 1, 11) });
         break;
       case 'slip':
-        streakRef.current = 0;
         playCue('slip');
         break;
       case 'fall':
-        streakRef.current = 0;
         playCue('fall');
         break;
       case 'summit':
@@ -114,7 +111,8 @@ export default function Climb({
       case 'none':
         break;
     }
-  }, [move]);
+    // `streak` changes in the same render as `move`, so this still runs once per answer.
+  }, [move, streak]);
 
   function handleBail() {
     if (revealing) return;
@@ -180,7 +178,11 @@ export default function Climb({
   const moveLabel = move && move.kind !== 'none' && revealing ? MOVE_LABEL[move.kind] : '';
 
   return (
-    <main className="climb-screen" data-move={move?.kind ?? 'none'}>
+    <main
+      className="climb-screen"
+      data-move={move?.kind ?? 'none'}
+      data-revealing={revealing ? 'true' : 'false'}
+    >
       <div className="climb-screen__scene" aria-hidden="true">
         <Suspense
           fallback={
@@ -211,6 +213,11 @@ export default function Climb({
           {moveLabel && (
             <span className="climb-hud__move" data-testid="climb-move-label">
               {moveLabel}
+            </span>
+          )}
+          {streak >= 3 && (
+            <span className="climb-hud__streak" data-testid="climb-streak">
+              {streak} in a row!
             </span>
           )}
         </div>
