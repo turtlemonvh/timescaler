@@ -592,6 +592,57 @@ td {
   }
 }
 
+/* Title card for the first couple of seconds of a climb. */
+.climb-title {
+  position: fixed;
+  left: 50%;
+  top: 22%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.8rem 1.6rem;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: titleCard 2.6s ease-in-out both;
+}
+.climb-title__peak {
+  font-size: clamp(1.4rem, 3vw + 0.5rem, 2.2rem);
+  font-weight: 700;
+  color: var(--text-h);
+}
+.climb-title__level {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+@keyframes titleCard {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(14px) scale(0.92);
+  }
+  12%,
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.98);
+  }
+}
+@media (min-width: 720px) and (min-aspect-ratio: 1/1) {
+  .climb-title {
+    left: 28%;
+  }
+}
+
 /* The card flashes with the verdict on the same frame as the climber moves. */
 .climb-screen[data-revealing='true'][data-move='hop'] .climb-card,
 .climb-screen[data-revealing='true'][data-move='summit'] .climb-card {
@@ -1038,6 +1089,9 @@ td {
   .climb-card,
   .result-card {
     animation: none !important;
+  }
+  .climb-title {
+    animation: none;
   }
 }
 

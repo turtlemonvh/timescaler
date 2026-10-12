@@ -217,6 +217,24 @@ function islandPines(): PineSpot[] {
   return spots;
 }
 
+/** Stand points from `fromId` to `toId`, following the trail peak by peak. */
+function trailBetween(fromId: number, toId: number): THREE.Vector3[] {
+  const step = toId > fromId ? 1 : -1;
+  const points: THREE.Vector3[] = [];
+  for (let id = fromId + step; step > 0 ? id <= toId : id >= toId; id += step) {
+    points.push(standPoint(peakSpotFor(id)));
+  }
+  return points;
+}
+
+interface Walk {
+  points: THREE.Vector3[];
+  index: number;
+  started: number;
+  /** Milliseconds per segment, by distance. */
+  durations: number[];
+}
+
 function Wanderer({
   selectedPeakId,
   animalId,
@@ -228,45 +246,66 @@ function Wanderer({
 }) {
   const group = useRef<THREE.Group>(null);
   const [pose, setPose] = useState<Pose>('idle');
-  const from = useRef(standPoint(peakSpotFor(selectedPeakId)));
-  const to = useRef(standPoint(peakSpotFor(selectedPeakId)));
-  const started = useRef(0);
-  const duration = useRef(0);
-  const facing = useRef(0);
-
-  useEffect(() => {
-    const target = standPoint(peakSpotFor(selectedPeakId));
-    if (group.current && reducedMotion) {
-      group.current.position.copy(target);
-      from.current = target;
-      to.current = target;
-      return;
-    }
-    from.current = group.current ? group.current.position.clone() : target.clone();
-    to.current = target;
-    const distance = from.current.distanceTo(target);
-    duration.current = Math.min(1600, 350 + distance * 90);
-    started.current = performance.now();
-    if (distance > 0.1) {
-      setPose(distance > 6 ? 'run' : 'walk');
-      facing.current = Math.atan2(target.x - from.current.x, target.z - from.current.z);
-    }
-  }, [selectedPeakId, reducedMotion]);
+  const walkRef = useRef<Walk | null>(null);
+  const atRef = useRef(selectedPeakId);
+  const facingRef = useRef(0.35);
+  const seenRef = useRef(selectedPeakId);
 
   useFrame((_, delta) => {
     const node = group.current;
     if (!node) return;
-    const t = duration.current > 0 ? (performance.now() - started.current) / duration.current : 1;
-    if (t < 1) {
-      const e = t * t * (3 - 2 * t);
-      node.position.lerpVectors(from.current, to.current, e);
-      node.position.y = ISLAND_TOP + Math.abs(Math.sin(t * Math.PI * 6)) * 0.04;
-    } else {
-      node.position.copy(to.current);
-      if (pose === 'walk' || pose === 'run') setPose('idle');
-      facing.current = 0.35;
+
+    // A new selection starts a walk along the trail from wherever we are.
+    if (selectedPeakId !== seenRef.current) {
+      seenRef.current = selectedPeakId;
+      const target = standPoint(peakSpotFor(selectedPeakId));
+      if (reducedMotion) {
+        node.position.copy(target);
+        atRef.current = selectedPeakId;
+        walkRef.current = null;
+      } else {
+        const points = [node.position.clone(), ...trailBetween(atRef.current, selectedPeakId)];
+        const total = points.reduce(
+          (sum, point, i) => (i === 0 ? 0 : sum + point.distanceTo(points[i - 1])),
+          0,
+        );
+        // Long trips run and are capped, so crossing the island never drags on.
+        const speed = total > 9 ? 9 : 5.5;
+        const scale = Math.min(1, 2400 / ((total / speed) * 1000));
+        walkRef.current = {
+          points,
+          index: 0,
+          started: performance.now(),
+          durations: points.map((point, i) =>
+            i === 0 ? 0 : (point.distanceTo(points[i - 1]) / speed) * 1000 * scale,
+          ),
+        };
+        atRef.current = selectedPeakId;
+        if (total > 0.1) setPose(total > 9 ? 'run' : 'walk');
+      }
     }
-    node.rotation.y += (facing.current - node.rotation.y) * Math.min(1, delta * 8);
+
+    const walk = walkRef.current;
+    if (walk) {
+      const next = walk.points[walk.index + 1];
+      if (!next) {
+        walkRef.current = null;
+        if (pose !== 'idle') setPose('idle');
+        facingRef.current = 0.35;
+      } else {
+        const from = walk.points[walk.index];
+        const ms = Math.max(1, walk.durations[walk.index + 1]);
+        const t = Math.min(1, (performance.now() - walk.started) / ms);
+        node.position.lerpVectors(from, next, t);
+        node.position.y = ISLAND_TOP + Math.abs(Math.sin(t * Math.PI * 5)) * 0.05;
+        facingRef.current = Math.atan2(next.x - from.x, next.z - from.z);
+        if (t >= 1) {
+          walk.index += 1;
+          walk.started = performance.now();
+        }
+      }
+    }
+    node.rotation.y += (facingRef.current - node.rotation.y) * Math.min(1, delta * 8);
   });
 
   return (

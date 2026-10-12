@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import type { ClimbState } from '../../engine/climb';
 import type { Peak } from '../../engine/peaks';
 import type { DisplaySpec } from '../../engine/questions';
@@ -90,6 +90,22 @@ export default function Climb({
   const clockSize = shortScreen ? 150 : 220;
   const { climbState, question, revealing, move } = run;
   const answer = question.answer;
+  const [showTitle, setShowTitle] = useState(true);
+  useEffect(() => {
+    // Start the clock after the scene's first frame has painted: the first
+    // climb pays for shader compilation and geometry on the main thread, and
+    // the title should still be readable once the picture appears.
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        timeout = setTimeout(() => setShowTitle(false), 2600);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (timeout) clearTimeout(timeout);
+    };
+  }, []);
 
   const streak = run.streak;
   useEffect(() => {
@@ -203,6 +219,13 @@ export default function Climb({
           />
         </Suspense>
       </div>
+
+      {showTitle && (
+        <div className="climb-title" data-testid="climb-title" aria-hidden="true">
+          <span className="climb-title__peak">{peak.name}</span>
+          <span className="climb-title__level">Level {difficulty}</span>
+        </div>
+      )}
 
       <header className="climb-hud" data-testid="climb-hud">
         <div className="climb-hud__group">
