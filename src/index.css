@@ -561,6 +561,36 @@ td {
   font-weight: 700;
 }
 
+/* Docked along the bottom (everything but the landscape side card): the card
+ * is capped at 60svh, so the prompt steps down a size and the explain line
+ * overlays the top of the card instead of adding height (and a scrollbar)
+ * after an answer. `Climb.tsx` shrinks the clock, splits four short choices
+ * into two columns and compacts the calendar under the same condition. */
+@media not all and (min-width: 720px) and (min-aspect-ratio: 1/1) {
+  .climb-card__prompt {
+    font-size: 1.05rem;
+    margin: 0.5rem 0 0.4rem;
+  }
+  .climb-card__display {
+    margin-bottom: 0.4rem;
+  }
+  .climb-card__explain {
+    position: absolute;
+    top: 0.6rem;
+    left: 0.75rem;
+    right: 0.75rem;
+    z-index: 1;
+    margin: 0;
+    background: linear-gradient(var(--pine-bg), var(--pine-bg)), var(--card-solid);
+    box-shadow: var(--shadow);
+  }
+  /* The explain line restates the answer, so it takes the prompt's place
+   * rather than half-covering a two-line prompt. */
+  .climb-screen[data-revealing='true'] .climb-card__prompt {
+    visibility: hidden;
+  }
+}
+
 @media (min-width: 720px) and (min-aspect-ratio: 1/1) {
   .climb-card {
     left: auto;

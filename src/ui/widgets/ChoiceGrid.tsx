@@ -9,6 +9,11 @@ export interface ChoiceGridProps {
   correctIndex?: number;
   /** Forces every option non-interactive, independent of onSelect. */
   disabled?: boolean;
+  /** Fixed column count, filling the available width. Omitted, the grid
+   * auto-fits 120px+ columns to its content (one column when its parent
+   * shrink-wraps it). The portrait climb card asks for 2 so four options
+   * take two rows instead of four. */
+  columns?: number;
 }
 
 /**
@@ -24,6 +29,7 @@ export default function ChoiceGrid({
   selectedIndex,
   correctIndex,
   disabled,
+  columns,
 }: ChoiceGridProps) {
   const revealing = correctIndex !== undefined;
 
@@ -33,8 +39,11 @@ export default function ChoiceGrid({
       role="group"
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+        gridTemplateColumns: columns
+          ? `repeat(${columns}, minmax(0, 1fr))`
+          : 'repeat(auto-fit, minmax(120px, 1fr))',
         gap: 8,
+        ...(columns ? { width: '100%', maxWidth: 420 } : null),
       }}
     >
       {options.map((option, index) => {

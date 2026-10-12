@@ -43,7 +43,15 @@ const MOVE_LABEL: Record<ClimbMove['kind'], string> = {
   none: '',
 };
 
-function renderDisplay(display: DisplaySpec, clockSize: number) {
+/** Longest option label that still reads well in a half-width portrait button. */
+const TWO_COLUMN_MAX_LABEL = 18;
+
+function choiceColumns(options: string[], docked: boolean): number | undefined {
+  if (!docked || options.length !== 4) return undefined;
+  return options.every((option) => option.length <= TWO_COLUMN_MAX_LABEL) ? 2 : undefined;
+}
+
+function renderDisplay(display: DisplaySpec, clockSize: number, compact: boolean) {
   switch (display.kind) {
     case 'analogClock':
       return (
@@ -60,6 +68,7 @@ function renderDisplay(display: DisplaySpec, clockSize: number) {
           year={display.year}
           monthIndex={display.monthIndex}
           highlightDay={display.highlightDay}
+          compact={compact}
         />
       );
     case 'none':
@@ -87,7 +96,13 @@ export default function Climb({
   const reducedMotion = usePrefersReducedMotion();
   // Landscape phones leave little height beside the scene; a smaller clock keeps the answers in view.
   const shortScreen = useMediaQuery('(max-height: 520px)');
-  const clockSize = shortScreen ? 150 : 220;
+  // Matches the CSS breakpoint that moves the card to the right-hand side.
+  // Otherwise it docks along the bottom (portrait), capped at 60svh so the
+  // climber stays in view above it — the clock, choices and calendar all
+  // tighten up there so the whole question fits without scrolling.
+  const sideCard = useMediaQuery('(min-width: 720px) and (min-aspect-ratio: 1/1)');
+  const docked = !sideCard;
+  const clockSize = shortScreen ? 150 : docked ? 180 : 220;
   const { climbState, question, revealing, move } = run;
   const answer = question.answer;
   const [showTitle, setShowTitle] = useState(true);
@@ -141,6 +156,7 @@ export default function Climb({
         return (
           <ChoiceGrid
             options={answer.options}
+            columns={choiceColumns(answer.options, docked)}
             selectedIndex={run.selectedIndex}
             correctIndex={revealing ? answer.correctIndex : undefined}
             disabled={revealing}
@@ -186,6 +202,7 @@ export default function Climb({
             initialYear={answer.year}
             initialMonthIndex={answer.monthIndex}
             onChange={revealing ? undefined : run.pickDate}
+            compact={docked}
           />
         );
     }
@@ -275,7 +292,7 @@ export default function Climb({
           {question.prompt}
         </p>
         <div className="climb-card__display" data-testid="climb-display">
-          {renderDisplay(question.display, clockSize)}
+          {renderDisplay(question.display, clockSize, docked)}
         </div>
         <div className="climb-card__answer" data-testid="climb-answer">
           {renderAnswerSection()}

@@ -20,6 +20,10 @@ export interface CalendarMonthProps {
   highlightDay?: number;
   /** Presence makes day cells clickable. */
   onDayClick?: (day: number, year: number, monthIndex: number) => void;
+  /** Shorter rows for a narrow portrait card: cells keep their 44px width
+   * but drop to 34px tall (26px when display-only — nothing to tap), the
+   * month/year controls drop to 36px and the weekday headers shrink. */
+  compact?: boolean;
 }
 
 /**
@@ -36,6 +40,7 @@ export default function CalendarMonth({
   monthIndex,
   highlightDay,
   onDayClick,
+  compact = false,
 }: CalendarMonthProps) {
   const [view, setView] = useState({ year, monthIndex });
 
@@ -63,6 +68,9 @@ export default function CalendarMonth({
   while (cells.length % 7 !== 0) cells.push(null);
 
   const highlightedMonthInView = view.year === year && view.monthIndex === monthIndex;
+  const cellHeight = compact ? (onDayClick ? 34 : 26) : 44;
+  const controlStyle = compact ? { minHeight: 36, padding: '0.25rem 0.9rem' } : undefined;
+  const selectStyle = compact ? { minHeight: 36, padding: '0.2rem 0.5rem' } : undefined;
 
   return (
     <div data-testid="calendar-month">
@@ -82,6 +90,7 @@ export default function CalendarMonth({
           type="button"
           data-testid="calendar-prev-month"
           aria-label="Previous month"
+          style={controlStyle}
           onClick={() => changeMonth(-1)}
         >
           ‹
@@ -90,6 +99,7 @@ export default function CalendarMonth({
           <select
             data-testid="calendar-month-select"
             aria-label="Month"
+            style={selectStyle}
             value={view.monthIndex}
             onChange={(event) =>
               setView((current) => ({ ...current, monthIndex: Number(event.target.value) }))
@@ -104,6 +114,7 @@ export default function CalendarMonth({
           <select
             data-testid="calendar-year-select"
             aria-label="Year"
+            style={selectStyle}
             value={view.year}
             onChange={(event) =>
               setView((current) => ({ ...current, year: Number(event.target.value) }))
@@ -120,6 +131,7 @@ export default function CalendarMonth({
           type="button"
           data-testid="calendar-next-month"
           aria-label="Next month"
+          style={controlStyle}
           onClick={() => changeMonth(1)}
         >
           ›
@@ -130,7 +142,11 @@ export default function CalendarMonth({
         style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(44px, 1fr))', gap: 2 }}
       >
         {WEEKDAY_HEADERS.map((label) => (
-          <div key={label} data-testid="calendar-weekday-header">
+          <div
+            key={label}
+            data-testid="calendar-weekday-header"
+            style={compact ? { fontSize: '0.75rem', lineHeight: 1.4 } : undefined}
+          >
             {label}
           </div>
         ))}
@@ -143,7 +159,7 @@ export default function CalendarMonth({
             'data-testid': highlighted ? 'calendar-day-highlighted' : 'calendar-day',
             style: {
               minWidth: 44,
-              minHeight: 44,
+              minHeight: cellHeight,
               // Explicit non-highlighted defaults, not `undefined` — a day
               // cell is a grid of numbers, not a row of CTAs, so it can't
               // just fall through to the global button's ember pill/bevel.

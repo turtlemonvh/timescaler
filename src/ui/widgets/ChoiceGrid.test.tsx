@@ -51,4 +51,14 @@ describe('ChoiceGrid', () => {
     render(<ChoiceGrid options={OPTIONS} selectedIndex={2} correctIndex={2} />);
     expect(screen.getByTestId('choice-option-2')).toHaveAttribute('data-state', 'correct');
   });
+
+  it('auto-fits columns by default and fills a fixed column count when `columns` is set', () => {
+    const { unmount } = render(<ChoiceGrid options={OPTIONS} />);
+    expect(screen.getByTestId('choice-grid').style.gridTemplateColumns).toContain('auto-fit');
+    unmount();
+    render(<ChoiceGrid options={OPTIONS} columns={2} />);
+    const grid = screen.getByTestId('choice-grid');
+    expect(grid.style.gridTemplateColumns).toBe('repeat(2, minmax(0, 1fr))');
+    expect(grid.style.width).toBe('100%');
+  });
 });
