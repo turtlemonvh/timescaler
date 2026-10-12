@@ -1,7 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Climb from './Climb';
-import { CHARACTER_PRESETS } from '../character/presets';
 import type { Peak } from '../../engine/peaks';
 import { generateQuestion, type Question } from '../../engine/questions';
 
@@ -73,7 +72,6 @@ vi.mock('../../engine/questions', async (importOriginal) => {
   return { ...actual, generateQuestion: vi.fn(() => FIXED_QUESTION) };
 });
 
-const preset = CHARACTER_PRESETS[0];
 const shortPeak: Peak = { id: 99, name: 'Test Peak', emphasis: 'Testing', height: 3 };
 
 function answerCorrect() {
@@ -105,7 +103,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}
@@ -123,7 +121,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={onSummit}
         onFall={vi.fn()}
@@ -149,7 +147,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={1}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={onFall}
@@ -174,7 +172,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={onSummit}
         onFall={onFall}
@@ -197,7 +195,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}
@@ -214,7 +212,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}
@@ -233,7 +231,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}
@@ -241,16 +239,15 @@ describe('Climb', () => {
       />,
     );
     fireEvent.click(screen.getByTestId('choice-option-1'));
-    expect(screen.getByTestId('climb-sprite-wrap').className).toContain('climb-sprite-wrap--slip');
-    expect(document.querySelectorAll('.climb-slip-dust')).toHaveLength(3);
+    expect(screen.getByTestId('climb-scene')).toHaveAttribute('data-move', 'slip');
+    expect(screen.getByTestId('climb-move-label')).toHaveTextContent('Slipped!');
 
     act(() => {
       vi.advanceTimersByTime(REVEAL_MS);
     });
-    expect(screen.getByTestId('climb-sprite-wrap').className).not.toContain(
-      'climb-sprite-wrap--slip',
-    );
-    expect(document.querySelectorAll('.climb-slip-dust')).toHaveLength(0);
+    // The move stays on the scene (it is the last thing that happened) but the
+    // HUD label clears once the reveal beat ends.
+    expect(screen.queryByTestId('climb-move-label')).not.toBeInTheDocument();
   });
 
   it('does not apply the slip animation after a correct answer', () => {
@@ -258,7 +255,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}
@@ -266,10 +263,9 @@ describe('Climb', () => {
       />,
     );
     fireEvent.click(screen.getByTestId('choice-option-0'));
-    expect(screen.getByTestId('climb-sprite-wrap').className).not.toContain(
-      'climb-sprite-wrap--slip',
-    );
-    expect(document.querySelectorAll('.climb-slip-dust')).toHaveLength(0);
+    expect(screen.getByTestId('climb-scene')).toHaveAttribute('data-move', 'hop');
+    expect(screen.getByTestId('climb-scene')).toHaveAttribute('data-position', '1');
+    expect(screen.getByTestId('climb-move-label')).toHaveTextContent('Hop up!');
   });
 
   it('reports every answer via onQuestionAnswered, including correctness and elapsed time', () => {
@@ -278,7 +274,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}
@@ -296,7 +292,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={1}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}
@@ -316,7 +312,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}
@@ -336,7 +332,7 @@ describe('Climb', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}
@@ -377,7 +373,7 @@ describe('Climb — setHands answer kind', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}
@@ -451,7 +447,7 @@ describe('Climb — number answer kind', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}
@@ -495,7 +491,7 @@ describe('Climb — pickDate answer kind', () => {
       <Climb
         peak={shortPeak}
         difficulty={5}
-        characterPreset={preset}
+        animalId="fox"
         seed={1}
         onSummit={vi.fn()}
         onFall={vi.fn()}

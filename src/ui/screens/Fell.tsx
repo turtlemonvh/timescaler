@@ -1,22 +1,15 @@
 import { useState } from 'react';
 import type { Peak } from '../../engine/peaks';
-import { buildCharacterLayers } from '../character/buildCharacterLayers';
-import type { CharacterPreset } from '../character/presets';
-import PixelLayers from '../pixel/PixelLayers';
-import { bodySlip } from '../pixel/sprites/body';
+import type { AnimalId } from '../../scene/animals/roster';
+import ClimbScene from '../../scene/climb/ClimbScene';
+import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
 
-const SCALE = 8;
-
-/** Playful, low-stakes tone — issue #76's design review (Climb Feedback
- * Concepts) recommended this over a warmer/gentler tone or a growth-mindset
- * coaching tone, since the point of this whole animation batch is keeping a
- * fall feeling like part of the game rather than a failure to be coached
- * through. */
+/** Playful, low-stakes tone — a fall is part of the game, not a failure to be coached through. */
 const ENCOURAGING_MESSAGES: readonly string[] = [
   'Whoops! Even mountain goats trip sometimes.',
   'Gravity: 1, You: 0. Rematch?',
   'That slope was extra slippery today!',
-  'Your boots needed a snack break. Try again!',
+  'Your paws needed a snack break. Try again!',
   'Ice happens. Climb on!',
 ];
 
@@ -26,42 +19,55 @@ function randomMessage(): string {
 
 export interface FellProps {
   peak: Peak;
-  characterPreset: CharacterPreset;
+  animalId: AnimalId;
   onRetry: () => void;
   onReturnToMap: () => void;
 }
 
 /**
- * Shown when `Climb`'s `onFall` fires. Persisting the fall
- * (`recordFall`) is `App.tsx`'s job, not this screen's. Offers two exits,
- * unlike `Summit`'s single "Back to Map" — retrying in place is the whole
- * point of falling rather than summiting.
+ * Shown when `Climb`'s `onFall` fires: the cliff scene in its fallen phase
+ * (the animal is down at the foot of the wall) with two exits — retrying in
+ * place is the whole point of falling rather than summiting.
  */
-export default function Fell({ peak, characterPreset, onRetry, onReturnToMap }: FellProps) {
-  // Picked once per fall, not on every re-render — otherwise it would
-  // shuffle out from under the player if this screen re-renders for any
-  // unrelated reason before they click away.
+export default function Fell({ peak, animalId, onRetry, onReturnToMap }: FellProps) {
   const [message] = useState(randomMessage);
+  const reducedMotion = usePrefersReducedMotion();
   return (
-    <main>
-      <h1>You slipped!</h1>
-      <PixelLayers
-        layers={buildCharacterLayers(characterPreset, bodySlip, { harness: true })}
-        scale={SCALE}
-      />
-      <p>
-        Too many misses on <strong>{peak.name}</strong> sent you back down. Progress on other peaks
-        is safe — try again whenever you&apos;re ready.
-      </p>
-      <p data-testid="fell-message" className="fell-message">
-        &ldquo;{message}&rdquo;
-      </p>
-      <button type="button" data-testid="fell-retry" onClick={onRetry}>
-        Try Again
-      </button>{' '}
-      <button type="button" data-testid="fell-map" onClick={onReturnToMap}>
-        Back to Map
-      </button>
+    <main className="result-screen result-screen--fell">
+      <div className="climb-screen__scene" aria-hidden="true">
+        <ClimbScene
+          peakId={peak.id}
+          animalId={animalId}
+          position={0}
+          height={peak.height}
+          move={null}
+          phase="fell"
+          reducedMotion={reducedMotion}
+        />
+      </div>
+      <section className="result-card">
+        <h1>You slipped!</h1>
+        <p>
+          Too many misses on <strong>{peak.name}</strong> sent you back down. Progress on other
+          peaks is safe — try again whenever you&apos;re ready.
+        </p>
+        <p data-testid="fell-message" className="fell-message">
+          &ldquo;{message}&rdquo;
+        </p>
+        <div className="result-card__actions">
+          <button type="button" data-testid="fell-retry" onClick={onRetry}>
+            Try Again
+          </button>
+          <button
+            type="button"
+            data-variant="secondary"
+            data-testid="fell-map"
+            onClick={onReturnToMap}
+          >
+            Back to Map
+          </button>
+        </div>
+      </section>
     </main>
   );
 }

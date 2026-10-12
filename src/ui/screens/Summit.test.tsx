@@ -1,17 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import Summit, { type SummitProps } from './Summit';
-import { CHARACTER_PRESETS } from '../character/presets';
 import type { Peak } from '../../engine/peaks';
 
 const peak: Peak = { id: 1, name: 'Basecamp Bluff', emphasis: 'Reading analog clocks', height: 20 };
-const preset = CHARACTER_PRESETS[0];
 
 function renderSummit(overrides: Partial<SummitProps> = {}) {
   return render(
     <Summit
       peak={peak}
-      characterPreset={preset}
+      animalId="fox"
       elapsedMs={45000}
       tier="success"
       difficulty={3}

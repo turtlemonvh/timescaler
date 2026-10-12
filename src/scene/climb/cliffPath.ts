@@ -21,6 +21,9 @@ export const LEDGE_DY = 1.15;
 export const ROUTE_AMPLITUDE = 1.5;
 /** How far the wall leans back per unit of height. */
 export const WALL_LEAN = 0.1;
+/** The forest floor sits below the first ledge, so the trees frame the climb from underneath
+ * and a fall has somewhere to land. */
+export const FOREST_FLOOR = -2.6;
 
 export function wallZ(y: number): number {
   return y === 0 ? 0 : -y * WALL_LEAN;

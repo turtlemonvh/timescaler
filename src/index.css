@@ -1,37 +1,35 @@
 @import './assets/fonts/fonts.css';
 
+/* ---------------------------------------------------------------------------
+ * Tokens. "Summit Lodge": parchment cards over a living 3D world — warm wood,
+ * pine, campfire ember and a sky blue for the HUD. Everything that sits on
+ * top of a scene is a translucent parchment card so the world shows through.
+ * ------------------------------------------------------------------------ */
 :root {
-  /* "Trail Badge" theme: parchment/canvas warmth, forest pine, campfire
-     ember — a scout-handbook look to match the "learning about clocks by
-     climbing mountains" premise. --code-bg doubles as the "canvas" card
-     surface (table headers, card backgrounds), not just literal code. */
-  --text: #6b5c42;
-  --text-h: #2e2417;
-  --bg: #fdf8ee;
-  --border: #c9a86a;
+  --text: #5a4a36;
+  --text-h: #2a1f14;
+  --bg: #f4ecdc;
+  --card: rgba(253, 248, 238, 0.94);
+  --card-solid: #fdf8ee;
+  --border: #d2b98a;
   --code-bg: #efe3c8;
-  --accent: #d97b3f;
+  --accent: #e2742f;
   --accent-shadow: #a85a26;
-  --accent-bg: rgba(217, 123, 63, 0.12);
-  --accent-border: rgba(217, 123, 63, 0.55);
-  --pine: #2f5233;
-  --pine-bg: rgba(47, 82, 51, 0.12);
-  --gold: #c98d1f;
-  --danger: #c0392b;
-  --social-bg: rgba(239, 227, 200, 0.5);
-  --shadow: rgba(46, 36, 23, 0.12) 0 10px 15px -3px, rgba(46, 36, 23, 0.08) 0 4px 6px -2px;
+  --accent-bg: rgba(226, 116, 47, 0.12);
+  --accent-border: rgba(226, 116, 47, 0.55);
+  --pine: #2f6b3c;
+  --pine-bg: rgba(47, 107, 60, 0.14);
+  --gold: #e3a722;
+  --danger: #d1452f;
+  --sky: #4f8fd6;
+  --shadow: rgba(42, 31, 20, 0.18) 0 14px 28px -10px, rgba(42, 31, 20, 0.1) 0 4px 10px -4px;
+  --radius: 18px;
 
-  /* Fonts (see assets/fonts/fonts.css) — swap either family here to
-     retheme the whole app; nothing else needs to change. --heading is the
-     app title (h1) only now — it's the one place Press Start 2P's retro
-     look is worth its legibility cost; every other heading uses --sans,
-     the same legibility-tuned face as body copy. */
   --sans: 'Atkinson Hyperlegible', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: 'Press Start 2P', system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  letter-spacing: 0.1px;
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -47,55 +45,96 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Campfire-at-night variant of the same theme: dark charcoal-brown
-       ground, brightened ember/pine/gold so they still read at this
-       lightness against a dark canvas. */
-    --text: #cbbfa0;
-    --text-h: #f5ecd8;
-    --bg: #201a12;
-    --border: #5a4a2e;
-    --code-bg: #2b2318;
-    --accent: #e8935c;
+    --text: #d6c8a8;
+    --text-h: #f7efdf;
+    --bg: #1b1610;
+    --card: rgba(38, 30, 21, 0.92);
+    --card-solid: #261e15;
+    --border: #5f4c2e;
+    --code-bg: #2f261a;
+    --accent: #ec8d4a;
     --accent-shadow: #a85a2e;
-    --accent-bg: rgba(232, 147, 92, 0.15);
-    --accent-border: rgba(232, 147, 92, 0.5);
-    --pine: #6fa878;
-    --pine-bg: rgba(111, 168, 120, 0.18);
-    --gold: #e0ab3f;
-    --danger: #e0574a;
-    --social-bg: rgba(43, 35, 24, 0.5);
-    --shadow: rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+    --accent-bg: rgba(236, 141, 74, 0.16);
+    --accent-border: rgba(236, 141, 74, 0.5);
+    --pine: #7cbd86;
+    --pine-bg: rgba(124, 189, 134, 0.18);
+    --gold: #f0bb45;
+    --danger: #ef6a52;
+    --sky: #6fa8ea;
+    --shadow: rgba(0, 0, 0, 0.5) 0 14px 28px -10px, rgba(0, 0, 0, 0.3) 0 4px 10px -4px;
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Base
+ * ------------------------------------------------------------------------ */
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
 }
-
-body {
-  margin: 0;
-}
-
 main {
-  padding: 0 1.25rem 3rem;
+  flex: 1;
 }
 
-/* Trail Badge button: an ember pill with a bevel shadow, like a merit-badge
-   ribbon. `data-variant="secondary"` opts a button out of the primary CTA
-   look for quieter actions (Cancel, Bail) that shouldn't compete with the
-   screen's main action. */
+/** Centred reading column for the DOM-only screens. */
+.page {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+  text-align: center;
+}
+.page__lead {
+  font-size: 1.1em;
+  max-width: 44ch;
+  margin: 0 auto 0.75rem;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--sans);
+  color: var(--text-h);
+  line-height: 1.15;
+  margin: 0 0 0.5rem;
+}
+h1 {
+  font-size: clamp(1.7rem, 2.2vw + 1rem, 2.6rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 1.25rem 0 0.75rem;
+}
+h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 1.5rem 0 0.5rem;
+}
+p {
+  margin: 0 0 0.75rem;
+}
+code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--text-h);
+}
+
+/* ---------------------------------------------------------------------------
+ * Controls
+ * ------------------------------------------------------------------------ */
 button {
   font-family: var(--sans);
   font-weight: 700;
@@ -110,9 +149,13 @@ button {
   min-height: 44px;
   box-shadow: 0 3px 0 var(--accent-shadow);
   cursor: pointer;
+  transition:
+    transform 80ms ease,
+    box-shadow 80ms ease,
+    filter 120ms ease;
 }
 button:hover:not(:disabled) {
-  filter: brightness(1.05);
+  filter: brightness(1.06);
 }
 button:active:not(:disabled) {
   transform: translateY(2px);
@@ -124,15 +167,16 @@ button:disabled {
 }
 button[data-variant='secondary'] {
   color: var(--text-h);
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  box-shadow: none;
+  background: var(--card-solid);
+  border: 1.5px solid var(--border);
+  box-shadow: 0 3px 0 var(--border);
 }
 button[data-variant='ghost'] {
-  color: var(--accent);
+  color: var(--text-h);
   background: transparent;
-  border: 1.5px dashed var(--accent-border);
+  border: 1.5px dashed var(--border);
   box-shadow: none;
+  text-transform: none;
 }
 
 select,
@@ -141,172 +185,664 @@ input {
   font-family: var(--sans);
   font-size: 1rem;
   color: var(--text-h);
-  background: var(--code-bg);
+  background: var(--card-solid);
   border: 2px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  padding: 0.45rem 0.7rem;
   min-height: 44px;
-  box-sizing: border-box;
 }
-
 button:focus-visible,
 select:focus-visible,
-input:focus-visible {
+input:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
   outline: 3px solid var(--accent-border);
   outline-offset: 2px;
 }
-
-h1 {
-  font-family: var(--heading);
-  color: var(--text-h);
-  /* Press Start 2P is much wider per character than a normal font — the
-     old 56px/-1.68px letter-spacing (tuned for a proportional font) made
-     longer titles overlap themselves. Sized down, and letter-spacing
-     reset to normal since squeezing a monospace pixel font fights its
-     own glyph grid. */
-  font-weight: 400;
-  font-size: 28px;
-  line-height: 140%;
-  letter-spacing: normal;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-    margin: 20px 0;
-  }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
 }
-h2 {
-  /* Section headings read Atkinson Hyperlegible at a bolder weight, not
-     Press Start 2P — that font is the single worst offender for reading
-     under time pressure, and it was previously on every screen's section
-     headings, not just the app title. */
-  font-family: var(--sans);
+th,
+td {
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.pill {
+  display: inline-block;
+  font-size: 0.78em;
   font-weight: 700;
-  text-transform: uppercase;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: var(--code-bg);
   color: var(--text-h);
-  font-size: 20px;
-  line-height: 140%;
-  letter-spacing: 0.04em;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
-p {
+.pill--summit {
+  background: var(--pine-bg);
+  color: var(--pine);
+}
+.pill--best {
+  background: var(--pine);
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------------------
+ * Scenes: every three.js canvas is absolutely positioned inside a host.
+ * ------------------------------------------------------------------------ */
+.scene-fallback {
+  position: absolute;
+  inset: 0;
+}
+.climb-screen__scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: var(--sky);
+}
+.map-label {
+  display: inline-block;
+  min-width: 1.7em;
+  padding: 0.1em 0.45em;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2a1f14;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.map-label--selected {
+  background: #ffd13b;
+  transform: scale(1.15);
+}
+
+/* ---------------------------------------------------------------------------
+ * Intro
+ * ------------------------------------------------------------------------ */
+.intro-screen {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  overflow: hidden;
+  background: linear-gradient(#3f86d8 0%, #9fd0ff 55%, #e8f3ff 100%);
+}
+.intro-screen__sky {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.intro-screen__sun {
+  position: absolute;
+  top: 9%;
+  right: 14%;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: #fff4c2;
+  box-shadow: 0 0 60px 20px rgba(255, 244, 194, 0.7);
+}
+.intro-screen__peak {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-left: 32vw solid transparent;
+  border-right: 32vw solid transparent;
+}
+.intro-screen__peak--far {
+  left: -8vw;
+  border-bottom: 38vh solid #7f93b4;
+}
+.intro-screen__peak--mid {
+  right: -14vw;
+  border-bottom: 48vh solid #5b7295;
+}
+.intro-screen__peak--near {
+  left: 18vw;
+  border-bottom: 30vh solid #2f6b3c;
+}
+.intro-screen__cloud {
+  position: absolute;
+  width: 140px;
+  height: 46px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    40px -18px 0 6px rgba(255, 255, 255, 0.92),
+    -40px -10px 0 2px rgba(255, 255, 255, 0.92);
+}
+.intro-screen__cloud--a {
+  top: 18%;
+  left: 8%;
+}
+.intro-screen__cloud--b {
+  top: 30%;
+  left: 60%;
+  transform: scale(0.75);
+}
+.intro-screen__card {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100%);
+  padding: 1.75rem 1.5rem 1.5rem;
+  border-radius: var(--radius);
+  background: var(--card);
+  backdrop-filter: blur(6px);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.intro-screen__card h1 {
+  margin-top: 0;
+  font-size: clamp(2.2rem, 4vw + 1rem, 3.4rem);
+  letter-spacing: -0.02em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Climb: scene behind, HUD on top, question card docked at the bottom
+ * (portrait) or down the right-hand side (landscape).
+ * ------------------------------------------------------------------------ */
+.climb-screen {
+  position: relative;
+  min-height: 100svh;
+}
+.climb-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  pointer-events: none;
+}
+.climb-hud > * {
+  pointer-events: auto;
+}
+.climb-hud__group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+.climb-hud__peak {
+  font-size: 1rem;
   margin: 0;
+  padding-left: 0.3rem;
 }
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
+.climb-hud__readout {
+  font-size: 0.95rem;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
   background: var(--code-bg);
 }
+.climb-hud__readout strong {
+  color: var(--text-h);
+  font-size: 1.1em;
+}
+.climb-hud__move {
+  font-weight: 700;
+  color: var(--accent);
+  animation: hudPop 420ms ease-out;
+}
+.climb-hud__meter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.climb-hud__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.climb-hud button {
+  min-height: 36px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.7rem;
+}
 
-/* --- Gameplay animation --------------------------------------------------
- * First animation ticket (issue #76 pick-off plan, No. 2/No. 7) — this is
- * also where the prefers-reduced-motion pattern for every later animation
- * ticket gets established: every `animation` declaration lives inside the
- * `no-preference` block below, so someone who's told their OS they want
- * reduced motion gets the plain, static states with zero extra work per
- * component. Static (non-animated) layout/shape rules for the same classes
- * stay outside the media query so they always apply. */
+.climb-card {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  max-height: 60svh;
+  overflow: auto;
+  padding: 0.9rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  border-radius: 22px 22px 0 0;
+  background: var(--card);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.climb-card__prompt {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-h);
+  margin: 0.6rem 0 0.5rem;
+}
+.climb-card__display {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+.climb-card__display:empty {
+  display: none;
+}
+.climb-card__answer {
+  display: flex;
+  justify-content: center;
+}
+.climb-card__stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+.climb-card__explain {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  background: var(--pine-bg);
+  color: var(--pine);
+  font-weight: 700;
+}
+
+@media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+  .climb-card {
+    left: auto;
+    right: 1rem;
+    top: 5rem;
+    bottom: 1rem;
+    width: min(44vw, 560px);
+    max-height: none;
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1.25rem 1.25rem;
+  }
+}
+
+@keyframes hudPop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Summit / Fell: the same scene with a result card
+ * ------------------------------------------------------------------------ */
+.result-screen {
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  place-items: end center;
+  padding: 1rem;
+}
+.result-card {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  padding: 1.5rem 1.25rem 1.25rem;
+  border-radius: var(--radius);
+  background: var(--card);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+  text-align: center;
+  animation: cardRise 500ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.result-card h1 {
+  margin-top: 0;
+}
+.result-card__tier {
+  font-weight: 700;
+  color: var(--pine);
+}
+.result-card__note {
+  font-size: 0.9rem;
+}
+.result-card__actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.result-card__burst {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  pointer-events: none;
+}
+@media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+  .result-screen {
+    place-items: center end;
+    padding-right: 2rem;
+  }
+}
+@keyframes cardRise {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
 
 .fell-message {
-  display: inline-block;
+  font-style: italic;
+  color: var(--accent);
   font-weight: 700;
-  color: var(--text-h);
-  background: var(--code-bg);
-  border: 2px dashed var(--border);
-  border-radius: 999px;
-  padding: 0.5rem 1rem;
-  margin: 0.5rem 0 1rem;
-}
-
-.boost-pip-row--full {
-  position: relative;
-  overflow: hidden;
-  border-radius: 4px;
-}
-
-.climb-sprite-wrap {
-  position: relative;
-  display: inline-block;
-  margin-bottom: 28px;
-}
-
-.climb-slip-dust {
-  position: absolute;
-  bottom: 8px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--border);
-  opacity: 0;
-}
-.climb-slip-dust--1 {
-  left: 38%;
-}
-.climb-slip-dust--2 {
-  left: 52%;
-}
-.climb-slip-dust--3 {
-  left: 45%;
-}
-
-.celebrate-wrap {
-  position: relative;
-  display: inline-block;
 }
 .confetti-piece {
   position: absolute;
-  top: 40%;
-  left: 50%;
-  width: 6px;
-  height: 10px;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
   opacity: 0;
 }
 .summit-ribbon {
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: #fff;
-  background: var(--gold);
+  display: inline-block;
+  padding: 0.25rem 1rem;
   border-radius: 999px;
-  padding: 4px 14px;
-  opacity: 0;
-  white-space: nowrap;
+  background: var(--gold);
+  color: #2a1f14;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  transform: rotate(-4deg);
+  margin-bottom: 0.4rem;
 }
 .summit-badge {
-  position: absolute;
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--gold);
-  border: 3px solid var(--gold-bright, #f0c04a);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26px;
-  opacity: 0;
+  display: block;
+  font-size: 3rem;
+  line-height: 1;
+  margin: 0.25rem 0 0.5rem;
 }
 
+/* ---------------------------------------------------------------------------
+ * Map: island scene with a HUD bar, peak cards below
+ * ------------------------------------------------------------------------ */
+.map-screen__scene {
+  position: relative;
+  height: clamp(300px, 52svh, 620px);
+  background: #d6ecff;
+}
+.map-screen__bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  pointer-events: none;
+}
+.map-screen__bar > * {
+  pointer-events: auto;
+}
+.map-screen__title {
+  font-size: 1.05rem;
+  margin: 0;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+.map-screen__bar-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+.map-screen__bar button {
+  min-height: 36px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.7rem;
+}
+[data-testid='profile-chip'] {
+  padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-weight: 700;
+  color: var(--text-h);
+}
+.profile-chip__animal {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.map-screen__list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  text-align: left;
+  padding-top: 0.75rem;
+}
+@media (min-width: 760px) {
+  .map-screen__list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.peak-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--card-solid);
+  border: 2px solid var(--border);
+  border-left: 8px solid var(--peak-rock, var(--border));
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease;
+}
+.peak-card:hover {
+  transform: translateY(-2px);
+}
+.peak-card--selected {
+  border-color: var(--peak-flag, var(--accent));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--peak-flag, var(--accent)) 35%, transparent),
+    var(--shadow);
+}
+.peak-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.peak-card__number {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--peak-rock, var(--border));
+  color: #fff;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.peak-card__title {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 160px;
+  color: var(--text-h);
+}
+.peak-card__emphasis {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.peak-card__status {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+  align-items: center;
+}
+.peak-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.peak-card__actions select {
+  min-width: 4.2rem;
+}
+.peak-card__details {
+  font-size: 0.9rem;
+}
+.peak-card__details summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* ---------------------------------------------------------------------------
+ * Character pick: live turntables
+ * ------------------------------------------------------------------------ */
+.pick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+@media (min-width: 720px) {
+  .pick-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.pick-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
+  padding: 0.6rem 0.6rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--card-solid);
+  border: 2px solid var(--border);
+  box-shadow: 0 4px 0 var(--border);
+  color: var(--text-h);
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 1rem;
+  min-height: 0;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease;
+}
+.pick-card:hover:not(:disabled),
+.pick-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--accent-card, var(--accent));
+  filter: none;
+}
+.pick-card__stage {
+  position: relative;
+  display: block;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: linear-gradient(#cfe6ff, #f2f7fb);
+}
+.pick-card__name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-top: 0.4rem;
+}
+.pick-card__tagline {
+  font-size: 0.85rem;
+  color: var(--text);
+  font-weight: 400;
+}
+
+/* ---------------------------------------------------------------------------
+ * HUD meters
+ * ------------------------------------------------------------------------ */
+.boost-pip-row {
+  position: relative;
+}
+.boost-pip-row--full {
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Dev-only scene stage
+ * ------------------------------------------------------------------------ */
+.debug-scene__stage {
+  position: fixed;
+  inset: 0;
+}
+.debug-scene__controls {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--card);
+  font-size: 0.85rem;
+}
+.debug-scene__pick {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg);
+}
+.debug-scene__card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--code-bg);
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion. Everything animated lives here, so reduced-motion is one block.
+ * ------------------------------------------------------------------------ */
 @media (prefers-reduced-motion: no-preference) {
   .boost-pip--charging {
-    animation: boostPipBreathe 1.1s ease-in-out infinite;
+    animation: boostPipBreathe 1.6s ease-in-out infinite;
   }
   .boost-pip-row--full::after {
     content: '';
@@ -314,141 +850,93 @@ code {
     inset: 0;
     background: linear-gradient(
       100deg,
-      transparent 30%,
-      rgba(255, 255, 255, 0.75) 48%,
-      transparent 66%
+      transparent 20%,
+      rgba(255, 255, 255, 0.7) 50%,
+      transparent 80%
     );
-    animation: boostWaveSweep 1.3s linear infinite;
-    pointer-events: none;
+    animation: boostWaveSweep 1.4s linear infinite;
   }
-
-  .climb-sprite-wrap--slip {
-    animation: climbSlipSlide 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
-  }
-  .climb-slip-dust--1 {
-    animation: climbSlipDustLeft 0.6s ease-out 1 both;
-  }
-  .climb-slip-dust--2 {
-    animation: climbSlipDustRight 0.6s ease-out 1 both 0.05s;
-  }
-  .climb-slip-dust--3 {
-    animation: climbSlipDustCenter 0.6s ease-out 1 both 0.1s;
-  }
-
   .confetti-piece {
-    animation: summitConfettiFly 900ms ease-out forwards;
+    animation: summitConfettiFly 1.4s ease-out forwards;
   }
   .summit-ribbon {
-    animation: summitRibbonDrop 500ms ease-out forwards;
+    animation: summitRibbonDrop 600ms cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
   }
   .summit-badge {
-    animation: summitBadgeStamp 550ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: summitBadgeStamp 500ms cubic-bezier(0.2, 0.9, 0.3, 1.4) 300ms both;
+  }
+  .intro-screen__cloud--a {
+    animation: cloudDrift 46s linear infinite;
+  }
+  .intro-screen__cloud--b {
+    animation: cloudDrift 64s linear infinite reverse;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece {
+    opacity: 1;
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
+  }
+  .climb-hud__move,
+  .result-card {
+    animation: none;
   }
 }
 
 @keyframes boostPipBreathe {
   0%,
   100% {
-    box-shadow: 0 0 0 rgba(217, 123, 63, 0);
     transform: scale(1);
+    opacity: 1;
   }
   50% {
-    box-shadow: 0 0 9px var(--accent);
-    transform: scale(1.08);
+    transform: scale(1.18);
+    opacity: 0.75;
   }
 }
 @keyframes boostWaveSweep {
-  0% {
-    transform: translateX(-140%);
+  from {
+    transform: translateX(-100%);
   }
-  100% {
-    transform: translateX(140%);
-  }
-}
-/* Ends back at (0, 0), not left displaced — this plays during the ~1.5s
- * post-answer reveal beat while the character sprite still needs to sit in
- * its normal spot once the next question starts. Kept clear of the sprite
- * wrap's own margin-bottom (28px > this animation's 22px max) so the
- * transformed sprite's bounding box never overlaps a sibling element mid-
- * motion — that overlap otherwise reproduces a real Chromium compositing
- * artifact (a smeared ghost trail), confirmed while prototyping this
- * concept. */
-@keyframes climbSlipSlide {
-  0% {
-    transform: translate(0, 0);
-  }
-  35% {
-    transform: translate(-10px, 22px);
-  }
-  100% {
-    transform: translate(0, 0);
-  }
-}
-@keyframes climbSlipDustLeft {
-  0% {
-    transform: translate(0, 0) scale(0.5);
-    opacity: 0.8;
-  }
-  100% {
-    transform: translate(-14px, -18px) scale(1.4);
-    opacity: 0;
-  }
-}
-@keyframes climbSlipDustRight {
-  0% {
-    transform: translate(0, 0) scale(0.5);
-    opacity: 0.8;
-  }
-  100% {
-    transform: translate(14px, -18px) scale(1.4);
-    opacity: 0;
-  }
-}
-@keyframes climbSlipDustCenter {
-  0% {
-    transform: translate(0, 0) scale(0.5);
-    opacity: 0.8;
-  }
-  100% {
-    transform: translate(0, -18px) scale(1.4);
-    opacity: 0;
+  to {
+    transform: translateX(100%);
   }
 }
 @keyframes summitConfettiFly {
   0% {
-    transform: translate(0, 0) rotate(0deg);
     opacity: 1;
+    transform: translate(0, 0) rotate(0deg);
   }
   100% {
-    transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
     opacity: 0;
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot));
   }
 }
 @keyframes summitRibbonDrop {
-  0% {
-    transform: translateX(-50%) translateY(-20px);
+  from {
+    transform: translateY(-20px) rotate(-10deg);
     opacity: 0;
   }
-  70% {
-    transform: translateX(-50%) translateY(4px);
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(-50%) translateY(0);
+  to {
+    transform: rotate(-4deg);
     opacity: 1;
   }
 }
 @keyframes summitBadgeStamp {
-  0% {
-    transform: translateX(-50%) scale(2.4);
+  from {
+    transform: scale(2.5);
     opacity: 0;
   }
-  60% {
-    transform: translateX(-50%) scale(0.9);
+  to {
+    transform: scale(1);
     opacity: 1;
   }
-  100% {
-    transform: translateX(-50%) scale(1);
-    opacity: 1;
+}
+@keyframes cloudDrift {
+  from {
+    transform: translateX(-20vw);
+  }
+  to {
+    transform: translateX(110vw);
   }
 }

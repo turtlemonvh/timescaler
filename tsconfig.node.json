@@ -28,5 +28,5 @@
   // they're excluded here and rely on `tsx` (type-stripping only) to run,
   // same as the other scripts in this directory. The imported modules are
   // still type-checked, via the app project.
-  "exclude": ["scripts/preview-questions.ts", "scripts/normalize-sprites.ts"]
+  "exclude": ["scripts/preview-questions.ts"]
 }

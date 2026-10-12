@@ -1,26 +1,13 @@
 /**
- * Two OFL fonts, vendored locally as subset woff2 (latin only — see the
- * .woff2 file sizes, ~12-17KB each) so the PWA works fully offline with
- * no network font requests. License text for each is alongside it in
- * this directory (PressStart2P-OFL.txt / AtkinsonHyperlegible-OFL.txt).
+ * Atkinson Hyperlegible (Braille Institute, OFL), vendored locally as subset
+ * woff2 (latin only, ~12-17KB each) so the PWA works fully offline with no
+ * network font requests. License text is alongside in this directory.
  *
- * Press Start 2P: chunky, iconic — the app title only. Hard to read in
- * long runs (and its digits are genuinely ambiguous at small sizes), so
- * never use it for body copy or section headings.
- * Atkinson Hyperlegible (Braille Institute): purpose-built for legibility
- * — digits and letters are deliberately disambiguated (5/6/8/0/O
- * especially), which matters here since a child is reading numbers under
- * a countdown timer. Ships as two static weights (no variable-font
- * build exists), so two files/@font-face blocks instead of one.
+ * Purpose-built for legibility — digits and letters are deliberately
+ * disambiguated (5/6/8/0/O especially), which matters here since a child is
+ * reading numbers under a countdown timer. Ships as two static weights (no
+ * variable-font build exists), so two @font-face blocks.
  */
-@font-face {
-  font-family: 'Press Start 2P';
-  src: url('./PressStart2P.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
 @font-face {
   font-family: 'Atkinson Hyperlegible';
   src: url('./AtkinsonHyperlegible-400.woff2') format('woff2');

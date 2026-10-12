@@ -1,50 +1,58 @@
-import { buildCharacterLayers } from '../character/buildCharacterLayers';
-import { CHARACTER_PRESETS } from '../character/presets';
-import PixelLayers from '../pixel/PixelLayers';
-import { bodyIdle } from '../pixel/sprites/body';
-
-const SCALE = 6;
+import { useEffect, useState } from 'react';
+import { preloadAnimal } from '../../scene/animals/preload';
+import { ANIMALS, type AnimalId } from '../../scene/animals/roster';
+import { playCue } from '../../scene/audio/synth';
+import AnimalShowcase from '../../scene/pedestal/AnimalShowcase';
+import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
 
 export interface CharacterPickProps {
   onPick: (characterId: string) => void;
 }
 
 /**
- * One-time-per-profile look choice, reached right after naming a new
- * profile. Picks from `CHARACTER_PRESETS` rather than exposing raw color
- * pickers (that's `/debug/sprites`'s engineering-grade job, not a
- * 7-9-year-old's) — the choice sticks as `Profile.characterId` from here on.
+ * One-time-per-profile choice of animal, reached right after naming a new
+ * profile. Six live turntables; hovering or focusing one makes it cheer.
+ * The choice sticks as `Profile.characterId`.
  */
 export default function CharacterPick({ onPick }: CharacterPickProps) {
+  const [hovered, setHovered] = useState<AnimalId | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    for (const animal of ANIMALS) preloadAnimal(animal.id);
+  }, []);
+
   return (
-    <main>
+    <main className="page pick-screen">
       <h1>Pick your climber</h1>
-      <p>Choose how your climber looks. You can&apos;t change this later.</p>
-      <div
-        data-testid="character-grid"
-        style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}
-      >
-        {CHARACTER_PRESETS.map((preset) => (
+      <p className="page__lead">Choose who climbs with you. You can&apos;t change this later.</p>
+      <div className="pick-grid" data-testid="character-grid">
+        {ANIMALS.map((animal) => (
           <button
-            key={preset.id}
+            key={animal.id}
             type="button"
-            data-testid={`character-option-${preset.id}`}
-            onClick={() => onPick(preset.id)}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.75rem',
-              minWidth: 44,
-              minHeight: 44,
+            className="pick-card"
+            style={{ '--accent-card': animal.accent } as React.CSSProperties}
+            data-testid={`character-option-${animal.id}`}
+            onMouseEnter={() => setHovered(animal.id)}
+            onMouseLeave={() => setHovered((current) => (current === animal.id ? null : current))}
+            onFocus={() => setHovered(animal.id)}
+            onBlur={() => setHovered((current) => (current === animal.id ? null : current))}
+            onClick={() => {
+              playCue('select');
+              onPick(animal.id);
             }}
           >
-            <PixelLayers
-              layers={buildCharacterLayers(preset, bodyIdle, { harness: true })}
-              scale={SCALE}
-            />
-            <span>{preset.name}</span>
+            <span className="pick-card__stage" aria-hidden="true">
+              <AnimalShowcase
+                animalId={animal.id}
+                accent={animal.accent}
+                pose={hovered === animal.id ? 'cheer' : 'idle'}
+                reducedMotion={reducedMotion}
+              />
+            </span>
+            <span className="pick-card__name">{animal.name}</span>
+            <span className="pick-card__tagline">{animal.tagline}</span>
           </button>
         ))}
       </div>
