@@ -112,17 +112,55 @@ function wallPines(height: number, theme: PeakTheme): PineSpot[] {
   return spots;
 }
 
-function Ledge({ point, active, theme }: { point: Vec3; active: boolean; theme: PeakTheme }) {
+function Ledge({
+  point,
+  index,
+  active,
+  snowy,
+  theme,
+}: {
+  point: Vec3;
+  index: number;
+  active: boolean;
+  snowy: boolean;
+  theme: PeakTheme;
+}) {
+  const rng = mulberry32(theme.peak.id * 977 + index * 13);
+  const tilt = (rng() - 0.5) * 0.18;
+  const yaw = (rng() - 0.5) * 0.5;
+  const width = 1.2 + rng() * 0.5;
+  const depth = 0.9 + rng() * 0.3;
   return (
-    <group position={[point.x, point.y - 0.11, point.z + 0.2]}>
-      <mesh castShadow receiveShadow rotation={[0, (point.x * 0.37) % 0.3, 0]}>
-        <boxGeometry args={[1.15, 0.22, 0.95]} />
+    <group position={[point.x, point.y - 0.12, point.z + 0.2]}>
+      {/* A boulder tucked under the slab, towards the wall, so it never hides the climber. */}
+      <mesh
+        castShadow
+        receiveShadow
+        position={[0.1, -0.42, -0.25]}
+        rotation={[tilt * 0.3, yaw, tilt]}
+        scale={[0.6, 0.45, 0.5]}
+      >
+        <dodecahedronGeometry args={[1, 0]} />
+        <meshStandardMaterial color={theme.rockDark} flatShading roughness={1} />
+      </mesh>
+      <mesh castShadow receiveShadow rotation={[0, yaw * 0.4, 0]} scale={[width, 0.24, depth]}>
+        <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial
           color={active ? theme.rock : theme.rockDark}
           flatShading
           roughness={1}
         />
       </mesh>
+      {snowy && (
+        <mesh
+          position={[0, 0.13, 0]}
+          rotation={[0, yaw * 0.4, 0]}
+          scale={[width * 0.95, 0.06, depth * 0.9]}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color={theme.snow} flatShading roughness={1} />
+        </mesh>
+      )}
       {active && (
         <mesh position={[0, 0.12, 0.1]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.55, 0.7, 24]} />
@@ -130,6 +168,22 @@ function Ledge({ point, active, theme }: { point: Vec3; active: boolean; theme: 
         </mesh>
       )}
     </group>
+  );
+}
+
+/** A fixed rope running past every ledge — the climbing route, readable at a glance. */
+function Rope({ route, color }: { route: Vec3[]; color: string }) {
+  const geometry = useMemo(() => {
+    const points = route.map(
+      (p, i) => new THREE.Vector3(p.x + (i % 2 === 0 ? 0.55 : -0.55), p.y + 0.05, p.z + 0.08),
+    );
+    const curve = new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.3);
+    return new THREE.TubeGeometry(curve, route.length * 6, 0.035, 5, false);
+  }, [route]);
+  return (
+    <mesh geometry={geometry}>
+      <meshStandardMaterial color={color} roughness={0.9} />
+    </mesh>
   );
 }
 
@@ -208,17 +262,26 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
         <meshStandardMaterial vertexColors flatShading roughness={1} />
       </mesh>
 
+      <Rope route={route} color={theme.flag} />
       {route.map((point, i) => (
-        <Ledge key={i} point={point} active={i === position} theme={theme} />
+        <Ledge
+          key={i}
+          point={point}
+          index={i}
+          active={i === position}
+          snowy={point.y > top - 3.5}
+          theme={theme}
+        />
       ))}
 
       {/* Summit plateau */}
+      {/* Thin, so a climber on the last ledge does not poke through it from below. */}
       <mesh
-        position={[route[height].x, top - 0.35, route[height].z + 0.4]}
+        position={[route[height].x, top - 0.17, route[height].z + 0.25]}
         receiveShadow
         castShadow
       >
-        <boxGeometry args={[4.2, 0.7, 2.4]} />
+        <boxGeometry args={[4.2, 0.34, 1.7]} />
         <meshStandardMaterial color={theme.snow} flatShading roughness={1} />
       </mesh>
       <Flag point={route[height]} color={theme.flag} />
@@ -236,8 +299,8 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
         count={14}
         seed={theme.peak.id}
         xRange={[-26, 26]}
-        yRange={[1, top + 8]}
-        zRange={[-9, 3]}
+        yRange={[5, top + 8]}
+        zRange={[-7, 0.5]}
         speed={0.45}
       />
     </group>

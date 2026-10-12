@@ -15,6 +15,16 @@ import type { ClimbMove } from './motion';
 
 export type ClimbPhase = 'climb' | 'summit' | 'fell';
 
+/** Stands in for the animal while its model downloads: a bobbing pebble on the ledge. */
+function LoadingMarker({ position }: { position: { x: number; y: number; z: number } }) {
+  return (
+    <mesh position={[position.x, position.y + 0.35, position.z + 0.2]}>
+      <icosahedronGeometry args={[0.3, 0]} />
+      <meshStandardMaterial color="#ffffff" flatShading transparent opacity={0.7} />
+    </mesh>
+  );
+}
+
 export interface ClimbSceneProps {
   peakId: number;
   animalId: AnimalId;
@@ -22,6 +32,8 @@ export interface ClimbSceneProps {
   height: number;
   move: ClimbMove | null;
   phase: ClimbPhase;
+  /** Boost meter full — the climber glows. */
+  boosted?: boolean;
   reducedMotion?: boolean;
 }
 
@@ -37,6 +49,7 @@ export default function ClimbScene({
   height,
   move,
   phase,
+  boosted = false,
   reducedMotion = false,
 }: ClimbSceneProps) {
   const theme = useMemo(() => peakTheme(peakId), [peakId]);
@@ -91,13 +104,14 @@ export default function ClimbScene({
       <Birds y={Math.min(summitY(height), start.y + 4)} z={-5} />
       <Particles ref={particlesRef} max={320} />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<LoadingMarker position={start} />}>
         <Climber
           animalId={animalId}
           peakId={peakId}
           position={position}
           move={move}
           phase={phase}
+          boosted={boosted}
           theme={theme}
           particlesRef={particlesRef}
           worldPositionRef={climberPositionRef}

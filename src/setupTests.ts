@@ -22,6 +22,7 @@ vi.mock('./scene/climb/ClimbScene', () => ({
     height: number;
     move: { kind: string; steps: number; fast: boolean } | null;
     phase: string;
+    boosted?: boolean;
   }) =>
     createElement('div', {
       'data-testid': 'climb-scene',
@@ -33,6 +34,7 @@ vi.mock('./scene/climb/ClimbScene', () => ({
       'data-move': props.move?.kind ?? 'none',
       'data-move-steps': props.move?.steps ?? 0,
       'data-move-fast': props.move?.fast ? 'true' : 'false',
+      'data-boosted': props.boosted ? 'true' : 'false',
     }),
 }));
 

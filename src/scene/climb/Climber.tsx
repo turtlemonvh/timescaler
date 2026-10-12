@@ -16,6 +16,8 @@ export interface ClimberProps {
   position: number;
   move: ClimbMove | null;
   phase: 'climb' | 'summit' | 'fell';
+  /** Boost meter is full: the next correct answer moves two ledges. */
+  boosted: boolean;
   theme: PeakTheme;
   particlesRef: RefObject<ParticleApi | null>;
   /** Written every frame: where the climber currently is, for the camera. */
@@ -52,6 +54,12 @@ function faceToward(dx: number, idle: boolean): number {
   return idle ? side * FORWARD_RIGHT * 0.45 : side * FORWARD_RIGHT;
 }
 
+/** Where a tumble ends: in front of the wall, on the forest floor. */
+function fallLanding(peakId: number): Vec3 {
+  const base = ledgePoint(0, peakId);
+  return { x: base.x + 1.2, y: FOREST_FLOOR, z: base.z + 2.4 };
+}
+
 function buildSegments(move: ClimbMove, peakId: number): Segment[] {
   const from = ledgePoint(move.from, peakId);
   const segments: Segment[] = [];
@@ -81,7 +89,7 @@ function buildSegments(move: ClimbMove, peakId: number): Segment[] {
   } else if (move.kind === 'fall') {
     segments.push({
       from,
-      to: { x: from.x + 1.2, y: FOREST_FLOOR, z: from.z + 2.4 },
+      to: fallLanding(peakId),
       apex: 0.6,
       ms: FALL_MS,
       ease: easeIn,
@@ -106,12 +114,14 @@ export default function Climber({
   position,
   move,
   phase,
+  boosted,
   theme,
   particlesRef,
   worldPositionRef,
   shakeRef,
   reducedMotion,
 }: ClimberProps) {
+  const glowRef = useRef<THREE.Group>(null);
   const groupRef = useRef<THREE.Group>(null);
   const bodyRef = useRef<THREE.Group>(null);
   const tweenRef = useRef<Tween | null>(null);
@@ -238,9 +248,10 @@ export default function Climber({
     if (!node) return;
     const now = performance.now();
 
-    // First frame, or the engine moved us without a move (e.g. a reset).
+    // First frame, or the engine moved us without a move (e.g. a reset). A
+    // fallen climber rests where the tumble ended, not back on ledge 0.
     if (!restRef.current) {
-      restRef.current = ledgePoint(position, peakId);
+      restRef.current = phase === 'fell' ? fallLanding(peakId) : ledgePoint(position, peakId);
       node.position.set(restRef.current.x, restRef.current.y, restRef.current.z);
     }
 
@@ -253,7 +264,7 @@ export default function Climber({
     if (move && move.kind !== 'none' && move.id !== seenMoveRef.current) {
       seenMoveRef.current = move.id;
       startMove(move, node, now);
-    } else if (!move && !tweenRef.current) {
+    } else if (!move && !tweenRef.current && phase !== 'fell') {
       const rest = ledgePoint(position, peakId);
       if (rest.y !== restRef.current.y || rest.x !== restRef.current.x) {
         restRef.current = rest;
@@ -319,6 +330,15 @@ export default function Climber({
     // Turn smoothly toward the current facing.
     node.rotation.y += (facingRef.current - node.rotation.y) * Math.min(1, delta * 10);
 
+    // Boost glow: a ring and light that breathe under the climber while the meter is full.
+    const glow = glowRef.current;
+    if (glow) {
+      const pulse = 0.85 + Math.sin(state.clock.elapsedTime * 6) * 0.15;
+      glow.visible = boosted && phase === 'climb';
+      glow.scale.set(pulse, 1, pulse);
+      glow.rotation.y += delta * 1.5;
+    }
+
     worldPositionRef.current?.copy(node.position);
   });
 
@@ -332,6 +352,13 @@ export default function Climber({
 
   return (
     <group ref={groupRef}>
+      <group ref={glowRef} visible={false}>
+        <mesh position={[0, 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.45, 0.7, 6]} />
+          <meshBasicMaterial color="#ffd13b" transparent opacity={0.8} />
+        </mesh>
+        <pointLight color="#ffd13b" intensity={2.5} distance={3.5} position={[0, 0.6, 0.4]} />
+      </group>
       <group ref={bodyRef}>
         <Animal
           id={animalId}

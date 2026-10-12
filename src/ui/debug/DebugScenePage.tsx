@@ -67,6 +67,7 @@ export default function DebugScenePage() {
             height={state.height}
             move={move}
             phase={phase}
+            boosted={state.boost >= state.boostCapacity}
           />
         )}
         {view === 'map' && (

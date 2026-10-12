@@ -180,6 +180,7 @@ export default function Climb({
           height={climbState.height}
           move={move}
           phase="climb"
+          boosted={climbState.boost >= climbState.boostCapacity}
           reducedMotion={reducedMotion}
         />
       </div>
