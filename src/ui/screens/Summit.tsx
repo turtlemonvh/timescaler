@@ -115,7 +115,16 @@ export default function Summit({
         <h1>Summit reached!</h1>
         {tier === 'firstAtDifficulty' && (
           <span className="summit-badge" data-testid="summit-badge" aria-hidden="true">
-            🏅
+            <svg width="56" height="64" viewBox="0 0 56 64" focusable="false">
+              <path d="M16 0h10l6 22-9 4z" fill="#d1452f" />
+              <path d="M40 0H30l-6 22 9 4z" fill="#2f6b3c" />
+              <circle cx="28" cy="42" r="19" fill="#e3a722" stroke="#a85a26" strokeWidth="3" />
+              <circle cx="28" cy="42" r="12" fill="#fff1c6" />
+              <path
+                d="M28 32l3.2 6.6 7.3 1-5.3 5.1 1.3 7.2L28 48.5l-6.5 3.4 1.3-7.2-5.3-5.1 7.3-1z"
+                fill="#e3a722"
+              />
+            </svg>
           </span>
         )}
         <p>

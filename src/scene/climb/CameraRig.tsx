@@ -47,8 +47,13 @@ export default function CameraRig({
       orbitRef.current += delta;
       const angle = Math.sin(orbitRef.current * 0.45) * 0.85;
       const radius = portrait ? 6.5 : 5.2;
-      desired.set(t.x + Math.sin(angle) * radius, t.y + 2.2, t.z + Math.cos(angle) * radius + 0.5);
-      look.set(t.x, t.y + 0.7 + (portrait ? -1.3 : 0), t.z);
+      const sideShift = !portrait && size.width >= 900 ? 1.6 : 0;
+      desired.set(
+        t.x + Math.sin(angle) * radius + sideShift,
+        t.y + 2.2,
+        t.z + Math.cos(angle) * radius + 0.5,
+      );
+      look.set(t.x + sideShift, t.y + 0.7 + (portrait ? -1.3 : 0), t.z);
     } else {
       // Landscape docks the question card down the right-hand side, so the
       // framing centre sits to the right of the climber and the climber lands
