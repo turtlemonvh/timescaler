@@ -38,7 +38,7 @@ export default function MuteButton() {
   return (
     <button
       type="button"
-      data-variant="ghost"
+      data-variant="secondary"
       className="mute-button"
       data-testid="mute-toggle"
       aria-pressed={muted}

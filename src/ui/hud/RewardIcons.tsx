@@ -33,3 +33,12 @@ export function TrophyIcon({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+
+export function PeakIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M2 20L9 7l4 6 2-3 7 10z" fill="#8a5a3b" stroke="#5e564c" strokeWidth="1.5" />
+      <path d="M9 7l2.2 3.8L9 12.5 6.8 10.8z" fill="#f6f6f2" />
+    </svg>
+  );
+}

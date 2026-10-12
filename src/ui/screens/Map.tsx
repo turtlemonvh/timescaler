@@ -38,6 +38,8 @@ export interface MapProps {
   onReview: () => void;
   /** Opens the Review screen's Climber Log tab, pre-filtered to this peak+level. */
   onViewFullHistory: (peakId: number, difficulty: number) => void;
+  /** Opens the player's profile page; `'accomplishments'` scrolls to that section. */
+  onOpenProfile: (section: 'climber' | 'accomplishments') => void;
 }
 
 interface PeakCardProps {
@@ -259,7 +261,13 @@ function firstOpenPeak(profile: Profile): number {
  * or a card selects it; "Climb!" starts the climb. All ten peaks are open
  * from the start — the spec has no unlock mechanic.
  */
-export default function Map({ profile, onClimb, onReview, onViewFullHistory }: MapProps) {
+export default function Map({
+  profile,
+  onClimb,
+  onReview,
+  onViewFullHistory,
+  onOpenProfile,
+}: MapProps) {
   const animal = resolveAnimal(profile.characterId);
   const reducedMotion = usePrefersReducedMotion();
   const [selectedPeakId, setSelectedPeakId] = useState(() => firstOpenPeak(profile));
@@ -308,24 +316,53 @@ export default function Map({ profile, onClimb, onReview, onViewFullHistory }: M
         <p className="map-screen__hint" aria-hidden="true">
           Drag to look around · tap a peak to pick it
         </p>
+        <button
+          type="button"
+          className="map-recenter"
+          data-testid="map-recenter"
+          title="Back to your climber"
+          aria-label="Back to your climber"
+          onClick={() => setRecenterKey((key) => key + 1)}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" strokeWidth="2.2" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+            <path
+              d="M12 2v4M12 18v4M2 12h4M18 12h4"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
         <div className="map-screen__bar">
           <div className="map-screen__bar-left">
-            <ProfileChip
-              name={profile.name}
-              preview={
-                <span
-                  className="profile-chip__animal"
-                  style={{ background: animal.accent }}
-                  title={animal.name}
-                >
-                  {animal.name[0]}
-                </span>
-              }
-            />
-            <span
-              className="rewards-chip"
+            <button
+              type="button"
+              className="chip-button"
+              data-testid="profile-open"
+              title="Your climber and accomplishments"
+              onClick={() => onOpenProfile('climber')}
+            >
+              <ProfileChip
+                name={profile.name}
+                preview={
+                  <span
+                    className="profile-chip__animal"
+                    style={{ background: animal.accent }}
+                    title={animal.name}
+                  >
+                    {animal.name[0]}
+                  </span>
+                }
+              />
+            </button>
+            <button
+              type="button"
+              className="chip-button rewards-chip"
               data-testid="rewards-chip"
-              aria-label={`${rewards.coins} coins, ${rewards.trophies.length} trophies`}
+              aria-label={`${rewards.coins} coins, ${rewards.trophies.length} trophies — see accomplishments`}
+              onClick={() => onOpenProfile('accomplishments')}
             >
               <CoinIcon />
               <span data-testid="rewards-coins">{rewards.coins}</span>
@@ -334,19 +371,10 @@ export default function Map({ profile, onClimb, onReview, onViewFullHistory }: M
               </span>
               <TrophyIcon />
               <span data-testid="rewards-trophies">{rewards.trophies.length}</span>
-            </span>
+            </button>
           </div>
           <h1 className="map-screen__title">Choose a peak</h1>
           <div className="map-screen__bar-actions">
-            <button
-              type="button"
-              data-variant="ghost"
-              data-testid="map-recenter"
-              title="Back to your climber"
-              onClick={() => setRecenterKey((key) => key + 1)}
-            >
-              Recenter
-            </button>
             <MuteButton />
             <button
               type="button"

@@ -7,6 +7,7 @@ import Climb from './ui/screens/Climb';
 import Fell from './ui/screens/Fell';
 import Intro from './ui/screens/Intro';
 import Map from './ui/screens/Map';
+import ProfileScreen, { type ProfileSection } from './ui/screens/ProfileScreen';
 import ProfileSelect from './ui/screens/ProfileSelect';
 import Review from './ui/screens/Review';
 import Summit from './ui/screens/Summit';
@@ -20,6 +21,7 @@ import {
   recordFall,
   recordQuestionStat,
   recordSummit,
+  setCharacter,
   setPeakDifficulty,
   summitTier,
   type SummitTier,
@@ -32,6 +34,7 @@ type Screen =
   | { name: 'profileSelect' }
   | { name: 'characterPick'; pendingName: string }
   | { name: 'map' }
+  | { name: 'profile'; section: ProfileSection }
   | { name: 'review'; logFilter?: { peakId: number; difficulty: number } }
   | { name: 'climb'; peakId: number; seed: number }
   | {
@@ -107,6 +110,21 @@ export default function App() {
           onViewFullHistory={(peakId, difficulty) =>
             setScreen({ name: 'review', logFilter: { peakId, difficulty } })
           }
+          onOpenProfile={(section) => setScreen({ name: 'profile', section })}
+        />
+      );
+    }
+
+    case 'profile': {
+      const profile = requireActiveProfile(save);
+      return (
+        <ProfileScreen
+          profile={profile}
+          initialSection={screen.section}
+          onChangeAnimal={(animalId) =>
+            setSave((current) => setCharacter(current, profile.id, animalId))
+          }
+          onBack={() => setScreen({ name: 'map' })}
         />
       );
     }

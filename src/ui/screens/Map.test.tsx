@@ -50,6 +50,7 @@ function renderMap(profile: Profile, overrides: Partial<Parameters<typeof Map>[0
       onClimb={vi.fn()}
       onReview={vi.fn()}
       onViewFullHistory={vi.fn()}
+      onOpenProfile={vi.fn()}
       {...overrides}
     />,
   );
@@ -163,6 +164,15 @@ describe('Map', () => {
     renderMap(makeProfile(), { onClimb });
     fireEvent.click(screen.getByTestId('peak-climb-10'));
     expect(onClimb).toHaveBeenCalledWith(10, 1);
+  });
+
+  it('opens the profile from the name chip and the accomplishments from the rewards chip', () => {
+    const onOpenProfile = vi.fn();
+    renderMap(makeProfile(), { onOpenProfile });
+    fireEvent.click(screen.getByTestId('profile-open'));
+    expect(onOpenProfile).toHaveBeenLastCalledWith('climber');
+    fireEvent.click(screen.getByTestId('rewards-chip'));
+    expect(onOpenProfile).toHaveBeenLastCalledWith('accomplishments');
   });
 
   it('calls onReview when the review link is clicked', () => {

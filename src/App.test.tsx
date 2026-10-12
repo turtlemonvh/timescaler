@@ -78,6 +78,29 @@ describe('App', () => {
     expect(screen.getByTestId('peak-option-1')).toBeInTheDocument();
   });
 
+  it('opens the profile from the map, switches the climber, and keeps it after a reload', () => {
+    const { unmount } = render(<App />);
+    createProfileAndReachMap('Riley');
+    fireEvent.click(screen.getByTestId('profile-open'));
+    expect(screen.getByTestId('profile-screen')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('profile-animal-stag'));
+    expect(screen.getByTestId('profile-animal-name')).toHaveTextContent('Stag');
+    fireEvent.click(screen.getByTestId('profile-back'));
+    expect(screen.getByTestId('map-scene')).toHaveAttribute('data-animal', 'stag');
+    unmount();
+    render(<App />);
+    fireEvent.click(screen.getByTestId('intro-continue'));
+    fireEvent.click(screen.getAllByTestId(/^profile-option-/)[0]);
+    expect(screen.getByTestId('map-scene')).toHaveAttribute('data-animal', 'stag');
+  });
+
+  it('opens accomplishments from the rewards chip', () => {
+    render(<App />);
+    createProfileAndReachMap('Riley');
+    fireEvent.click(screen.getByTestId('rewards-chip'));
+    expect(screen.getByTestId('profile-accomplishments')).toBeInTheDocument();
+  });
+
   it('plays a full climb to a summit and shows it on the map afterward', () => {
     render(<App />);
     createProfileAndReachMap('Riley');
