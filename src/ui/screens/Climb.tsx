@@ -1,59 +1,49 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  applyCorrect,
-  applyMiss,
-  createClimb,
-  isFastAnswer,
-  type ClimbState,
-} from '../../engine/climb';
+import { Suspense, useEffect, useState } from 'react';
+import type { ClimbState } from '../../engine/climb';
 import type { Peak } from '../../engine/peaks';
-import {
-  generateQuestion,
-  isCorrectChoice,
-  isCorrectNumber,
-  isCorrectPickDate,
-  isCorrectSetHands,
-  type DisplaySpec,
-  type Question,
-} from '../../engine/questions';
-import { mulberry32 } from '../../engine/rng';
-import type { TimeOfDay } from '../../engine/timeMath';
-import { buildCharacterLayers } from '../character/buildCharacterLayers';
-import type { CharacterPreset } from '../character/presets';
+import type { DisplaySpec } from '../../engine/questions';
+import type { AnimalId } from '../../scene/animals/roster';
+import { playCue } from '../../scene/audio/synth';
+import { ClimbScene } from '../../scene/lazy';
+import type { ClimbMove } from '../../scene/climb/motion';
 import BoostMeter from '../hud/BoostMeter';
 import FallRiskMeter from '../hud/FallRiskMeter';
-import MiniMap from '../hud/MiniMap';
+import MuteButton from '../hud/MuteButton';
 import TimerBar from '../hud/TimerBar';
-import PixelLayers from '../pixel/PixelLayers';
-import { bodyCheer, bodyClimb, bodyIdle, bodySlip } from '../pixel/sprites/body';
-import { defaultSetHandsDraft } from '../questionDisplay';
+import { useClimbRun } from '../useClimbRun';
+import { useMediaQuery } from '../useMediaQuery';
+import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
 import AnalogClock from '../widgets/AnalogClock';
 import CalendarMonth from '../widgets/CalendarMonth';
 import ChoiceGrid from '../widgets/ChoiceGrid';
 import DatePicker from '../widgets/DatePicker';
 import NumberEntry from '../widgets/NumberEntry';
 
-/** Matches the design spec's ~1.5s post-answer beat, applied to both correct and wrong answers
- * (the spec only calls it out for wrong ones, but the reveal/pose change needs the same beat
- * either way for legibility). */
-const REVEAL_MS = 1500;
-const TICK_MS = 100;
-const CHARACTER_SCALE = 6;
+export { REVEAL_MS } from '../useClimbRun';
 
-const NOON: TimeOfDay = { hour: 12, minute: 0, second: 0 };
-
-/** `defaultSetHandsDraft` needs a target; non-`setHands` questions never
- * render the draft, so this arbitrary (but always-PM) fallback is never
- * actually shown. */
-function defaultDraftTime(question: Question): TimeOfDay {
-  return question.answer.kind === 'setHands' ? defaultSetHandsDraft(question.answer.target) : NOON;
+export interface ClimbProps {
+  peak: Peak;
+  difficulty: number;
+  animalId: AnimalId;
+  /** Caller-supplied so a retry after falling isn't byte-identical to the failed run. */
+  seed: number;
+  onSummit: (finalState: ClimbState, elapsedMs: number) => void;
+  onFall: (finalState: ClimbState, elapsedMs: number) => void;
+  /** Player-initiated exit, mid-climb — no summit/fall state change. */
+  onBail: (elapsedMs: number) => void;
+  /** Reported after every answer (timeouts count as incorrect), regardless of outcome. */
+  onQuestionAnswered?: (typeId: string, correct: boolean, elapsedMs: number) => void;
 }
 
-type Pose = 'idle' | 'climb' | 'slip' | 'cheer';
+const MOVE_LABEL: Record<ClimbMove['kind'], string> = {
+  hop: 'Hop up!',
+  slip: 'Slipped!',
+  fall: 'Fell!',
+  summit: 'Summit!',
+  none: '',
+};
 
-const POSE_SPRITES = { idle: bodyIdle, climb: bodyClimb, slip: bodySlip, cheer: bodyCheer };
-
-function renderDisplay(display: DisplaySpec) {
+function renderDisplay(display: DisplaySpec, clockSize: number) {
   switch (display.kind) {
     case 'analogClock':
       return (
@@ -61,6 +51,7 @@ function renderDisplay(display: DisplaySpec) {
           time={display.time}
           showSeconds={display.showSeconds}
           showNumerals={display.showNumerals}
+          size={clockSize}
         />
       );
     case 'calendar':
@@ -76,170 +67,72 @@ function renderDisplay(display: DisplaySpec) {
   }
 }
 
-export interface ClimbProps {
-  peak: Peak;
-  difficulty: number;
-  characterPreset: CharacterPreset;
-  /** Caller-supplied so a retry after falling isn't byte-identical to the failed run. */
-  seed: number;
-  onSummit: (finalState: ClimbState, elapsedMs: number) => void;
-  onFall: (finalState: ClimbState, elapsedMs: number) => void;
-  /** Player-initiated exit, mid-climb — no summit/fall state change, just
-   * "I'm done for now". */
-  onBail: (elapsedMs: number) => void;
-  /** Reported after every answer (including timeouts, as incorrect), regardless of climb outcome
-   * — the caller uses this to persist per-question-type stats. */
-  onQuestionAnswered?: (typeId: string, correct: boolean, elapsedMs: number) => void;
-}
-
 /**
- * The core gameplay loop: generate a question, let the player answer (or
- * time out), apply the result to `climb.ts`'s state machine, show a reveal
- * beat, then either summit/fall out or move to the next question. Handles
- * all four `AnswerSpec` kinds: `choice` and `pickDate` are click-to-answer
- * (a click IS the discrete gesture); `setHands` and `number` need an
- * explicit Submit button, since dragging hands or typing a number has no
- * natural "this is my final answer" moment the way a click does. All four
- * route through the same `applyCorrect`/`applyMiss`/reveal/pose logic below
- * — only how the answer is captured and graded differs per kind. A "Bail"
- * button offers a third way out at any time (except mid-reveal): it skips
- * `climb.ts` entirely — no correct/miss applied — and just reports elapsed
- * time to `onBail`.
+ * The climb screen: the 3D cliff fills the viewport, the HUD floats at the
+ * top, and the question card docks at the bottom (portrait) or the right
+ * (landscape). All gameplay lives in `useClimbRun`; this component only
+ * renders and plays sounds.
  */
 export default function Climb({
   peak,
   difficulty,
-  characterPreset,
+  animalId,
   seed,
   onSummit,
   onFall,
   onBail,
   onQuestionAnswered,
 }: ClimbProps) {
-  const [rng] = useState(() => mulberry32(seed));
-  const [climbState, setClimbState] = useState<ClimbState>(() => createClimb(peak, difficulty));
-  const [question, setQuestion] = useState<Question>(() =>
-    generateQuestion(rng, { difficulty, peak }),
-  );
-  const [selectedIndex, setSelectedIndex] = useState<number | undefined>(undefined);
-  const [draftTime, setDraftTime] = useState<TimeOfDay>(() => defaultDraftTime(question));
-  const [draftNumber, setDraftNumber] = useState<number | ''>('');
-  const [revealing, setRevealing] = useState(false);
-  const [pose, setPose] = useState<Pose>('idle');
-  const [timeLeftMs, setTimeLeftMs] = useState(question.timeLimitMs);
-
-  // `Date.now()` is impure and refs can't be read or written during render
-  // (only in effects/handlers), so both start times are set from a
-  // mount-only effect rather than a `useRef(Date.now())` initializer —
-  // that expression would re-evaluate on every render even though only the
-  // first result is kept, and reading `.current` back to guard it would
-  // itself be a render-time ref access.
-  const questionStartRef = useRef(0);
-  const climbStartRef = useRef(0);
-  const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
+  const run = useClimbRun({ peak, difficulty, seed, onSummit, onFall, onQuestionAnswered });
+  const reducedMotion = usePrefersReducedMotion();
+  // Landscape phones leave little height beside the scene; a smaller clock keeps the answers in view.
+  const shortScreen = useMediaQuery('(max-height: 520px)');
+  const clockSize = shortScreen ? 150 : 220;
+  const { climbState, question, revealing, move } = run;
+  const answer = question.answer;
+  const [showTitle, setShowTitle] = useState(true);
   useEffect(() => {
-    const now = Date.now();
-    questionStartRef.current = now;
-    climbStartRef.current = now;
+    // Start the clock after the scene's first frame has painted: the first
+    // climb pays for shader compilation and geometry on the main thread, and
+    // the title should still be readable once the picture appears.
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        timeout = setTimeout(() => setShowTitle(false), 2600);
+      });
+    });
     return () => {
-      if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
+      cancelAnimationFrame(frame);
+      if (timeout) clearTimeout(timeout);
     };
   }, []);
 
-  const answer = question.answer;
+  const streak = run.streak;
+  useEffect(() => {
+    if (!move) return;
+    switch (move.kind) {
+      case 'hop':
+        // Each hop in a row climbs a semitone, so a run of right answers is audible.
+        playCue(move.fast ? 'hopFast' : 'hop', { semitones: Math.min(streak - 1, 11) });
+        break;
+      case 'slip':
+        playCue('slip');
+        break;
+      case 'fall':
+        playCue('fall');
+        break;
+      case 'summit':
+        playCue('summit');
+        break;
+      case 'none':
+        break;
+    }
+    // `streak` changes in the same render as `move`, so this still runs once per answer.
+  }, [move, streak]);
 
-  /** Shared tail of every answer path: apply the climb rules, start the
-   * reveal beat, and either finish the climb or advance to the next
-   * question once it ends. */
-  function finishAnswer(correct: boolean, elapsedMs: number) {
-    const fast = isFastAnswer(elapsedMs, question.timeLimitMs);
-    const nextState = correct ? applyCorrect(climbState, fast) : applyMiss(climbState);
-
-    setRevealing(true);
-    setPose(correct ? (nextState.status === 'summited' ? 'cheer' : 'climb') : 'slip');
-    setClimbState(nextState);
-    onQuestionAnswered?.(question.typeId, correct, elapsedMs);
-
-    revealTimeoutRef.current = setTimeout(() => {
-      if (nextState.status === 'summited') {
-        onSummit(nextState, Date.now() - climbStartRef.current);
-        return;
-      }
-      if (nextState.status === 'fell') {
-        onFall(nextState, Date.now() - climbStartRef.current);
-        return;
-      }
-      const nextQuestion = generateQuestion(rng, { difficulty, peak });
-      questionStartRef.current = Date.now();
-      setQuestion(nextQuestion);
-      setTimeLeftMs(nextQuestion.timeLimitMs);
-      setSelectedIndex(undefined);
-      setDraftTime(defaultDraftTime(nextQuestion));
-      setDraftNumber('');
-      setRevealing(false);
-      setPose('idle');
-    }, REVEAL_MS);
-  }
-
-  function handleTimeout() {
-    if (revealing) return;
-    finishAnswer(false, Date.now() - questionStartRef.current);
-  }
-
-  /** Voluntary exit — no climb-state change (no `applyCorrect`/`applyMiss`),
-   * just reports how long this session ran and hands off to the caller,
-   * which is responsible for leaving this screen. */
   function handleBail() {
     if (revealing) return;
-    onBail(Date.now() - climbStartRef.current);
-  }
-
-  // Ticks the countdown and, once it reaches zero, triggers the timeout
-  // path from inside the interval callback itself rather than a second
-  // effect reacting to `timeLeftMs` hitting 0 — calling `handleTimeout`
-  // (several `setState`s) synchronously in an effect's own body causes
-  // cascading renders; calling it from an async interval/timeout callback,
-  // same as `finishAnswer`'s own `setTimeout` above, does not.
-  useEffect(() => {
-    if (revealing) return;
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - questionStartRef.current;
-      const remaining = Math.max(0, question.timeLimitMs - elapsed);
-      setTimeLeftMs(remaining);
-      if (remaining <= 0) {
-        clearInterval(interval);
-        handleTimeout();
-      }
-    }, TICK_MS);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealing, question]);
-
-  function handleChoiceAnswer(index: number | undefined) {
-    if (revealing || answer.kind !== 'choice') return;
-    const elapsedMs = Date.now() - questionStartRef.current;
-    const correct = index !== undefined && isCorrectChoice(answer, index);
-    setSelectedIndex(index);
-    finishAnswer(correct, elapsedMs);
-  }
-
-  function handleSetHandsSubmit() {
-    if (revealing || answer.kind !== 'setHands') return;
-    const elapsedMs = Date.now() - questionStartRef.current;
-    finishAnswer(isCorrectSetHands(answer, draftTime), elapsedMs);
-  }
-
-  function handleNumberSubmit() {
-    if (revealing || answer.kind !== 'number' || draftNumber === '') return;
-    const elapsedMs = Date.now() - questionStartRef.current;
-    finishAnswer(isCorrectNumber(answer, draftNumber), elapsedMs);
-  }
-
-  function handlePickDateAnswer(date: { year: number; monthIndex: number; day: number }) {
-    if (revealing || answer.kind !== 'pickDate') return;
-    const elapsedMs = Date.now() - questionStartRef.current;
-    finishAnswer(isCorrectPickDate(answer, date), elapsedMs);
+    onBail(run.elapsedMs());
   }
 
   function renderAnswerSection() {
@@ -248,24 +141,25 @@ export default function Climb({
         return (
           <ChoiceGrid
             options={answer.options}
-            selectedIndex={selectedIndex}
+            selectedIndex={run.selectedIndex}
             correctIndex={revealing ? answer.correctIndex : undefined}
             disabled={revealing}
-            onSelect={handleChoiceAnswer}
+            onSelect={run.answerChoice}
           />
         );
       case 'setHands':
         return (
-          <div data-testid="climb-set-hands">
+          <div data-testid="climb-set-hands" className="climb-card__stack">
             <AnalogClock
-              time={draftTime}
+              time={run.draftTime}
               precision={answer.precision}
-              onHandChange={revealing ? undefined : setDraftTime}
+              onHandChange={revealing ? undefined : run.setDraftTime}
+              size={clockSize}
             />
             <button
               type="button"
               data-testid="climb-submit"
-              onClick={handleSetHandsSubmit}
+              onClick={run.submitSetHands}
               disabled={revealing}
             >
               Submit
@@ -274,13 +168,13 @@ export default function Climb({
         );
       case 'number':
         return (
-          <div data-testid="climb-number">
-            <NumberEntry value={draftNumber} onChange={setDraftNumber} unit={answer.unit} />
+          <div data-testid="climb-number" className="climb-card__stack">
+            <NumberEntry value={run.draftNumber} onChange={run.setDraftNumber} unit={answer.unit} />
             <button
               type="button"
               data-testid="climb-submit"
-              onClick={handleNumberSubmit}
-              disabled={revealing || draftNumber === ''}
+              onClick={run.submitNumber}
+              disabled={revealing || run.draftNumber === ''}
             >
               Submit
             </button>
@@ -291,55 +185,107 @@ export default function Climb({
           <DatePicker
             initialYear={answer.year}
             initialMonthIndex={answer.monthIndex}
-            onChange={revealing ? undefined : handlePickDateAnswer}
+            onChange={revealing ? undefined : run.pickDate}
           />
         );
     }
   }
 
+  const moveLabel = move && move.kind !== 'none' && revealing ? MOVE_LABEL[move.kind] : '';
+
   return (
-    <main>
-      <h1>{peak.name}</h1>
-      <div data-testid="climb-hud" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        <BoostMeter boost={climbState.boost} boostCapacity={climbState.boostCapacity} />
-        <FallRiskMeter
-          fallRisk={climbState.fallRisk}
-          fallRiskCapacity={climbState.fallRiskCapacity}
-        />
-        <MiniMap position={climbState.position} height={climbState.height} />
-        <button
-          type="button"
-          data-variant="secondary"
-          data-testid="climb-bail"
-          onClick={handleBail}
-          disabled={revealing}
+    <main
+      className="climb-screen"
+      data-move={move?.kind ?? 'none'}
+      data-revealing={revealing ? 'true' : 'false'}
+    >
+      <div className="climb-screen__scene" aria-hidden="true">
+        <Suspense
+          fallback={
+            <div className="scene-fallback scene-fallback--sky">
+              <span className="scene-loading">Loading the mountain…</span>
+            </div>
+          }
         >
-          Bail
-        </button>
+          <ClimbScene
+            peakId={peak.id}
+            animalId={animalId}
+            position={climbState.position}
+            height={climbState.height}
+            move={move}
+            phase="climb"
+            boosted={climbState.boost >= climbState.boostCapacity}
+            reducedMotion={reducedMotion}
+          />
+        </Suspense>
       </div>
-      <TimerBar fraction={timeLeftMs / question.timeLimitMs} />
-      <div
-        data-testid="climb-sprite-wrap"
-        className={
-          pose === 'slip' ? 'climb-sprite-wrap climb-sprite-wrap--slip' : 'climb-sprite-wrap'
-        }
-      >
-        {pose === 'slip' && (
-          <>
-            <span className="climb-slip-dust climb-slip-dust--1" />
-            <span className="climb-slip-dust climb-slip-dust--2" />
-            <span className="climb-slip-dust climb-slip-dust--3" />
-          </>
+
+      {showTitle && (
+        <div className="climb-title" data-testid="climb-title" aria-hidden="true">
+          <span className="climb-title__peak">{peak.name}</span>
+          <span className="climb-title__level">Level {difficulty}</span>
+        </div>
+      )}
+
+      <header className="climb-hud" data-testid="climb-hud">
+        <div className="climb-hud__group">
+          <h1 className="climb-hud__peak">{peak.name}</h1>
+          <span className="climb-hud__readout" data-testid="climb-readout">
+            <strong>{climbState.position}</strong> / {climbState.height}
+          </span>
+          {moveLabel && (
+            <span className="climb-hud__move" data-testid="climb-move-label">
+              {moveLabel}
+            </span>
+          )}
+          {streak >= 3 && (
+            <span className="climb-hud__streak" data-testid="climb-streak">
+              {streak} in a row!
+            </span>
+          )}
+        </div>
+        <div className="climb-hud__group">
+          <div className="climb-hud__meter" title="Boost">
+            <span className="climb-hud__label">Boost</span>
+            <BoostMeter boost={climbState.boost} boostCapacity={climbState.boostCapacity} />
+          </div>
+          <div className="climb-hud__meter" title="Grip">
+            <span className="climb-hud__label">Grip</span>
+            <FallRiskMeter
+              fallRisk={climbState.fallRisk}
+              fallRiskCapacity={climbState.fallRiskCapacity}
+            />
+          </div>
+          <MuteButton />
+          <button
+            type="button"
+            data-variant="secondary"
+            data-testid="climb-bail"
+            onClick={handleBail}
+            disabled={revealing}
+          >
+            Bail
+          </button>
+        </div>
+      </header>
+
+      <section className="climb-card" aria-live="polite">
+        <TimerBar fraction={run.timeLeftMs / question.timeLimitMs} />
+        <p className="climb-card__prompt" data-testid="climb-prompt">
+          {question.prompt}
+        </p>
+        <div className="climb-card__display" data-testid="climb-display">
+          {renderDisplay(question.display, clockSize)}
+        </div>
+        <div className="climb-card__answer" data-testid="climb-answer">
+          {renderAnswerSection()}
+        </div>
+        {revealing && (
+          <p className="climb-card__explain" data-testid="climb-explain">
+            {question.explainCorrect}
+          </p>
         )}
-        <PixelLayers
-          layers={buildCharacterLayers(characterPreset, POSE_SPRITES[pose], { harness: true })}
-          scale={CHARACTER_SCALE}
-        />
-      </div>
-      <p data-testid="climb-prompt">{question.prompt}</p>
-      <div data-testid="climb-display">{renderDisplay(question.display)}</div>
-      <div data-testid="climb-answer">{renderAnswerSection()}</div>
-      {revealing && <p data-testid="climb-explain">{question.explainCorrect}</p>}
+      </section>
     </main>
   );
 }

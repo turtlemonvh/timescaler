@@ -1,8 +1,8 @@
 import PreviewPlayer from '../preview/PreviewPlayer';
 import DebugHudPage from './DebugHudPage';
 import DebugQuestionsPage from './DebugQuestionsPage';
+import DebugScenePage from './DebugScenePage';
 import DebugScreensPage from './DebugScreensPage';
-import DebugSpritesPage from './DebugSpritesPage';
 import DebugWidgetsPage from './DebugWidgetsPage';
 
 export const DEBUG_PREFIX = '/debug/';
@@ -22,14 +22,14 @@ export default function DebugRouter({ pathname }: { pathname: string }) {
   switch (route) {
     case 'questions':
       return <DebugQuestionsPage />;
-    case 'sprites':
-      return <DebugSpritesPage />;
     case 'widgets':
       return <DebugWidgetsPage />;
     case 'hud':
       return <DebugHudPage />;
     case 'screens':
       return <DebugScreensPage />;
+    case 'scene':
+      return <DebugScenePage />;
     case 'preview':
       return <PreviewPlayer />;
     default:
@@ -44,7 +44,7 @@ export default function DebugRouter({ pathname }: { pathname: string }) {
               <a href="/debug/questions">/debug/questions</a>
             </li>
             <li>
-              <a href="/debug/sprites">/debug/sprites</a>
+              <a href="/debug/scene">/debug/scene</a>
             </li>
             <li>
               <a href="/debug/widgets">/debug/widgets</a>

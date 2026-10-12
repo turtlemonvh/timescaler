@@ -13,9 +13,9 @@ describe('DebugRouter', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Debug: questions' })).toBeInTheDocument();
   });
 
-  it('renders the sprites page at /debug/sprites', () => {
-    render(<DebugRouter pathname="/debug/sprites" />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Debug: sprites' })).toBeInTheDocument();
+  it('renders the scene page at /debug/scene', () => {
+    render(<DebugRouter pathname="/debug/scene" />);
+    expect(screen.getByTestId('debug-scene-controls')).toHaveTextContent('Debug: scene');
   });
 
   it('renders the widgets page at /debug/widgets', () => {
@@ -46,7 +46,7 @@ describe('DebugRouter', () => {
       screen.getByRole('heading', { level: 1, name: 'Unknown debug route' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '/debug/questions' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '/debug/sprites' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '/debug/scene' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '/debug/widgets' })).toBeInTheDocument();
   });
 

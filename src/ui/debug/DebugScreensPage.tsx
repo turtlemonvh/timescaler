@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { PEAKS } from '../../engine/peaks';
-import { CHARACTER_PRESETS } from '../character/presets';
 import CharacterPick from '../screens/CharacterPick';
 import Climb from '../screens/Climb';
 import Fell from '../screens/Fell';
@@ -175,7 +174,7 @@ export default function DebugScreensPage() {
         key={climbKey}
         peak={PEAKS[0]}
         difficulty={5}
-        characterPreset={CHARACTER_PRESETS[0]}
+        animalId="fox"
         seed={climbKey}
         onSummit={(state, elapsedMs) =>
           setClimbStatus(`Summited at position ${state.position} in ${elapsedMs}ms`)
@@ -216,7 +215,7 @@ export default function DebugScreensPage() {
       <p data-testid="screens-summit-action">{summitAction ?? 'No action yet'}</p>
       <Summit
         peak={PEAKS[0]}
-        characterPreset={CHARACTER_PRESETS[0]}
+        animalId="fox"
         elapsedMs={92000}
         tier="firstAtDifficulty"
         difficulty={4}
@@ -227,7 +226,7 @@ export default function DebugScreensPage() {
       <p data-testid="screens-fell-action">{fellAction ?? 'No action yet'}</p>
       <Fell
         peak={PEAKS[0]}
-        characterPreset={CHARACTER_PRESETS[0]}
+        animalId="fox"
         onRetry={() => setFellAction('Retry')}
         onReturnToMap={() => setFellAction('Returned to map')}
       />

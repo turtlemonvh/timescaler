@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getPeak } from './engine/peaks';
-import { getCharacterPreset } from './ui/character/presets';
+import { resolveAnimal } from './scene/animals/roster';
 import CharacterPick from './ui/screens/CharacterPick';
 import Climb from './ui/screens/Climb';
 import Fell from './ui/screens/Fell';
@@ -137,7 +137,7 @@ export default function App() {
         <Climb
           peak={getPeak(peakId)}
           difficulty={difficulty}
-          characterPreset={getCharacterPreset(profile.characterId)}
+          animalId={resolveAnimal(profile.characterId).id}
           seed={screen.seed}
           onQuestionAnswered={(typeId, correct, elapsedMs) =>
             setSave((current) =>
@@ -172,7 +172,7 @@ export default function App() {
       return (
         <Summit
           peak={getPeak(screen.peakId)}
-          characterPreset={getCharacterPreset(profile.characterId)}
+          animalId={resolveAnimal(profile.characterId).id}
           elapsedMs={screen.elapsedMs}
           tier={screen.tier}
           difficulty={screen.difficulty}
@@ -187,7 +187,7 @@ export default function App() {
       return (
         <Fell
           peak={getPeak(peakId)}
-          characterPreset={getCharacterPreset(profile.characterId)}
+          animalId={resolveAnimal(profile.characterId).id}
           onRetry={() => setScreen({ name: 'climb', peakId, seed: Date.now() })}
           onReturnToMap={() => setScreen({ name: 'map' })}
         />

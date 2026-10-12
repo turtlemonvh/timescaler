@@ -12,12 +12,28 @@
 of production builds — they're never reachable on the live site, only when running locally:
 
 - `/debug/questions` — every question generator's output at any difficulty/peak, with raw JSON
-- `/debug/sprites` — every character pose, palette, and mountain theme
+- `/debug/scene` — the three.js scenes: drive the climb with real `climb.ts` transitions (correct,
+  fast correct, miss, fill boost, near summit, fall), switch peak and animal, and preview the
+  overworld and the character-pick turntables
 - `/debug/widgets` — every answer/display widget (clocks, calendar, choice grid, entry fields)
-- `/debug/hud` — the in-climb HUD components (timer, boost/fall-risk meters, mini-map, profile chip)
+- `/debug/hud` — the in-climb HUD components (timer, boost/fall-risk meters, profile chip)
 - `/debug/screens` — every M4 screen rendered standalone, for visual QA as each one is built
 - `/debug/preview` — `PreviewPlayer`, the click-through question-engine preview that used to be the
   production landing page before the real game (`App.tsx`) existed
+
+## Animal models
+
+The six climbers are rigged glTF animals from Quaternius' CC0 "Ultimate Animated Animals" pack,
+checked in as optimized copies under `public/models/` (see `CREDITS.md` there). To regenerate them
+(for example after changing the roster in `src/scene/animals/roster.ts`):
+
+```bash
+pnpm models:prepare
+```
+
+The script downloads each source GLB into the gitignored `vendor/models/` once, strips the
+duplicate `Armature|Clip` animations, dedups/prunes/welds, resamples the animation curves and
+quantizes attributes, and fails if the total goes over 15 MB.
 
 ## Before opening a PR
 

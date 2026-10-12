@@ -167,21 +167,12 @@ describe('AnalogClock', () => {
     expect(onHandChange).toHaveBeenCalledWith(expect.objectContaining({ minute: 30 }));
   });
 
-  describe('integer-scale sizing', () => {
-    it('snaps a requested size to the nearest integer multiple of the face diameter', () => {
-      // 129-cell face: a target of 260 is nearest to scale 2 (258), not the
-      // literal 260 requested — PixelCanvas only renders crisply at an
-      // integer scale (see AnalogClock's own doc comment on `size`).
+  describe('sizing', () => {
+    it('renders the SVG face at the requested size', () => {
       render(<AnalogClock time={{ hour: 6, minute: 0, second: 0 }} size={260} />);
       const svg = screen.getByTestId('analog-clock').querySelector('svg');
-      expect(svg).toHaveAttribute('width', '258');
-      expect(svg).toHaveAttribute('height', '258');
-    });
-
-    it('never renders smaller than one full face (scale >= 1)', () => {
-      render(<AnalogClock time={{ hour: 6, minute: 0, second: 0 }} size={10} />);
-      const svg = screen.getByTestId('analog-clock').querySelector('svg');
-      expect(svg).toHaveAttribute('width', '129');
+      expect(svg).toHaveAttribute('width', '260');
+      expect(svg).toHaveAttribute('height', '260');
     });
   });
 

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import BoostMeter from '../hud/BoostMeter';
 import FallRiskMeter from '../hud/FallRiskMeter';
-import MiniMap from '../hud/MiniMap';
 import ProfileChip from '../hud/ProfileChip';
 import TimerBar from '../hud/TimerBar';
 
@@ -15,7 +14,6 @@ export default function DebugHudPage() {
   const [fraction, setFraction] = useState(0.6);
   const [boost, setBoost] = useState(2);
   const [fallRisk, setFallRisk] = useState(1);
-  const [position, setPosition] = useState(12);
 
   return (
     <main>
@@ -71,22 +69,6 @@ export default function DebugHudPage() {
         />
       </p>
       <FallRiskMeter fallRisk={fallRisk} fallRiskCapacity={4} />
-
-      <h2>MiniMap</h2>
-      <p>
-        <label htmlFor="hud-position">Position</label>{' '}
-        <input
-          id="hud-position"
-          data-testid="hud-position"
-          type="range"
-          min={0}
-          max={20}
-          step={1}
-          value={position}
-          onChange={(event) => setPosition(Number(event.target.value))}
-        />
-      </p>
-      <MiniMap position={position} height={20} />
 
       <h2>ProfileChip</h2>
       <ProfileChip name="Riley" />
