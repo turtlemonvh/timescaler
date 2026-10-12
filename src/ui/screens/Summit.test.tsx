@@ -98,4 +98,30 @@ describe('Summit', () => {
       expect(hardCount).toBeGreaterThan(easyCount);
     });
   });
+
+  describe('reward line', () => {
+    it('shows nothing when no reward is passed', () => {
+      renderSummit();
+      expect(screen.queryByTestId('summit-reward')).not.toBeInTheDocument();
+    });
+
+    it('shows coins and a trophy when both were earned', () => {
+      renderSummit({ tier: 'firstAtDifficulty', reward: { coins: 15, trophy: true } });
+      expect(screen.getByTestId('summit-reward-coins')).toHaveTextContent('+15 coins');
+      expect(screen.getByTestId('summit-reward-trophy')).toHaveTextContent('Trophy earned!');
+    });
+
+    it('shows coins only, singular for one coin', () => {
+      renderSummit({ reward: { coins: 1, trophy: false } });
+      expect(screen.getByTestId('summit-reward-coins')).toHaveTextContent('+1 coin');
+      expect(screen.getByTestId('summit-reward-coins')).not.toHaveTextContent('coins');
+      expect(screen.queryByTestId('summit-reward-trophy')).not.toBeInTheDocument();
+    });
+
+    it('omits the coin text once the coin cap is reached', () => {
+      renderSummit({ reward: { coins: 0, trophy: true } });
+      expect(screen.queryByTestId('summit-reward-coins')).not.toBeInTheDocument();
+      expect(screen.getByTestId('summit-reward-trophy')).toBeInTheDocument();
+    });
+  });
 });

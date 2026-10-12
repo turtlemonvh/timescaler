@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getPeak } from './engine/peaks';
+import { rewardDelta } from './engine/rewards';
 import { resolveAnimal } from './scene/animals/roster';
 import CharacterPick from './ui/screens/CharacterPick';
 import Climb from './ui/screens/Climb';
@@ -33,7 +34,14 @@ type Screen =
   | { name: 'map' }
   | { name: 'review'; logFilter?: { peakId: number; difficulty: number } }
   | { name: 'climb'; peakId: number; seed: number }
-  | { name: 'summit'; peakId: number; elapsedMs: number; tier: SummitTier; difficulty: number }
+  | {
+      name: 'summit';
+      peakId: number;
+      elapsedMs: number;
+      tier: SummitTier;
+      difficulty: number;
+      reward: { coins: number; trophy: boolean };
+    }
   | { name: 'fell'; peakId: number };
 
 function requireActiveProfile(save: SaveFile): Profile {
@@ -149,11 +157,19 @@ export default function App() {
             // this render's closure — before recordSummit below updates it,
             // per summitTier's own doc comment on why ordering matters here.
             const tier = summitTier(profile.progress[peakId], difficulty, elapsedMs);
+            // Same ordering rule for the coins/trophy line: replay the log
+            // before and after this summit (rewardDelta applies the coin cap
+            // and the first-new-best-only rule exactly as the Map's totals do).
+            const after = getProfile(
+              recordSummit(save, profile.id, peakId, difficulty, elapsedMs),
+              profile.id,
+            );
+            const reward = after ? rewardDelta(profile, after) : { coins: 0, trophy: false };
             setSave((current) => {
               const summited = recordSummit(current, profile.id, peakId, difficulty, elapsedMs);
               return checkGoalsAchieved(summited, profile.id, peakId, difficulty);
             });
-            setScreen({ name: 'summit', peakId, elapsedMs, tier, difficulty });
+            setScreen({ name: 'summit', peakId, elapsedMs, tier, difficulty, reward });
           }}
           onBail={(elapsedMs) => {
             setSave((current) => recordBail(current, profile.id, peakId, difficulty, elapsedMs));
@@ -176,6 +192,7 @@ export default function App() {
           elapsedMs={screen.elapsedMs}
           tier={screen.tier}
           difficulty={screen.difficulty}
+          reward={screen.reward}
           onContinue={() => setScreen({ name: 'map' })}
         />
       );

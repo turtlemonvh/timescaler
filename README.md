@@ -25,7 +25,9 @@ milestone, and tracks which are done.
 
 TypeScript, Vite, React, three.js (via react-three-fiber), Vitest, Playwright, pnpm. Installable
 as a PWA; no backend, no accounts — all progress is local-storage only. Animal models are CC0 from
-Quaternius (see `public/models/CREDITS.md`).
+Quaternius (see `public/models/CREDITS.md`). Coins and trophies are recomputed from the saved
+climb log (`src/engine/rewards.ts`), so profiles migrated from save v1 or v2, which have no climb
+log, start at 0 coins even with peaks already cleared.
 
 ## License
 

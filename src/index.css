@@ -731,6 +731,21 @@ td {
   font-weight: 700;
   color: var(--pine);
 }
+.result-card__reward {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1rem;
+  font-weight: 700;
+  color: var(--text-h);
+}
+.result-card__reward > span,
+.rewards-chip,
+.peak-card__trophies {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
 .result-card__note {
   font-size: 0.9rem;
 }
@@ -831,6 +846,12 @@ td {
     display: none;
   }
 }
+.map-screen__bar-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
 .map-screen__bar-actions {
   display: flex;
   gap: 0.4rem;
@@ -847,6 +868,21 @@ td {
   box-shadow: var(--shadow);
   font-weight: 700;
   color: var(--text-h);
+}
+.rewards-chip {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-weight: 700;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+.rewards-chip__sep {
+  opacity: 0.5;
+}
+.peak-card__trophies {
+  gap: 0.1rem;
 }
 .profile-chip__animal {
   display: inline-grid;

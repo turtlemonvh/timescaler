@@ -4,6 +4,7 @@ import type { AnimalId } from '../../scene/animals/roster';
 import { ClimbScene } from '../../scene/lazy';
 import type { SummitTier } from '../../storage/profile';
 import { formatDuration } from '../formatDuration';
+import { CoinIcon, TrophyIcon } from '../hud/RewardIcons';
 import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
 
 export interface SummitProps {
@@ -14,6 +15,8 @@ export interface SummitProps {
   tier: SummitTier;
   /** Scales the confetti — a harder level earns a bigger celebration. */
   difficulty: number;
+  /** What this summit earned — see `rewardDelta` in `engine/rewards.ts`. Omitted, no reward line. */
+  reward?: { coins: number; trophy: boolean };
   onContinue: () => void;
 }
 
@@ -67,6 +70,7 @@ export default function Summit({
   elapsedMs,
   tier,
   difficulty,
+  reward,
   onContinue,
 }: SummitProps) {
   const [confetti] = useState(() =>
@@ -142,6 +146,20 @@ export default function Summit({
         {tierMessage && (
           <p data-testid="summit-tier-message" className="result-card__tier">
             {tierMessage}
+          </p>
+        )}
+        {reward && (reward.coins > 0 || reward.trophy) && (
+          <p className="result-card__reward" data-testid="summit-reward">
+            {reward.coins > 0 && (
+              <span data-testid="summit-reward-coins">
+                <CoinIcon size={20} /> +{reward.coins} {reward.coins === 1 ? 'coin' : 'coins'}
+              </span>
+            )}
+            {reward.trophy && (
+              <span data-testid="summit-reward-trophy">
+                <TrophyIcon size={20} /> Trophy earned!
+              </span>
+            )}
           </p>
         )}
         <p className="result-card__note">
