@@ -642,6 +642,14 @@ td {
     left: 28%;
   }
 }
+/* Portrait: the climber sits in the top third, so the title goes just above the docked card. */
+@media (max-aspect-ratio: 1/1) {
+  .climb-title {
+    top: auto;
+    bottom: 60svh;
+    margin-bottom: 0.6rem;
+  }
+}
 
 /* The card flashes with the verdict on the same frame as the climber moves. */
 .climb-screen[data-revealing='true'][data-move='hop'] .climb-card,
