@@ -12,6 +12,8 @@ export interface DatePickerProps {
   initialYear: number;
   initialMonthIndex: number;
   onChange?: (date: PickedDate) => void;
+  /** Passed through to `CalendarMonth`, and tightens the summary line's margins. */
+  compact?: boolean;
 }
 
 /**
@@ -26,7 +28,12 @@ export interface DatePickerProps {
  * would need `CalendarMonth` to become a controlled component, which
  * nothing needs yet.
  */
-export default function DatePicker({ initialYear, initialMonthIndex, onChange }: DatePickerProps) {
+export default function DatePicker({
+  initialYear,
+  initialMonthIndex,
+  onChange,
+  compact = false,
+}: DatePickerProps) {
   const [picked, setPicked] = useState<PickedDate | null>(null);
 
   function handleDayClick(day: number, year: number, monthIndex: number) {
@@ -41,8 +48,9 @@ export default function DatePicker({ initialYear, initialMonthIndex, onChange }:
         year={initialYear}
         monthIndex={initialMonthIndex}
         onDayClick={handleDayClick}
+        compact={compact}
       />
-      <p data-testid="date-picker-value">
+      <p data-testid="date-picker-value" style={compact ? { margin: '0.35rem 0 0' } : undefined}>
         {picked
           ? `Selected: ${formatDateLong(new Date(picked.year, picked.monthIndex, picked.day))}`
           : 'No date selected'}

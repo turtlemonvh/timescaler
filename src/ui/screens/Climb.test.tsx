@@ -349,6 +349,50 @@ describe('Climb', () => {
   });
 });
 
+describe('Climb — portrait card layout (issue #113)', () => {
+  // jsdom's matchMedia stub matches nothing, so Climb takes the docked
+  // (portrait, bottom card) layout here.
+  function renderWith(question: Question) {
+    vi.mocked(generateQuestion).mockReturnValue(question);
+    render(
+      <Climb
+        peak={shortPeak}
+        difficulty={5}
+        animalId="fox"
+        seed={1}
+        onSummit={vi.fn()}
+        onFall={vi.fn()}
+        onBail={vi.fn()}
+      />,
+    );
+    return screen.getByTestId('choice-grid').style.gridTemplateColumns;
+  }
+
+  it('lays four short options out in two columns', () => {
+    const columns = renderWith({
+      ...FIXED_QUESTION,
+      answer: { kind: 'choice', options: ['6:00', '7:00', '8:00', '9:00'], correctIndex: 1 },
+    });
+    expect(columns).toBe('repeat(2, minmax(0, 1fr))');
+  });
+
+  it('keeps one column when any of the four labels is long', () => {
+    const columns = renderWith({
+      ...FIXED_QUESTION,
+      answer: {
+        kind: 'choice',
+        options: ['Tuesday, July 14, 2026', '7:00', '8:00', '9:00'],
+        correctIndex: 1,
+      },
+    });
+    expect(columns).toContain('auto-fit');
+  });
+
+  it('leaves a two-option question on the auto-fit grid', () => {
+    expect(renderWith(FIXED_QUESTION)).toContain('auto-fit');
+  });
+});
+
 describe('Climb — setHands answer kind', () => {
   const CENTER = 129; // AnalogClock's default target size (260) snaps to actualSize 258.
   const RADIUS = 50;

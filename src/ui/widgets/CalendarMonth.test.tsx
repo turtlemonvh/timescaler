@@ -112,4 +112,21 @@ describe('CalendarMonth', () => {
     fireEvent.click(screen.getAllByTestId('calendar-day')[9]);
     expect(onDayClick).toHaveBeenCalledWith(10, 2026, 7);
   });
+
+  it('keeps 44px day cells by default and shortens them when compact (issue #113)', () => {
+    const { unmount } = render(<CalendarMonth year={2026} monthIndex={7} />);
+    expect(screen.getAllByTestId('calendar-day')[0].style.minHeight).toBe('44px');
+    unmount();
+
+    // Display-only: nothing to tap, so the rows can be shortest.
+    const display = render(<CalendarMonth year={2026} monthIndex={7} compact />);
+    expect(screen.getAllByTestId('calendar-day')[0].style.minHeight).toBe('26px');
+    display.unmount();
+
+    // Clickable cells stay 44px wide and at least 34px tall.
+    render(<CalendarMonth year={2026} monthIndex={7} compact onDayClick={vi.fn()} />);
+    const cell = screen.getAllByTestId('calendar-day')[0];
+    expect(cell.style.minHeight).toBe('34px');
+    expect(cell.style.minWidth).toBe('44px');
+  });
 });
