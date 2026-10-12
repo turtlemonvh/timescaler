@@ -307,7 +307,7 @@ describe('Climb', () => {
     expect(screen.getByTestId('choice-option-0')).toHaveAttribute('data-state', 'correct');
   });
 
-  it('increments the boost meter on a correct answer and resets it on a miss', () => {
+  it('increments the boost meter on a correct answer and halves it on a miss', () => {
     render(
       <Climb
         peak={shortPeak}
@@ -324,7 +324,8 @@ describe('Climb', () => {
     answerCorrect();
     expect(screen.getAllByTestId('boost-pip-filled')).toHaveLength(2);
     answerWrong();
-    expect(screen.queryAllByTestId('boost-pip-filled')).toHaveLength(0);
+    // A miss halves boost (rounding down): 2 -> 1.
+    expect(screen.getAllByTestId('boost-pip-filled')).toHaveLength(1);
   });
 
   it('gives only +1 boost for a correct answer past the halfway point of the timer', () => {

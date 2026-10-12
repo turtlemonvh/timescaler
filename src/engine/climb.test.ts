@@ -90,10 +90,27 @@ describe('applyMiss', () => {
     expect(state.position).toBe(0); // floored, not negative
   });
 
-  it('resets boost to 0 immediately, even if it was at capacity', () => {
+  it('halves boost (rounding down) on each miss, from capacity down to 0, never negative', () => {
     let state = createClimb(testPeak, 5);
     for (let i = 0; i < 5; i++) state = applyCorrect(state, true);
     expect(state.boost).toBe(5);
+    state = applyMiss(state);
+    expect(state.boost).toBe(2);
+    state = applyMiss(state);
+    expect(state.boost).toBe(1);
+    state = applyMiss(state);
+    expect(state.boost).toBe(0);
+    expect(state.status).toBe('climbing');
+    // Fall risk is now at capacity (4); stay below it to keep climbing and
+    // confirm a miss at boost 0 can't drive it negative.
+    state = applyMiss({ ...state, fallRisk: 0 });
+    expect(state.boost).toBe(0);
+  });
+
+  it('halves a boost of 1 down to 0 (Math.floor boundary)', () => {
+    let state = createClimb(testPeak, 5);
+    state = applyCorrect(state, false);
+    expect(state.boost).toBe(1);
     state = applyMiss(state);
     expect(state.boost).toBe(0);
   });
