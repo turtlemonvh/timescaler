@@ -129,6 +129,28 @@ describe('App', () => {
     expect(screen.queryByTestId('summit-ribbon')).not.toBeInTheDocument();
   });
 
+  it('awards 5 × difficulty coins and a trophy for a first clear, then 1 × for a repeat', () => {
+    render(<App />);
+    createProfileAndReachMap('Riley');
+    expect(screen.getByTestId('rewards-coins')).toHaveTextContent('0');
+
+    startClimbAtDifficulty(1, 1);
+    climbToSummit();
+    expect(screen.getByTestId('summit-reward-coins')).toHaveTextContent('+5 coins');
+    expect(screen.getByTestId('summit-reward-trophy')).toHaveTextContent('Trophy earned!');
+    fireEvent.click(screen.getByTestId('summit-continue'));
+    expect(screen.getByTestId('rewards-coins')).toHaveTextContent('5');
+    expect(screen.getByTestId('rewards-trophies')).toHaveTextContent('1');
+
+    startClimbAtDifficulty(1, 1);
+    climbToSummit();
+    expect(screen.getByTestId('summit-reward-coins')).toHaveTextContent('+1 coin');
+    expect(screen.queryByTestId('summit-reward-trophy')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('summit-continue'));
+    expect(screen.getByTestId('rewards-coins')).toHaveTextContent('6');
+    expect(screen.getByTestId('rewards-trophies')).toHaveTextContent('1');
+  });
+
   it('records a fall and returns to the map without marking the peak summited', () => {
     render(<App />);
     createProfileAndReachMap('Riley');

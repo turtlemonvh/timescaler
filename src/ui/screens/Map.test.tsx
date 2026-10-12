@@ -299,4 +299,57 @@ describe('Map', () => {
       expect(screen.getByTestId('peak-history-empty-1')).toBeInTheDocument();
     });
   });
+
+  describe('rewards', () => {
+    it('shows 0 coins and 0 trophies for an empty climb log', () => {
+      renderMap(makeProfile());
+      expect(screen.getByTestId('rewards-chip')).toBeInTheDocument();
+      expect(screen.getByTestId('rewards-coins')).toHaveTextContent('0');
+      expect(screen.getByTestId('rewards-trophies')).toHaveTextContent('0');
+      expect(screen.queryByTestId('peak-trophies-1')).not.toBeInTheDocument();
+    });
+
+    it('totals coins and trophies from the climb log and marks trophies per peak', () => {
+      const profile = makeProfile({
+        climbLog: [
+          // Peak 1, Lv 2: first clear (+10, trophy), then faster (+6, trophy).
+          makeLogEntry({
+            id: 'a',
+            difficulty: 2,
+            startedAt: 1000,
+            endedAt: 61000,
+            result: 'summited',
+          }),
+          makeLogEntry({
+            id: 'b',
+            difficulty: 2,
+            startedAt: 70000,
+            endedAt: 80000,
+            result: 'fell',
+          }),
+          makeLogEntry({
+            id: 'c',
+            difficulty: 2,
+            startedAt: 90000,
+            endedAt: 140000,
+            result: 'summited',
+          }),
+          // Peak 3, Lv 1: first clear (+5, trophy).
+          makeLogEntry({
+            id: 'd',
+            peakId: 3,
+            startedAt: 200000,
+            endedAt: 230000,
+            result: 'summited',
+          }),
+        ],
+      });
+      renderMap(profile);
+      expect(screen.getByTestId('rewards-coins')).toHaveTextContent('21');
+      expect(screen.getByTestId('rewards-trophies')).toHaveTextContent('3');
+      expect(screen.getByTestId('peak-trophies-1')).toHaveAccessibleName('2 trophies');
+      expect(screen.getByTestId('peak-trophies-3')).toHaveAccessibleName('1 trophy');
+      expect(screen.queryByTestId('peak-trophies-2')).not.toBeInTheDocument();
+    });
+  });
 });

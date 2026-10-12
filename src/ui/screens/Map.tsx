@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { formatDateLong } from '../../engine/dateMath';
 import { describeDifficultyComparisonTable } from '../../engine/difficultyDescribe';
 import { PEAKS, type Peak } from '../../engine/peaks';
+import { computeRewards, trophyCountByPeak } from '../../engine/rewards';
 import { resolveAnimal } from '../../scene/animals/roster';
 import { playCue } from '../../scene/audio/synth';
 import { MapScene } from '../../scene/lazy';
@@ -23,6 +24,7 @@ import {
 import { formatDuration } from '../formatDuration';
 import MuteButton from '../hud/MuteButton';
 import ProfileChip from '../hud/ProfileChip';
+import { CoinIcon, TrophyIcon } from '../hud/RewardIcons';
 import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
 
 const DIFFICULTIES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -44,6 +46,8 @@ interface PeakCardProps {
   onSelect: () => void;
   progress: PeakProgress | undefined;
   climbLog: Profile['climbLog'];
+  /** Trophies earned on this peak, across all difficulties. */
+  trophyCount: number;
   onClimb: (peakId: number, difficulty: number) => void;
   onViewFullHistory: (peakId: number, difficulty: number) => void;
 }
@@ -59,6 +63,7 @@ function PeakCard({
   onSelect,
   progress,
   climbLog,
+  trophyCount,
   onClimb,
   onViewFullHistory,
 }: PeakCardProps) {
@@ -113,6 +118,18 @@ function PeakCard({
           {attemptBeyond && (
             <span data-testid={`peak-status-attempt-${peak.id}`} className="pill">
               Tried Lv {attemptBeyond.difficulty} ({attemptBeyond.count}×)
+            </span>
+          )}
+          {trophyCount > 0 && (
+            <span
+              data-testid={`peak-trophies-${peak.id}`}
+              className="peak-card__trophies"
+              aria-label={`${trophyCount} ${trophyCount === 1 ? 'trophy' : 'trophies'}`}
+              title={`${trophyCount} ${trophyCount === 1 ? 'trophy' : 'trophies'}`}
+            >
+              {Array.from({ length: trophyCount }, (_, i) => (
+                <TrophyIcon key={i} size={16} />
+              ))}
             </span>
           )}
           {bestTimeAtSelectedLevel !== null && (
@@ -261,6 +278,9 @@ export default function Map({ profile, onClimb, onReview, onViewFullHistory }: M
     [profile.progress],
   );
 
+  const rewards = useMemo(() => computeRewards(profile), [profile]);
+  const trophyCounts = useMemo(() => trophyCountByPeak(rewards.trophies), [rewards.trophies]);
+
   function select(peakId: number) {
     if (peakId !== selectedPeakId) playCue('tap');
     setSelectedPeakId(peakId);
@@ -289,18 +309,33 @@ export default function Map({ profile, onClimb, onReview, onViewFullHistory }: M
           Drag to look around · tap a peak to pick it
         </p>
         <div className="map-screen__bar">
-          <ProfileChip
-            name={profile.name}
-            preview={
-              <span
-                className="profile-chip__animal"
-                style={{ background: animal.accent }}
-                title={animal.name}
-              >
-                {animal.name[0]}
+          <div className="map-screen__bar-left">
+            <ProfileChip
+              name={profile.name}
+              preview={
+                <span
+                  className="profile-chip__animal"
+                  style={{ background: animal.accent }}
+                  title={animal.name}
+                >
+                  {animal.name[0]}
+                </span>
+              }
+            />
+            <span
+              className="rewards-chip"
+              data-testid="rewards-chip"
+              aria-label={`${rewards.coins} coins, ${rewards.trophies.length} trophies`}
+            >
+              <CoinIcon />
+              <span data-testid="rewards-coins">{rewards.coins}</span>
+              <span className="rewards-chip__sep" aria-hidden="true">
+                ·
               </span>
-            }
-          />
+              <TrophyIcon />
+              <span data-testid="rewards-trophies">{rewards.trophies.length}</span>
+            </span>
+          </div>
           <h1 className="map-screen__title">Choose a peak</h1>
           <div className="map-screen__bar-actions">
             <button
@@ -334,6 +369,7 @@ export default function Map({ profile, onClimb, onReview, onViewFullHistory }: M
             onSelect={() => select(peak.id)}
             progress={profile.progress[peak.id]}
             climbLog={profile.climbLog}
+            trophyCount={trophyCounts[peak.id] ?? 0}
             onClimb={onClimb}
             onViewFullHistory={onViewFullHistory}
           />
