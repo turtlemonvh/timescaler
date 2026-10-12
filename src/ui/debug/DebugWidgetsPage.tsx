@@ -19,10 +19,10 @@ const STATIC_TIMES: TimeOfDay[] = [
 ];
 
 /**
- * Dev-only gallery for M3 widgets, mirroring `/debug/sprites`'s role for
- * M2 — a place to see every widget rendered and interact with the
- * draggable ones without playing through the real game. Grows one widget
- * per PR as M3 lands.
+ * Dev-only gallery for the question display/answer widgets (clocks,
+ * calendar, choice grid, entry fields) — a place to see every widget
+ * rendered and interact with the draggable ones without playing through
+ * the real game.
  */
 export default function DebugWidgetsPage() {
   const [interactiveTime, setInteractiveTime] = useState<TimeOfDay>({

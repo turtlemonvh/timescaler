@@ -18,7 +18,7 @@ of production builds — they're never reachable on the live site, only when run
   and the character-pick turntables
 - `/debug/widgets` — every answer/display widget (clocks, calendar, choice grid, entry fields)
 - `/debug/hud` — the in-climb HUD components (timer, boost/fall-risk meters, profile chip)
-- `/debug/screens` — every M4 screen rendered standalone, for visual QA as each one is built
+- `/debug/screens` — every game screen rendered standalone, for visual QA in isolation
 - `/debug/preview` — `PreviewPlayer`, the click-through question-engine preview that used to be the
   production landing page before the real game (`App.tsx`) existed
 
@@ -54,6 +54,8 @@ app via `vite preview`.
 
 ## Project layout
 
-See `docs/superpowers/specs/2026-08-08-summit-clock-design.md` for the full design — architecture,
-game mechanics, and the milestone roadmap. `docs/superpowers/plans/` holds the implementation plan
-for each milestone.
+See `docs/superpowers/specs/2026-08-08-summit-clock-design.md` for the original design — game
+mechanics, the question engine, and the milestone roadmap — and
+`docs/superpowers/specs/2026-10-11-3d-climb-design.md` for the three.js scene that replaced its
+pixel-art presentation, including the current `src/scene` / `src/ui` layout.
+`docs/superpowers/plans/` holds the implementation plan for each milestone.

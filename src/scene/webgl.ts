@@ -12,8 +12,3 @@ export function hasWebGL(): boolean {
   }
   return cached;
 }
-
-/** Test seam. */
-export function resetWebGLProbeForTests(): void {
-  cached = null;
-}

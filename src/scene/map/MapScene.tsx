@@ -8,7 +8,7 @@ import Animal from '../animals/Animal';
 import type { Pose } from '../animals/clips';
 import type { AnimalId } from '../animals/roster';
 import { sceneDelta, sceneNow } from '../clock';
-import { PEAK_THEMES, peakTheme } from '../theme/peakThemes';
+import { peakTheme } from '../theme/peakThemes';
 import { hasWebGL } from '../webgl';
 import Clouds from '../world/Clouds';
 import Pines, { type PineSpot } from '../world/Pines';
@@ -547,7 +547,5 @@ function MapScene({
     </Canvas>
   );
 }
-
-export { PEAK_THEMES };
 
 export default memo(MapScene);

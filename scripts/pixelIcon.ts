@@ -1,5 +1,11 @@
 import { BACKGROUND_COLOR } from '../app.config.js';
 
+/**
+ * The app icon / favicon only: a 16x16 pixel-grid mountain glyph, rasterized by
+ * `generate-icons.ts`. Nothing in the game itself is pixel art any more — the
+ * climb is a three.js scene (see docs/superpowers/specs/2026-10-11-3d-climb-design.md).
+ */
+
 const ROCK = '#57606f';
 const SNOW = '#f1f5f9';
 

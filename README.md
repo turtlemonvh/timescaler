@@ -17,7 +17,10 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 ## Design
 
 See [docs/superpowers/specs/2026-08-08-summit-clock-design.md](./docs/superpowers/specs/2026-08-08-summit-clock-design.md)
-for the full design — game mechanics, architecture, and the milestone roadmap.
+for the original design — game mechanics, the question engine, and the milestone roadmap. Its
+presentation (pixel art and pixel fonts) was replaced by the three.js climb in #112; see
+[docs/superpowers/specs/2026-10-11-3d-climb-design.md](./docs/superpowers/specs/2026-10-11-3d-climb-design.md)
+for the current scene, art direction and file layout.
 [docs/superpowers/plans/](./docs/superpowers/plans/) holds the implementation plan for each
 milestone, and tracks which are done.
 

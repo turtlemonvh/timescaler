@@ -5,7 +5,7 @@ import ProfileChip from '../hud/ProfileChip';
 import TimerBar from '../hud/TimerBar';
 
 /**
- * Dev-only gallery for the M4 HUD components — the small, presentational
+ * Dev-only gallery for the in-climb HUD components — the small, presentational
  * pieces the Climb screen composes together. Distinct from `/debug/widgets`
  * (question display/answer widgets) since these are game-state indicators,
  * not question I/O.
