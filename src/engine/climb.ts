@@ -51,7 +51,7 @@ export function applyMiss(state: ClimbState): ClimbState {
   return {
     ...state,
     position: Math.max(0, state.position - 1),
-    boost: 0,
+    boost: Math.floor(state.boost / 2),
     fallRisk: state.fallRisk + 1,
   };
 }
