@@ -7,6 +7,7 @@ import { mulberry32 } from '../../engine/rng';
 import Animal from '../animals/Animal';
 import type { Pose } from '../animals/clips';
 import type { AnimalId } from '../animals/roster';
+import { sceneDelta, sceneNow } from '../clock';
 import { PEAK_THEMES, peakTheme } from '../theme/peakThemes';
 import { hasWebGL } from '../webgl';
 import Clouds from '../world/Clouds';
@@ -251,9 +252,10 @@ function Wanderer({
   const facingRef = useRef(0.35);
   const seenRef = useRef(selectedPeakId);
 
-  useFrame((_, delta) => {
+  useFrame((_, rawDelta) => {
     const node = group.current;
     if (!node) return;
+    const delta = sceneDelta(rawDelta);
 
     // A new selection starts a walk along the trail from wherever we are.
     if (selectedPeakId !== seenRef.current) {
@@ -275,7 +277,7 @@ function Wanderer({
         walkRef.current = {
           points,
           index: 0,
-          started: performance.now(),
+          started: sceneNow(),
           durations: points.map((point, i) =>
             i === 0 ? 0 : (point.distanceTo(points[i - 1]) / speed) * 1000 * scale,
           ),
@@ -295,13 +297,13 @@ function Wanderer({
       } else {
         const from = walk.points[walk.index];
         const ms = Math.max(1, walk.durations[walk.index + 1]);
-        const t = Math.min(1, (performance.now() - walk.started) / ms);
+        const t = Math.min(1, (sceneNow() - walk.started) / ms);
         node.position.lerpVectors(from, next, t);
         node.position.y = ISLAND_TOP + Math.abs(Math.sin(t * Math.PI * 5)) * 0.05;
         facingRef.current = Math.atan2(next.x - from.x, next.z - from.z);
         if (t >= 1) {
           walk.index += 1;
-          walk.started = performance.now();
+          walk.started = sceneNow();
         }
       }
     }

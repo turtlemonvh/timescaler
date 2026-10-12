@@ -78,8 +78,10 @@ const CUES: Readonly<Record<Cue, readonly Note[]>> = {
     { at: 0.18, freq: 1319, dur: 0.16, type: 'sine', gain: 0.16 },
   ],
   slip: [
-    { at: 0, freq: 440, dur: 0.22, type: 'sawtooth', gain: 0.12, glide: 180 },
-    { at: 0.22, freq: 140, dur: 0.08, type: 'square', gain: 0.1 },
+    // The leap: a short rising effort note, then the slide and the thud.
+    { at: 0, freq: 330, dur: 0.14, type: 'triangle', gain: 0.12, glide: 520 },
+    { at: 0.3, freq: 440, dur: 0.22, type: 'sawtooth', gain: 0.12, glide: 180 },
+    { at: 0.52, freq: 140, dur: 0.08, type: 'square', gain: 0.1 },
   ],
   fall: [
     { at: 0, freq: 600, dur: 0.6, type: 'sawtooth', gain: 0.12, glide: 90 },

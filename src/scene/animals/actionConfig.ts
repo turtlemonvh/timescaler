@@ -16,3 +16,8 @@ export function configureAction(
   action.timeScale =
     options.fitMs && clipSeconds > 0 ? clipSeconds / (options.fitMs / 1000) : options.timeScale;
 }
+
+/** Keeps a mixer's playback rate in step with the scene time scale. */
+export function syncMixerTimeScale(mixer: THREE.AnimationMixer, scale: number): void {
+  if (mixer.timeScale !== scale) mixer.timeScale = scale;
+}
