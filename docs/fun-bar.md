@@ -6,11 +6,12 @@ Every line below is something a **7-year-old would notice**, and something an ad
 eye in a two-minute play** — no instrumentation, no reading the code. If a line fails, the game is
 not yet fun, however correct the maths is.
 
-Lines are numbered `F1`..`F15` so pull requests can cite exactly which ones they move. The 3D climb
-(#112) is the baseline scored against this list: it claims every line from F1 to F15, with one
-caveat — F7's "within 300 ms" was not instrumented, only observed. (Its PR also cites F16 and F17,
-the falling and wildlife lines proposed in the closed #101; they were never added here.) The
-pixel-art pipeline series (#91) this list was first written for was replaced by #112.
+Lines are numbered `F1`..`F17` so pull requests can cite exactly which ones they move. F16 and F17
+were added after the first fifteen, so they sit under **Slipping** and **Always-on motion** rather
+than at the end, and earlier citations stay valid. The 3D climb (#112) is the baseline scored
+against this list: it claims every line from F1 to F17, with one caveat — F7's "within 300 ms" was
+not instrumented, only observed. The pixel-art pipeline series (#91) this list was first written for
+was replaced by #112.
 
 ## Every answer
 
@@ -38,6 +39,8 @@ pixel-art pipeline series (#91) this list was first written for was replaced by 
   than you gain.
 - **F9.** After a slip the character settles back into a ready pose within about a second; the game
   never stalls waiting on the player.
+- **F16.** A fall is a designed, visibly telegraphed outcome: the character drops off the wall and
+  lands at the bottom, not a cut to a results card.
 
 ## Summit
 
@@ -56,3 +59,5 @@ pixel-art pipeline series (#91) this list was first written for was replaced by 
 - **F14.** Something on screen is always moving during a climb, even while the player is thinking.
 - **F15.** With `prefers-reduced-motion` set, every line above still communicates the same thing from
   a **static frame plus a label** — nothing becomes unreadable, and nothing keeps moving.
+- **F17.** Something alive is on screen that behaves like it lives there (birds crossing, clouds
+  drifting), not a decoration on a timer.
