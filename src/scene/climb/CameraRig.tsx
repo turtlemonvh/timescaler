@@ -40,7 +40,7 @@ export default function CameraRig({
     const portrait = size.height > size.width * 1.05;
     const distance = portrait ? 9.5 : 7.2;
     const lift = portrait ? 1.0 : 1.4;
-    const lookDrop = portrait ? -2.2 : -0.1;
+    const lookDrop = portrait ? -1.6 : -0.1;
 
     if (phase === 'summit') {
       // Swing across the front of the summit rather than orbiting into the wall.
@@ -50,9 +50,14 @@ export default function CameraRig({
       desired.set(t.x + Math.sin(angle) * radius, t.y + 2.2, t.z + Math.cos(angle) * radius + 0.5);
       look.set(t.x, t.y + 0.7 + (portrait ? -1.3 : 0), t.z);
     } else {
+      // Landscape docks the question card down the right-hand side, so the
+      // framing centre sits to the right of the climber and the climber lands
+      // in the open left half of the viewport.
       const follow = portrait ? 1 : 0.5;
-      desired.set(t.x * follow, t.y + lift, t.z + distance);
-      look.set(t.x * follow, t.y + 0.6 + lookDrop, t.z);
+      // Matches the CSS breakpoint that docks the card on the right.
+      const sideShift = !portrait && size.width >= 900 ? 2.1 : 0;
+      desired.set(t.x * follow + sideShift, t.y + lift, t.z + distance);
+      look.set(t.x * follow + sideShift, t.y + 0.6 + lookDrop, t.z);
     }
 
     const shake = shakeRef.current ?? 0;

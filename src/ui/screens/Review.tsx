@@ -325,7 +325,7 @@ export default function Review({
   }
 
   return (
-    <main>
+    <main className="page page--wide">
       <h1>Review</h1>
       <p>
         A reference for parents and teachers: what does each peak actually ask at each difficulty

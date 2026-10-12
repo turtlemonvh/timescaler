@@ -14,7 +14,7 @@ export interface CliffWorldProps {
   position: number;
 }
 
-const WALL_WIDTH = 13;
+const WALL_WIDTH = 10;
 const WALL_BELOW = 5;
 const WALL_ABOVE = 7;
 
@@ -57,7 +57,7 @@ function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
     }
     const routeDamp = clamp01((nearest - 0.7) / 1.2);
     const n = noise(x, y, theme.peak.id) + (rng() - 0.5) * 0.35;
-    const edgeRecede = Math.abs(x) > 4.2 ? (Math.abs(x) - 4.2) * 0.6 : 0;
+    const edgeRecede = Math.abs(x) > 3.3 ? (Math.abs(x) - 3.3) * 0.75 : 0;
     const z = wallZ(y) + n * 0.5 * (0.25 + 0.75 * routeDamp) - edgeRecede;
     positions.setZ(i, z);
 
@@ -100,7 +100,7 @@ function wallPines(height: number, theme: PeakTheme): PineSpot[] {
   for (let i = 0; i < 16; i++) {
     const side = rng() > 0.5 ? 1 : -1;
     const y = 1 + rng() * Math.max(1, top - 3);
-    const x = side * (3.6 + rng() * 1.6);
+    const x = side * (3.1 + rng() * 1.3);
     spots.push({
       x,
       y: y - 0.2,

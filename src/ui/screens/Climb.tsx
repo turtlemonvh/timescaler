@@ -197,11 +197,11 @@ export default function Climb({
           )}
         </div>
         <div className="climb-hud__group">
-          <div className="climb-hud__meter">
+          <div className="climb-hud__meter" title="Boost">
             <span className="climb-hud__label">Boost</span>
             <BoostMeter boost={climbState.boost} boostCapacity={climbState.boostCapacity} />
           </div>
-          <div className="climb-hud__meter">
+          <div className="climb-hud__meter" title="Grip">
             <span className="climb-hud__label">Grip</span>
             <FallRiskMeter
               fallRisk={climbState.fallRisk}

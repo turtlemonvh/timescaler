@@ -35,6 +35,34 @@ especially by a fresh subagent with no prior context on this repo.
 - Always import from the `src/engine/questions` barrel (`./index`), never `./registry` directly —
   the barrel is what actually registers the built-in generators as a side effect of being imported.
 
+## 3D scenes (three.js / react-three-fiber)
+
+- **Nothing outside `src/scene/` imports `three`.** Screens pass the engine's numbers plus the last
+  `ClimbMove` (from `src/scene/climb/motion.ts`, derived from a before/after `ClimbState` pair) and
+  the scene renders. If a scene needs a new fact, add it to the props, don't reach into the engine.
+- **jsdom has no WebGL, so `src/setupTests.ts` mocks the three scene entry points**
+  (`ClimbScene`, `MapScene`, `AnimalShowcase`) with DOM stubs that expose their props as data
+  attributes. Screen tests assert `data-move`, `data-position`, `data-phase` etc. on those stubs.
+  Anything new under `src/scene/` that a screen imports directly needs a stub there too, or every
+  screen test will try to create a WebGL context and fail.
+- **The react-hooks lint rules (React Compiler mode) are strict about refs and hook results.** Props
+  that carry refs must be named `*Ref` or writes to `.current` are flagged; mutating a hook's return
+  value (e.g. an `AnimationAction` from `useAnimations`) is flagged unless the mutation happens in a
+  plain function outside the component (see `src/scene/animals/actionConfig.ts`); `setState` inside
+  a `useEffect` body is flagged — the scenes detect prop changes inside `useFrame` instead (see
+  `Climber.tsx`). Scratch `THREE.Vector3`s live at module scope, not in `useMemo`.
+- **Don't use drei's `<Html>` for in-scene labels.** Its DOM portal crashed with "removeChild: the
+  node to be removed is not a child" when the Map scene unmounted during a screen change. Peak
+  numbers are canvas-texture sprites instead (`NumberBadge` in `MapScene.tsx`).
+- **Quaternius animals face +Z**; `rotation.y = +π/2` turns them to face +X. Every clip exists twice
+  in the raw packs (`Walk` and `AnimalArmature|Walk`); `scripts/prepare-models.ts` strips the
+  prefixed copies. Clip spelling varies per animal (`Jump_ToIdle` vs `Jump_toIdle`), which is why
+  `clips.ts` resolves poses from candidate lists case-insensitively.
+- **Capturing screenshots:** the chrome-devtools MCP browser is often held by another session
+  ("already running for ... chrome-profile"). A plain Playwright script against the dev server
+  works (`chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] })`
+  renders WebGL headless). Kill the `vite --port <N>` you started when done.
+
 ## TypeScript project split
 
 - `tsconfig.app.json` (covers `src/`) uses `moduleResolution: "bundler"` — relative imports have no
@@ -116,7 +144,7 @@ waiting for worker to respond` in the output) usually means a stray background p
 ## PWA offline precaching
 
 - **`vite-plugin-pwa`'s default precache `globPattern` is `**/*.{js,css,html,ico,png,svg}` — it
-  does not include `woff2`, or any other asset type outside that list.** Vendoring the pixel fonts
+  does not include `woff2`, `glb`, or any other asset type outside that list.** Vendoring the fonts
   (M2) built them into `dist/assets/` fine, but they were silently absent from the service worker's
   precache manifest (verify with `grep -o "woff2" dist/sw.js` after `pnpm build` — or more precisely,
   grep for the actual hashed filename, since a plain `"woff2"` substring won't appear if the format
@@ -124,8 +152,9 @@ waiting for worker to respond` in the output) usually means a stray background p
   offline-first" requirement: after any HTTP-cache eviction, the app would silently fall back to
   system fonts instead of the vendored ones. Fixed by adding an explicit `workbox: { globPatterns:
 [...] }` to the `VitePWA` config in `vite.config.ts` including every asset extension actually
-  shipped. **Whenever a new binary asset type is added to `src/assets/` (audio, more font formats,
-  etc.), check that extension is in this list too** — it will build successfully and work online
+  shipped. The animal models (`public/models/*.glb`, ~650 KB each) needed both the `glb` extension
+  and `maximumFileSizeToCacheInBytes` raised above workbox's 2 MiB default. **Whenever a new binary
+  asset type is added (audio, more font formats, etc.), check that extension is in this list too** — it will build successfully and work online
   without the check ever failing loudly; the gap only shows up as silently-missing offline assets.
 
 ## Before opening a PR

@@ -18,7 +18,7 @@ describe('Fell', () => {
       'Whoops! Even mountain goats trip sometimes.',
       'Gravity: 1, You: 0. Rematch?',
       'That slope was extra slippery today!',
-      'Your boots needed a snack break. Try again!',
+      'Your paws needed a snack break. Try again!',
       'Ice happens. Climb on!',
     ];
     expect(knownMessages.some((m) => shown?.includes(m))).toBe(true);

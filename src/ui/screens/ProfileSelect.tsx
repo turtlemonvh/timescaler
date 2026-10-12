@@ -37,7 +37,7 @@ export default function ProfileSelect({
   }
 
   return (
-    <main>
+    <main className="page">
       <h1>Who&apos;s climbing?</h1>
 
       {profiles.length > 0 && (
