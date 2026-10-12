@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 
 export interface ProfileChipProps {
   name: string;
-  /** Rendered character preview, e.g. a small PixelLayers composite — caller-supplied so this
-   * component doesn't need to know about character presets. */
+  /** Rendered animal preview, e.g. the Map screen's coloured initial badge — caller-supplied so
+   * this component doesn't need to know about the animal roster. */
   preview?: ReactNode;
 }
 

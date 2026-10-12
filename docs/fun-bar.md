@@ -6,8 +6,11 @@ Every line below is something a **7-year-old would notice**, and something an ad
 eye in a two-minute play** — no instrumentation, no reading the code. If a line fails, the game is
 not yet fun, however correct the maths is.
 
-Lines are numbered `F1`..`F15` so pull requests can cite exactly which ones they move. The art
-pipeline series (#91: #93 → #94 → #95 → #96 → #98 → #97) is scored against this list.
+Lines are numbered `F1`..`F15` so pull requests can cite exactly which ones they move. The 3D climb
+(#112) is the baseline scored against this list: it claims every line from F1 to F15, with one
+caveat — F7's "within 300 ms" was not instrumented, only observed. (Its PR also cites F16 and F17,
+the falling and wildlife lines proposed in the closed #101; they were never added here.) The
+pixel-art pipeline series (#91) this list was first written for was replaced by #112.
 
 ## Every answer
 

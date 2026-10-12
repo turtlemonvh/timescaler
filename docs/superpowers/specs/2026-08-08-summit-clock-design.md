@@ -1,5 +1,12 @@
 # Summit Clock — Design Spec
 
+> **Superseded in part (2026-10-12, #115).** The game's presentation is now the three.js climb
+> described in [`2026-10-11-3d-climb-design.md`](./2026-10-11-3d-climb-design.md) (shipped in #112).
+> The "Art" decision, the [Pixel art](#pixel-art) section, the `ui/pixel` and `ui/sprites` entries
+> in the file layout, the `MiniMap` HUD component, `/debug/sprites`, and milestone M2 below describe
+> code that no longer exists. Game mechanics, the question engine, storage and the other milestones
+> still hold. The rest of this document is kept as written.
+
 ## Context
 
 Building a browser-based, offline-first educational game to help a 7–9 year old practice telling
@@ -170,6 +177,10 @@ type Profile = {
 `stats` powers a parent-facing Stats screen showing which concepts are weakest.
 
 ### Pixel art
+
+> **Superseded (2026-10-12).** Replaced by rigged low-poly glTF animals in a three.js scene; see
+> [`2026-10-11-3d-climb-design.md`](./2026-10-11-3d-climb-design.md). The pixel fonts were removed
+> too (Atkinson Hyperlegible remains).
 
 Sprites are authored in code as arrays of strings (one character per pixel) plus a named palette:
 

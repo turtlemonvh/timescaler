@@ -78,9 +78,9 @@ const SAMPLE_PROFILES: Profile[] = [
 ];
 
 /**
- * Dev-only gallery for M4 screens, rendered standalone (not wired into the
- * real app-state navigation `App.tsx` drives) — the point is visual QA of
- * each screen as it's built, one section per screen. The real end-to-end
+ * Dev-only gallery for the game screens, rendered standalone (not wired into
+ * the real app-state navigation `App.tsx` drives) — the point is visual QA
+ * of each screen in isolation, one section per screen. The real end-to-end
  * flow is verified separately by playing the actual game.
  */
 export default function DebugScreensPage() {
