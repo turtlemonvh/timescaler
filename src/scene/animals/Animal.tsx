@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useAnimations, useGLTF } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { SkeletonUtils } from 'three/examples/jsm/Addons.js';
-import { configureAction } from './actionConfig';
+import { getSceneTimeScale } from '../clock';
+import { configureAction, syncMixerTimeScale } from './actionConfig';
 import { HOLD_LAST_FRAME_POSES, ONE_SHOT_POSES, resolveClip, type Pose } from './clips';
 import { ANIMALS, modelUrl, type AnimalId } from './roster';
 
@@ -60,6 +62,8 @@ export default function Animal({
       }
     });
   }, [cloned]);
+
+  useFrame(() => syncMixerTimeScale(mixer, getSceneTimeScale()));
 
   const finishedRef = useRef(onPoseFinished);
   useEffect(() => {

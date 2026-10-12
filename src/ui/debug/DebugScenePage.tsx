@@ -7,6 +7,7 @@ import { describeMove, type ClimbMove } from '../../scene/climb/motion';
 import MapScene from '../../scene/map/MapScene';
 import AnimalShowcase from '../../scene/pedestal/AnimalShowcase';
 import { playCue } from '../../scene/audio/synth';
+import { setSceneTimeScale } from '../../scene/clock';
 
 /**
  * Dev-only stage for the three.js scenes: drive the climb with real
@@ -23,6 +24,7 @@ export default function DebugScenePage() {
   const [moveCount, setMoveCount] = useState(0);
   const [phase, setPhase] = useState<ClimbPhase>('climb');
   const [selectedPeak, setSelectedPeak] = useState(1);
+  const [timeScale, setTimeScale] = useState(1);
 
   function apply(next: ClimbState, fast: boolean) {
     const described = describeMove(state, next, fast, moveCount + 1);
@@ -163,6 +165,23 @@ export default function DebugScenePage() {
         <button type="button" data-variant="secondary" onClick={() => reset()}>
           Reset
         </button>
+        <label>
+          Speed{' '}
+          <select
+            data-testid="debug-scene-speed"
+            value={timeScale}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              setTimeScale(next);
+              setSceneTimeScale(next);
+            }}
+          >
+            <option value={1}>1×</option>
+            <option value={0.5}>½×</option>
+            <option value={0.25}>¼×</option>
+            <option value={0.1}>⅒×</option>
+          </select>
+        </label>
       </div>
     </div>
   );

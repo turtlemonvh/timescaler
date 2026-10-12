@@ -3,11 +3,30 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import Animal from '../animals/Animal';
 import type { Pose } from '../animals/clips';
+import { sceneDelta, sceneNow } from '../clock';
 import type { AnimalId } from '../animals/roster';
 import type { PeakTheme } from '../theme/peakThemes';
 import type { ParticleApi } from '../world/Particles';
-import { FOREST_FLOOR, arcPoint, easeIn, easeInOut, ledgePoint, type Vec3 } from './cliffPath';
-import { EXTRA_STEP_MS, FALL_MS, HOP_MS, SLIP_MS, SUMMIT_HOP_MS, type ClimbMove } from './motion';
+import {
+  FOREST_FLOOR,
+  LEDGE_DY,
+  arcPoint,
+  easeIn,
+  easeInOut,
+  easeOut,
+  ledgePoint,
+  type Vec3,
+} from './cliffPath';
+import {
+  EXTRA_STEP_MS,
+  FALL_MS,
+  HOP_MS,
+  SLIP_DROP_MS,
+  SLIP_LEAP_MS,
+  SLIP_SCRABBLE_MS,
+  SUMMIT_HOP_MS,
+  type ClimbMove,
+} from './motion';
 
 export interface ClimberProps {
   animalId: AnimalId;
@@ -35,6 +54,10 @@ interface Segment {
   ease: (t: number) => number;
   squashOnLand: boolean;
   dustOnLand: boolean;
+  /** Clip for this segment; `jump` when omitted. */
+  pose?: Pose;
+  /** Dust particle count when `dustOnLand`; the move kind's default when omitted. */
+  dustCount?: number;
 }
 
 interface Tween {
@@ -76,16 +99,49 @@ function buildSegments(move: ClimbMove, peakId: number): Segment[] {
       });
     }
   } else if (move.kind === 'slip') {
-    const to = ledgePoint(move.to, peakId);
-    segments.push({
-      from,
-      to: move.steps === 0 ? from : to,
-      apex: move.steps === 0 ? 0.12 : -0.45,
-      ms: SLIP_MS,
-      ease: easeIn,
-      squashOnLand: true,
-      dustOnLand: true,
-    });
+    // Leap for the next ledge, come up short, scrabble at the wall, drop.
+    const target = ledgePoint(move.from + 1, peakId);
+    const reach = 0.6;
+    const apexPoint: Vec3 = {
+      x: from.x + (target.x - from.x) * reach,
+      y: from.y + LEDGE_DY * reach,
+      z: from.z + (target.z - from.z) * reach + 0.15,
+    };
+    const slipped: Vec3 = { x: apexPoint.x, y: apexPoint.y - 0.18, z: apexPoint.z };
+    const landing = move.steps === 0 ? from : ledgePoint(move.to, peakId);
+    segments.push(
+      {
+        from,
+        to: apexPoint,
+        apex: 0.3,
+        ms: SLIP_LEAP_MS,
+        ease: easeOut,
+        squashOnLand: false,
+        dustOnLand: true,
+        dustCount: 5,
+        pose: 'jump',
+      },
+      {
+        from: apexPoint,
+        to: slipped,
+        apex: 0,
+        ms: SLIP_SCRABBLE_MS,
+        ease: easeInOut,
+        squashOnLand: false,
+        dustOnLand: false,
+        pose: 'hit',
+      },
+      {
+        from: slipped,
+        to: landing,
+        apex: -0.25,
+        ms: SLIP_DROP_MS,
+        ease: easeIn,
+        squashOnLand: true,
+        dustOnLand: true,
+        pose: 'hit',
+      },
+    );
   } else if (move.kind === 'fall') {
     segments.push({
       from,
@@ -181,7 +237,7 @@ export default function Climber({
         up: 0.3,
       });
     } else if (next.kind === 'slip') {
-      play('hit', SLIP_MS);
+      play('jump', SLIP_LEAP_MS);
     } else {
       play('jump', first ? first.ms : HOP_MS);
       if (next.fast) {
@@ -211,7 +267,7 @@ export default function Climber({
         x: segment.to.x,
         y: segment.to.y + 0.05,
         z: segment.to.z + 0.3,
-        count: big ? 40 : current.kind === 'slip' ? 16 : 10,
+        count: segment.dustCount ?? (big ? 40 : current.kind === 'slip' ? 16 : 10),
         colors: [theme.rockDark, theme.rock, theme.snow],
         speed: big ? 3.2 : 1.3,
         gravity: 6,
@@ -225,8 +281,9 @@ export default function Climber({
     current.started = now;
     const next = current.segments[current.index];
     if (next) {
-      facingRef.current = faceToward(next.to.x - next.from.x || 1, false);
-      play('jump', next.ms);
+      // Keep facing the way we leapt during a slip's scrabble and drop.
+      if (next.pose !== 'hit') facingRef.current = faceToward(next.to.x - next.from.x || 1, false);
+      play(next.pose ?? 'jump', next.ms);
       return;
     }
     restRef.current = segment.to;
@@ -244,10 +301,11 @@ export default function Climber({
     }
   }
 
-  useFrame((state, delta) => {
+  useFrame((_, rawDelta) => {
     const node = groupRef.current;
     if (!node) return;
-    const now = performance.now();
+    const delta = sceneDelta(rawDelta);
+    const now = sceneNow();
 
     // First frame, or the engine moved us without a move (e.g. a reset). A
     // fallen climber rests where the tumble ended, not back on ledge 0.
@@ -309,7 +367,7 @@ export default function Climber({
         });
       }
       const restY = restRef.current.y;
-      node.position.y = restY + Math.max(0, Math.sin(state.clock.elapsedTime * 7)) * 0.12;
+      node.position.y = restY + Math.max(0, Math.sin((now / 1000) * 7)) * 0.12;
     } else if (phase === 'climb') {
       // Idle fidgets: look around every few seconds.
       lookTimerRef.current += delta;
@@ -337,7 +395,7 @@ export default function Climber({
     if (glow) {
       glow.visible = glowing;
       const light = glow.children[0] as THREE.PointLight | undefined;
-      if (light) light.intensity = 2.4 + Math.sin(state.clock.elapsedTime * 6) * 0.9;
+      if (light) light.intensity = 2.4 + Math.sin((now / 1000) * 6) * 0.9;
     }
     if (glowing) {
       sparkTimerRef.current += delta;

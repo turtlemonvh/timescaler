@@ -45,7 +45,12 @@ export function describeMove(
 
 export const HOP_MS = 480;
 export const EXTRA_STEP_MS = 320;
-export const SLIP_MS = 620;
+/** A miss: leap for the next ledge, scrabble at the apex, drop. The three
+ * segment lengths are in `Climber.tsx` and must add up to this. */
+export const SLIP_LEAP_MS = 380;
+export const SLIP_SCRABBLE_MS = 220;
+export const SLIP_DROP_MS = 520;
+export const SLIP_MS = SLIP_LEAP_MS + SLIP_SCRABBLE_MS + SLIP_DROP_MS;
 export const FALL_MS = 1500;
 export const SUMMIT_HOP_MS = 700;
 

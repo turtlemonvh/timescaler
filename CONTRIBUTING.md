@@ -13,8 +13,9 @@ of production builds — they're never reachable on the live site, only when run
 
 - `/debug/questions` — every question generator's output at any difficulty/peak, with raw JSON
 - `/debug/scene` — the three.js scenes: drive the climb with real `climb.ts` transitions (correct,
-  fast correct, miss, fill boost, near summit, fall), switch peak and animal, and preview the
-  overworld and the character-pick turntables
+  fast correct, miss, fill boost, near summit, fall), switch peak and animal, slow the whole scene
+  down (Speed: 1×, ½×, ¼×, ⅒×) to review an animation frame by frame, and preview the overworld
+  and the character-pick turntables
 - `/debug/widgets` — every answer/display widget (clocks, calendar, choice grid, entry fields)
 - `/debug/hud` — the in-climb HUD components (timer, boost/fall-risk meters, profile chip)
 - `/debug/screens` — every M4 screen rendered standalone, for visual QA as each one is built

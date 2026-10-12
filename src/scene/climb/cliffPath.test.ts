@@ -6,6 +6,7 @@ import {
   arcPoint,
   easeIn,
   easeInOut,
+  easeOut,
   ledgePoint,
   ledgePoints,
   summitY,
@@ -57,6 +58,9 @@ describe('cliffPath', () => {
     expect(easeInOut(-1)).toBe(0);
     expect(easeInOut(2)).toBe(1);
     expect(easeIn(0.5)).toBeCloseTo(0.25);
+    expect(easeOut(0.5)).toBeCloseTo(0.75);
+    expect(easeOut(0)).toBe(0);
+    expect(easeOut(1)).toBe(1);
     let last = 0;
     for (let t = 0; t <= 1; t += 0.1) {
       const v = easeInOut(t);

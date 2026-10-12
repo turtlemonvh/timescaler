@@ -73,6 +73,12 @@ export function easeInOut(t: number): number {
   return c * c * (3 - 2 * c);
 }
 
+/** Decelerating ease for a leap that runs out of steam at its apex. */
+export function easeOut(t: number): number {
+  const c = Math.max(0, Math.min(1, t));
+  return 1 - (1 - c) * (1 - c);
+}
+
 /** Accelerating ease for drops — gravity, not a glide. */
 export function easeIn(t: number): number {
   const c = Math.max(0, Math.min(1, t));
