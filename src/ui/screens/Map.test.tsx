@@ -56,6 +56,13 @@ function renderMap(profile: Profile, overrides: Partial<Parameters<typeof Map>[0
   );
 }
 
+/** Only the selected peak shows its level picker, Climb! and details —
+ * pick it from the list the way a player would (tapping its mountain in the
+ * scene does the same). */
+function selectPeak(peakId: number) {
+  fireEvent.click(screen.getByTestId(`peak-option-${peakId}`));
+}
+
 /** The comparison table and history live behind a `<details>` disclosure —
  * open it the way a real player would before asserting on its contents. */
 function openDetails(peakId: number) {
@@ -127,6 +134,7 @@ describe('Map', () => {
   it('defaults the level picker to one above the highest level cleared', () => {
     const profile = makeProfile({ progress: { 1: makeProgress({ highestDifficultyCleared: 5 }) } });
     renderMap(profile);
+    selectPeak(1);
     expect(screen.getByTestId('peak-difficulty-1')).toHaveValue('6');
   });
 
@@ -135,6 +143,7 @@ describe('Map', () => {
       progress: { 1: makeProgress({ highestDifficultyCleared: 10 }) },
     });
     renderMap(profile);
+    selectPeak(1);
     expect(screen.getByTestId('peak-difficulty-1')).toHaveValue('10');
   });
 
@@ -144,16 +153,51 @@ describe('Map', () => {
     expect(within(select).getAllByRole('option')).toHaveLength(10);
   });
 
-  it('lets the level be changed independently per peak', () => {
+  it('lets the level be changed independently per peak, keeping each pick across selections', () => {
     renderMap(makeProfile());
     fireEvent.change(screen.getByTestId('peak-difficulty-1'), { target: { value: '7' } });
     expect(screen.getByTestId('peak-difficulty-1')).toHaveValue('7');
+    selectPeak(2);
     expect(screen.getByTestId('peak-difficulty-2')).toHaveValue('1');
+    selectPeak(1);
+    expect(screen.getByTestId('peak-difficulty-1')).toHaveValue('7');
+  });
+
+  it('shows the level picker, Climb! and details only for the selected peak', () => {
+    renderMap(makeProfile());
+    expect(screen.getByTestId('peak-option-1')).toHaveAttribute('data-selected', 'true');
+    expect(screen.getByTestId('peak-panel')).toHaveAttribute('data-peak-id', '1');
+    expect(screen.getByTestId('peak-climb-1')).toBeInTheDocument();
+    for (const id of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+      expect(screen.queryByTestId(`peak-climb-${id}`)).not.toBeInTheDocument();
+      expect(screen.queryByTestId(`peak-difficulty-${id}`)).not.toBeInTheDocument();
+      expect(screen.queryByTestId(`peak-details-toggle-${id}`)).not.toBeInTheDocument();
+    }
+  });
+
+  it('switches the panel to a peak when it is picked from the list', () => {
+    renderMap(makeProfile());
+    selectPeak(4);
+    expect(screen.getByTestId('peak-option-4')).toHaveAttribute('data-selected', 'true');
+    expect(screen.getByTestId('peak-option-1')).not.toHaveAttribute('data-selected');
+    expect(screen.getByTestId('peak-panel')).toHaveAttribute('data-peak-id', '4');
+    expect(screen.getByTestId('peak-climb-4')).toBeInTheDocument();
+    expect(screen.queryByTestId('peak-climb-1')).not.toBeInTheDocument();
+  });
+
+  it('switches the panel when a mountain is tapped in the scene', () => {
+    renderMap(makeProfile());
+    // The scene stub's button stands in for tapping the next mountain over.
+    fireEvent.click(screen.getByTestId('map-scene-select-next'));
+    expect(screen.getByTestId('peak-panel')).toHaveAttribute('data-peak-id', '2');
+    expect(screen.getByTestId('peak-climb-2')).toBeInTheDocument();
+    expect(screen.queryByTestId('peak-climb-1')).not.toBeInTheDocument();
   });
 
   it('calls onClimb with the peak id and the currently picked level', () => {
     const onClimb = vi.fn();
     renderMap(makeProfile(), { onClimb });
+    selectPeak(3);
     fireEvent.change(screen.getByTestId('peak-difficulty-3'), { target: { value: '6' } });
     fireEvent.click(screen.getByTestId('peak-climb-3'));
     expect(onClimb).toHaveBeenCalledWith(3, 6);
@@ -162,6 +206,7 @@ describe('Map', () => {
   it('every peak is climbable regardless of progress on other peaks (no locking)', () => {
     const onClimb = vi.fn();
     renderMap(makeProfile(), { onClimb });
+    selectPeak(10);
     fireEvent.click(screen.getByTestId('peak-climb-10'));
     expect(onClimb).toHaveBeenCalledWith(10, 1);
   });
