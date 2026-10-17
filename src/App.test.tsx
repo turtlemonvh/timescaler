@@ -40,8 +40,9 @@ function createProfileAndReachMap(name: string) {
   fireEvent.click(screen.getAllByTestId(/^character-option-/)[0]);
 }
 
-/** Confirms the (default-selected) level and starts a climb on `peakId`. */
+/** Selects `peakId` on the map, then starts a climb at its (default-selected) level. */
 function startClimb(peakId: number) {
+  fireEvent.click(screen.getByTestId(`peak-option-${peakId}`));
   fireEvent.click(screen.getByTestId(`peak-climb-${peakId}`));
 }
 
@@ -50,6 +51,7 @@ function startClimb(peakId: number) {
  * silently move a *second* climb on the same peak to a different
  * difficulty than the first. */
 function startClimbAtDifficulty(peakId: number, difficulty: number) {
+  fireEvent.click(screen.getByTestId(`peak-option-${peakId}`));
   fireEvent.change(screen.getByTestId(`peak-difficulty-${peakId}`), {
     target: { value: String(difficulty) },
   });
@@ -129,9 +131,11 @@ describe('App', () => {
     );
 
     fireEvent.click(screen.getByTestId('summit-continue'));
-    // The level selector defaults to "highest cleared + 1" after a first
+    // Back on the Map the next open peak is selected, so pick peak 1 again.
+    // Its level selector defaults to "highest cleared + 1" after a first
     // clear, so it has to be pointed back at the level just climbed before
     // that level's best time is the one showing.
+    fireEvent.click(screen.getByTestId('peak-option-1'));
     fireEvent.change(screen.getByTestId('peak-difficulty-1'), { target: { value: '1' } });
     expect(screen.getByTestId('peak-best-time-1')).toBeInTheDocument();
   });

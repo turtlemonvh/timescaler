@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { formatDateLong } from '../../engine/dateMath';
 import { describeDifficultyComparisonTable } from '../../engine/difficultyDescribe';
 import { PEAKS, type Peak } from '../../engine/peaks';
@@ -42,38 +42,148 @@ export interface MapProps {
   onOpenProfile: (section: 'climber' | 'accomplishments') => void;
 }
 
-interface PeakCardProps {
+interface PeakStatusProps {
+  peak: Peak;
+  progress: PeakProgress | undefined;
+  climbLog: Profile['climbLog'];
+  /** Trophies earned on this peak, across all difficulties. */
+  trophyCount: number;
+  /**
+   * The status shows both on the peak's tile and in the selected-peak panel;
+   * only the tile (always rendered, one per peak) carries the test ids.
+   */
+  withTestIds: boolean;
+  /** Extra pills appended after the progress ones. */
+  children?: React.ReactNode;
+}
+
+/** Progress pills for one peak: summited / tried / not climbed, plus trophies. */
+function PeakStatus({
+  peak,
+  progress,
+  climbLog,
+  trophyCount,
+  withTestIds,
+  children,
+}: PeakStatusProps) {
+  const highestCleared = progress?.highestDifficultyCleared ?? null;
+  const attemptBeyond = highestAttemptBeyondCleared(climbLog, peak.id, highestCleared);
+  const summited = progress ? isPeakSummited(progress) : false;
+  const testId = (name: string) => (withTestIds ? `${name}-${peak.id}` : undefined);
+
+  return (
+    <span data-testid={testId('peak-progress')} className="peak-card__status">
+      {!summited && !attemptBeyond && (
+        <span data-testid={testId('peak-status-none')}>Not climbed yet</span>
+      )}
+      {summited && (
+        <span data-testid={testId('peak-status-summit')} className="pill pill--summit">
+          Summited · Lv {highestCleared}
+        </span>
+      )}
+      {attemptBeyond && (
+        <span data-testid={testId('peak-status-attempt')} className="pill">
+          Tried Lv {attemptBeyond.difficulty} ({attemptBeyond.count}×)
+        </span>
+      )}
+      {trophyCount > 0 && (
+        <span
+          data-testid={testId('peak-trophies')}
+          className="peak-card__trophies"
+          aria-label={`${trophyCount} ${trophyCount === 1 ? 'trophy' : 'trophies'}`}
+          title={`${trophyCount} ${trophyCount === 1 ? 'trophy' : 'trophies'}`}
+        >
+          {Array.from({ length: trophyCount }, (_, i) => (
+            <TrophyIcon key={i} size={16} />
+          ))}
+        </span>
+      )}
+      {children}
+    </span>
+  );
+}
+
+interface PeakTileProps {
   peak: Peak;
   selected: boolean;
   onSelect: () => void;
   progress: PeakProgress | undefined;
   climbLog: Profile['climbLog'];
+  trophyCount: number;
+}
+
+/**
+ * One peak in the compact list under the selected-peak panel: number, name
+ * and progress only. Clicking it selects the peak, same as tapping the
+ * mountain in the scene; the level picker and details live in the panel.
+ */
+function PeakTile({ peak, selected, onSelect, progress, climbLog, trophyCount }: PeakTileProps) {
+  const theme = peakTheme(peak.id);
+  return (
+    <button
+      type="button"
+      className={selected ? 'peak-tile peak-tile--selected' : 'peak-tile'}
+      data-testid={`peak-option-${peak.id}`}
+      data-selected={selected ? 'true' : undefined}
+      aria-pressed={selected}
+      style={{ '--peak-rock': theme.rock, '--peak-flag': theme.flag } as React.CSSProperties}
+      onClick={onSelect}
+    >
+      <span className="peak-card__number" aria-hidden="true">
+        {peak.id}
+      </span>
+      <span className="peak-tile__title">
+        <strong>{peak.name}</strong>
+        <span className="peak-card__emphasis">{peak.emphasis}</span>
+      </span>
+      <PeakStatus
+        peak={peak}
+        progress={progress}
+        climbLog={climbLog}
+        trophyCount={trophyCount}
+        withTestIds
+      />
+    </button>
+  );
+}
+
+interface PeakCardProps {
+  peak: Peak;
+  progress: PeakProgress | undefined;
+  climbLog: Profile['climbLog'];
   /** Trophies earned on this peak, across all difficulties. */
   trophyCount: number;
+  /** The picked level — held by `Map` per peak, so switching peaks keeps each pick. */
+  selectedLevel: number;
+  onLevelChange: (level: number) => void;
   onClimb: (peakId: number, difficulty: number) => void;
   onViewFullHistory: (peakId: number, difficulty: number) => void;
 }
 
+/** The level suggested for a peak before the player picks one: one above the highest cleared. */
+function defaultLevel(progress: PeakProgress | undefined): number {
+  const highestCleared = progress?.highestDifficultyCleared ?? null;
+  return highestCleared !== null ? Math.min(highestCleared + 1, 10) : (progress?.difficulty ?? 1);
+}
+
 /**
- * One peak's picker: progress pills, any level 1-10, and a details
+ * The selected peak's panel: progress pills, any level 1-10, and a details
  * disclosure with the level comparison table and recent history. The picked
- * level is provisional until "Climb!".
+ * level is provisional until "Climb!". Only one is shown at a time — for the
+ * peak picked in the scene or the list below.
  */
 function PeakCard({
   peak,
-  selected,
-  onSelect,
   progress,
   climbLog,
   trophyCount,
+  selectedLevel,
+  onLevelChange,
   onClimb,
   onViewFullHistory,
 }: PeakCardProps) {
   const theme = peakTheme(peak.id);
   const highestCleared = progress?.highestDifficultyCleared ?? null;
-  const defaultLevel =
-    highestCleared !== null ? Math.min(highestCleared + 1, 10) : (progress?.difficulty ?? 1);
-  const [selectedLevel, setSelectedLevel] = useState(defaultLevel);
 
   const compareRows = useMemo(
     () => describeDifficultyComparisonTable(highestCleared ?? 1, selectedLevel, peak.id),
@@ -88,58 +198,36 @@ function PeakCard({
     [climbLog, peak.id, selectedLevel],
   );
 
-  const attemptBeyond = highestAttemptBeyondCleared(climbLog, peak.id, highestCleared);
-  const summited = progress ? isPeakSummited(progress) : false;
   const bestTimeAtSelectedLevel = bestTimeForDifficulty(progress, selectedLevel);
 
   return (
     <article
-      className={selected ? 'peak-card peak-card--selected' : 'peak-card'}
-      data-testid={`peak-option-${peak.id}`}
-      data-selected={selected ? 'true' : undefined}
+      className="peak-card"
+      data-testid="peak-panel"
+      data-peak-id={peak.id}
       style={{ '--peak-rock': theme.rock, '--peak-flag': theme.flag } as React.CSSProperties}
-      onClick={onSelect}
     >
       <div className="peak-card__head">
         <span className="peak-card__number" aria-hidden="true">
           {peak.id}
         </span>
         <div className="peak-card__title">
-          <strong>{peak.name}</strong>
+          <h2 className="peak-card__name">{peak.name}</h2>
           <span className="peak-card__emphasis">{peak.emphasis}</span>
         </div>
-        <span data-testid={`peak-progress-${peak.id}`} className="peak-card__status">
-          {!summited && !attemptBeyond && (
-            <span data-testid={`peak-status-none-${peak.id}`}>Not climbed yet</span>
-          )}
-          {summited && (
-            <span data-testid={`peak-status-summit-${peak.id}`} className="pill pill--summit">
-              Summited · Lv {highestCleared}
-            </span>
-          )}
-          {attemptBeyond && (
-            <span data-testid={`peak-status-attempt-${peak.id}`} className="pill">
-              Tried Lv {attemptBeyond.difficulty} ({attemptBeyond.count}×)
-            </span>
-          )}
-          {trophyCount > 0 && (
-            <span
-              data-testid={`peak-trophies-${peak.id}`}
-              className="peak-card__trophies"
-              aria-label={`${trophyCount} ${trophyCount === 1 ? 'trophy' : 'trophies'}`}
-              title={`${trophyCount} ${trophyCount === 1 ? 'trophy' : 'trophies'}`}
-            >
-              {Array.from({ length: trophyCount }, (_, i) => (
-                <TrophyIcon key={i} size={16} />
-              ))}
-            </span>
-          )}
+        <PeakStatus
+          peak={peak}
+          progress={progress}
+          climbLog={climbLog}
+          trophyCount={trophyCount}
+          withTestIds={false}
+        >
           {bestTimeAtSelectedLevel !== null && (
             <span data-testid={`peak-best-time-${peak.id}`} className="pill pill--best">
               🏆 Best Lv {selectedLevel}: {formatDuration(bestTimeAtSelectedLevel)}
             </span>
           )}
-        </span>
+        </PeakStatus>
       </div>
 
       <div className="peak-card__actions">
@@ -148,8 +236,7 @@ function PeakCard({
           id={`peak-difficulty-${peak.id}`}
           data-testid={`peak-difficulty-${peak.id}`}
           value={selectedLevel}
-          onClick={(event) => event.stopPropagation()}
-          onChange={(event) => setSelectedLevel(Number(event.target.value))}
+          onChange={(event) => onLevelChange(Number(event.target.value))}
         >
           {DIFFICULTIES.map((level) => (
             <option key={level} value={level}>
@@ -160,8 +247,7 @@ function PeakCard({
         <button
           type="button"
           data-testid={`peak-climb-${peak.id}`}
-          onClick={(event) => {
-            event.stopPropagation();
+          onClick={() => {
             playCue('select');
             onClimb(peak.id, selectedLevel);
           }}
@@ -170,7 +256,7 @@ function PeakCard({
         </button>
       </div>
 
-      <details className="peak-card__details" onClick={(event) => event.stopPropagation()}>
+      <details className="peak-card__details">
         <summary data-testid={`peak-details-toggle-${peak.id}`}>
           Level {selectedLevel} details
         </summary>
@@ -257,9 +343,11 @@ function firstOpenPeak(profile: Profile): number {
 
 /**
  * Peak selection: the 3D island with the player's animal standing at the
- * selected peak, and the list of peak cards below it. Clicking a mountain
- * or a card selects it; "Climb!" starts the climb. All ten peaks are open
- * from the start — the spec has no unlock mechanic.
+ * selected peak, the selected peak's panel (level picker, details, Climb!)
+ * right under it, and a compact list of every peak's progress below that.
+ * Tapping a mountain or a list entry selects it — only the selected peak's
+ * details are shown, so the selection is what drives the screen. All ten
+ * peaks are open from the start — the spec has no unlock mechanic.
  */
 export default function Map({
   profile,
@@ -272,6 +360,8 @@ export default function Map({
   const reducedMotion = usePrefersReducedMotion();
   const [selectedPeakId, setSelectedPeakId] = useState(() => firstOpenPeak(profile));
   const [recenterKey, setRecenterKey] = useState(0);
+  const [levelByPeak, setLevelByPeak] = useState<Record<number, number>>({});
+  const stageRef = useRef<HTMLDivElement>(null);
 
   // The climb needs this model; start fetching while the player is still choosing.
   useEffect(() => {
@@ -289,14 +379,25 @@ export default function Map({
   const rewards = useMemo(() => computeRewards(profile), [profile]);
   const trophyCounts = useMemo(() => trophyCountByPeak(rewards.trophies), [rewards.trophies]);
 
+  const selectedPeak = PEAKS.find((peak) => peak.id === selectedPeakId) ?? PEAKS[0];
+
   function select(peakId: number) {
     if (peakId !== selectedPeakId) playCue('tap');
     setSelectedPeakId(peakId);
   }
 
+  /** Picking from the list can happen far below the panel — bring the scene and panel back into view. */
+  function selectFromList(peakId: number) {
+    select(peakId);
+    stageRef.current?.scrollIntoView?.({
+      block: 'start',
+      behavior: reducedMotion ? 'auto' : 'smooth',
+    });
+  }
+
   return (
     <main className="map-screen">
-      <div className="map-screen__scene" data-testid="map-stage">
+      <div className="map-screen__scene" data-testid="map-stage" ref={stageRef}>
         <Suspense
           fallback={
             <div className="scene-fallback scene-fallback--sky">
@@ -388,20 +489,36 @@ export default function Map({
         </div>
       </div>
 
-      <div className="page map-screen__list" data-testid="peak-grid">
-        {PEAKS.map((peak) => (
-          <PeakCard
-            key={peak.id}
-            peak={peak}
-            selected={peak.id === selectedPeakId}
-            onSelect={() => select(peak.id)}
-            progress={profile.progress[peak.id]}
-            climbLog={profile.climbLog}
-            trophyCount={trophyCounts[peak.id] ?? 0}
-            onClimb={onClimb}
-            onViewFullHistory={onViewFullHistory}
-          />
-        ))}
+      <div className="page map-screen__list">
+        <PeakCard
+          key={selectedPeak.id}
+          peak={selectedPeak}
+          progress={profile.progress[selectedPeak.id]}
+          climbLog={profile.climbLog}
+          trophyCount={trophyCounts[selectedPeak.id] ?? 0}
+          selectedLevel={
+            levelByPeak[selectedPeak.id] ?? defaultLevel(profile.progress[selectedPeak.id])
+          }
+          onLevelChange={(level) =>
+            setLevelByPeak((current) => ({ ...current, [selectedPeak.id]: level }))
+          }
+          onClimb={onClimb}
+          onViewFullHistory={onViewFullHistory}
+        />
+
+        <div className="peak-tiles" data-testid="peak-grid">
+          {PEAKS.map((peak) => (
+            <PeakTile
+              key={peak.id}
+              peak={peak}
+              selected={peak.id === selectedPeakId}
+              onSelect={() => selectFromList(peak.id)}
+              progress={profile.progress[peak.id]}
+              climbLog={profile.climbLog}
+              trophyCount={trophyCounts[peak.id] ?? 0}
+            />
+          ))}
+        </div>
       </div>
     </main>
   );
