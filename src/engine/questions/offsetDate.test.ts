@@ -4,6 +4,7 @@ import { difficultyProfile } from '../difficulty';
 import { getPeak } from '../peaks';
 import { mulberry32 } from '../rng';
 import {
+  describeOffsetDateLevel,
   generateOffsetDate,
   OFFSET_DATE_TYPE_ID,
   offsetDateType,
@@ -65,7 +66,7 @@ describe('generateOffsetDate', () => {
     }
   });
 
-  it('keeps difficulty 1-3 questions inside a single month, moving forward', () => {
+  it('keeps difficulty 1-2 questions inside a single month, moving forward', () => {
     for (let seed = 0; seed < 200; seed++) {
       const q = generateOffsetDate(mulberry32(seed), { ...ctx, difficulty: 2 });
       const match = /^What date is (\d+) (day|days) after (.+)\?$/.exec(q.prompt);
@@ -80,7 +81,7 @@ describe('generateOffsetDate', () => {
 
   it('computes the correct date independently of the generator, across units and directions', () => {
     const unitPattern = '(day|days|week|weeks|month|months)';
-    for (const difficulty of [2, 6, 9]) {
+    for (const difficulty of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
       for (let seed = 0; seed < 200; seed++) {
         const q = generateOffsetDate(mulberry32(seed), { ...ctx, difficulty });
         const match = new RegExp(
@@ -107,6 +108,102 @@ describe('generateOffsetDate', () => {
         expect(answer.options[answer.correctIndex]).toBe(formatDateLong(expected));
       }
     }
+  });
+
+  describe('difficulty ladder (issue #126)', () => {
+    const PROMPT = /^What date is (\d+) (day|days|week|weeks|month|months) (after|before) (.+)\?$/;
+
+    interface Parsed {
+      unit: 'day' | 'week' | 'month';
+      amount: number;
+      start: Date;
+      correct: Date;
+    }
+
+    function parse(difficulty: number, seed: number): Parsed {
+      const q = generateOffsetDate(mulberry32(seed), { ...ctx, difficulty });
+      const match = PROMPT.exec(q.prompt);
+      if (!match) throw new Error(`unexpected prompt: ${q.prompt}`);
+      const answer = expectChoiceAnswer(q);
+      return {
+        unit: match[2].replace(/s$/, '') as Parsed['unit'],
+        amount: Number(match[1]),
+        start: parseLongDate(match[4]),
+        correct: parseLongDate(answer.options[answer.correctIndex]),
+      };
+    }
+
+    /** Months between the two dates' calendar months (0 = same month). */
+    function monthsApart(a: Date, b: Date): number {
+      return Math.abs(b.getFullYear() * 12 + b.getMonth() - (a.getFullYear() * 12 + a.getMonth()));
+    }
+
+    it('keeps every day and week jump inside one month through level 5', () => {
+      for (const difficulty of [1, 2, 3, 4, 5]) {
+        for (let seed = 0; seed < 300; seed++) {
+          const { unit, start, correct } = parse(difficulty, seed);
+          if (unit === 'month') continue;
+          expect(monthsApart(start, correct)).toBe(0);
+        }
+      }
+    });
+
+    it('only asks "after" at levels 1-2', () => {
+      for (const difficulty of [1, 2]) {
+        for (let seed = 0; seed < 200; seed++) {
+          const q = generateOffsetDate(mulberry32(seed), { ...ctx, difficulty });
+          expect(q.prompt).toContain(' after ');
+        }
+      }
+    });
+
+    it('never asks a week jump that crosses a month boundary before level 9', () => {
+      for (const difficulty of [1, 2, 3, 4, 5, 6, 7, 8]) {
+        for (let seed = 0; seed < 300; seed++) {
+          const { unit, start, correct } = parse(difficulty, seed);
+          if (unit !== 'week') continue;
+          expect(monthsApart(start, correct)).toBe(0);
+        }
+      }
+    });
+
+    it('crosses at most one month boundary for day jumps', () => {
+      for (const difficulty of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+        for (let seed = 0; seed < 300; seed++) {
+          const { unit, start, correct } = parse(difficulty, seed);
+          if (unit !== 'day') continue;
+          expect(monthsApart(start, correct)).toBeLessThanOrEqual(1);
+        }
+      }
+    });
+
+    it('introduces short day jumps into another month at level 6', () => {
+      let crossed = 0;
+      for (let seed = 0; seed < 300; seed++) {
+        const { unit, amount, start, correct } = parse(6, seed);
+        if (unit !== 'day' || monthsApart(start, correct) === 0) continue;
+        crossed++;
+        expect(amount).toBeLessThanOrEqual(7);
+      }
+      expect(crossed).toBeGreaterThan(0);
+    });
+
+    it('asks week jumps that cross a month boundary at levels 9 and 10', () => {
+      for (const difficulty of [9, 10]) {
+        let crossed = 0;
+        for (let seed = 0; seed < 300; seed++) {
+          const { unit, start, correct } = parse(difficulty, seed);
+          if (unit === 'week' && monthsApart(start, correct) > 0) crossed++;
+        }
+        expect(crossed).toBeGreaterThan(0);
+      }
+    });
+
+    it('describes every level', () => {
+      for (let level = 1; level <= 10; level++) {
+        expect(describeOffsetDateLevel(level)).toMatch(/\w/);
+      }
+    });
   });
 
   it('asks about weeks and months once the span widens', () => {
