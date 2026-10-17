@@ -37,66 +37,74 @@ export default function ProfileSelect({
   }
 
   return (
-    <main className="page">
-      <h1>Who&apos;s climbing?</h1>
+    <main className="page profile-select">
+      <div className="profile-select__card">
+        <h1>Who&apos;s climbing?</h1>
 
-      {profiles.length > 0 && (
-        <div
-          data-testid="profile-list"
-          style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem' }}
-        >
-          {profiles.map((profile) => (
-            <button
-              key={profile.id}
-              type="button"
-              data-testid={`profile-option-${profile.id}`}
-              onClick={() => onSelectProfile(profile.id)}
-            >
-              {profile.name}
-            </button>
-          ))}
-        </div>
-      )}
+        {profiles.length > 0 && (
+          <div data-testid="profile-list" className="profile-select__list">
+            {profiles.map((profile) => (
+              <button
+                key={profile.id}
+                type="button"
+                data-testid={`profile-option-${profile.id}`}
+                onClick={() => onSelectProfile(profile.id)}
+              >
+                {profile.name}
+              </button>
+            ))}
+          </div>
+        )}
 
-      {!creating && (
-        <button
-          type="button"
-          data-variant="ghost"
-          data-testid="profile-new"
-          onClick={() => setCreating(true)}
-          style={{ marginTop: '0.75rem' }}
-        >
-          + New Climber
-        </button>
-      )}
-
-      {creating && (
-        <form onSubmit={handleCreate} data-testid="profile-create-form">
-          <label htmlFor="profile-name-input">Name</label>{' '}
-          <input
-            id="profile-name-input"
-            data-testid="profile-name-input"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />{' '}
-          <button type="submit" data-testid="profile-create-submit" disabled={!name.trim()}>
-            Continue
+        {!creating && (
+          <button
+            type="button"
+            data-variant="ghost"
+            data-testid="profile-new"
+            className="profile-select__new"
+            onClick={() => setCreating(true)}
+          >
+            + New Climber
           </button>
-          {profiles.length > 0 && (
-            <button
-              type="button"
-              data-variant="secondary"
-              data-testid="profile-create-cancel"
-              onClick={() => {
-                setCreating(false);
-                setName('');
-              }}
-            >
-              Cancel
-            </button>
-          )}
-        </form>
-      )}
+        )}
+
+        {creating && (
+          <form
+            onSubmit={handleCreate}
+            data-testid="profile-create-form"
+            className="profile-select__form"
+          >
+            <label htmlFor="profile-name-input">
+              {profiles.length > 0 ? "New climber's name" : 'Your name'}
+            </label>
+            <input
+              id="profile-name-input"
+              data-testid="profile-name-input"
+              autoComplete="off"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <div className="profile-select__actions">
+              {profiles.length > 0 && (
+                <button
+                  type="button"
+                  data-variant="secondary"
+                  data-testid="profile-create-cancel"
+                  onClick={() => {
+                    setCreating(false);
+                    setName('');
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
+              <button type="submit" data-testid="profile-create-submit" disabled={!name.trim()}>
+                Continue
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </main>
   );
 }
