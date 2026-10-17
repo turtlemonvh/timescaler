@@ -65,9 +65,24 @@ const TIME_LIMIT_MULTIPLIERS: Record<string, number> = {
   [DAY_OF_WEEK_TYPE_ID]: 1.1,
   [NTH_WEEKDAY_TYPE_ID]: 1.5,
   [COUNT_WEEKDAYS_TYPE_ID]: 1.4,
-  [HOUR24_TYPE_ID]: 1.2,
+  [HOUR24_TYPE_ID]: 1.0,
   [COUNT_BETWEEN_TYPE_ID]: 1.5,
 };
+
+function isHour24Ordering(q: Question): boolean {
+  return q.typeId === HOUR24_TYPE_ID && q.prompt.startsWith('Which time comes ');
+}
+
+/** Minutes since midnight for "1:05 PM" or "13:05" — parsed here, not via the generator. */
+function minutesOfDay(label: string): number {
+  const twelve = /^(\d{1,2}):(\d{2}) (AM|PM)$/.exec(label);
+  if (twelve) {
+    return to24Hour(Number(twelve[1]), twelve[3] === 'PM') * 60 + Number(twelve[2]);
+  }
+  const twentyFour = /^(\d{2}):(\d{2})$/.exec(label);
+  if (twentyFour) return Number(twentyFour[1]) * 60 + Number(twentyFour[2]);
+  throw new Error(`not a clock time: ${label}`);
+}
 
 /** Distinct, reproducible seed per (difficulty, index) pair. */
 function seedFor(difficulty: number, index: number): number {
@@ -347,6 +362,18 @@ function assertDeclaredAnswerMatchesDisplay(q: Question): void {
       // Re-derive the conversion straight from the prompt's given time,
       // independent of the generator — using `to24Hour`, a small standalone
       // utility, not the generator's own formatting logic.
+      const orderMatch = /^Which time comes (earliest|latest) in the day\?$/.exec(q.prompt);
+      if (orderMatch) {
+        // Every option converted to minutes since midnight independently;
+        // the declared answer must be the unique min (or max).
+        expect(q.answer.kind).toBe('choice');
+        if (q.answer.kind !== 'choice') return;
+        const values = q.answer.options.map(minutesOfDay);
+        expect(new Set(values).size).toBe(values.length);
+        const target = orderMatch[1] === 'earliest' ? Math.min(...values) : Math.max(...values);
+        expect(minutesOfDay(declared)).toBe(target);
+        return;
+      }
       const to24Match = q.prompt.match(/^What is (\d{1,2}):(\d{2}) (AM|PM) in 24-hour time\?$/);
       const to12Match = q.prompt.match(/^What is (\d{2}):(\d{2}) in 12-hour time\?$/);
       if (to24Match) {
@@ -383,7 +410,9 @@ function assertWellFormed(q: Question, typeId: string, difficulty: number): void
   // table's base timer scaled by this type's own multiplier, and inside a
   // band a child can actually work within.
   expect(Number.isInteger(q.timeLimitMs)).toBe(true);
-  const multiplier = TIME_LIMIT_MULTIPLIERS[typeId] ?? 1;
+  // hour24's "which time comes first/last" variant converts four times at
+  // once and gets more headroom than a single conversion.
+  const multiplier = isHour24Ordering(q) ? 1.4 : (TIME_LIMIT_MULTIPLIERS[typeId] ?? 1);
   expect(q.timeLimitMs).toBe(timeLimitFor(difficultyProfile(difficulty), multiplier));
   expect(q.timeLimitMs).toBeGreaterThanOrEqual(5_000);
   expect(q.timeLimitMs).toBeLessThanOrEqual(45_000);
