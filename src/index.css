@@ -1298,6 +1298,66 @@ td {
 }
 
 /* ---------------------------------------------------------------------------
+ * Profile select: one parchment card — existing climbers, then the
+ * new-climber form stacked (label, field, actions) so nothing crowds.
+ * ------------------------------------------------------------------------ */
+.profile-select {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: clamp(1.5rem, 8vh, 4rem);
+}
+.profile-select__card {
+  width: min(480px, 100%);
+  padding: 1.75rem 1.5rem 1.75rem;
+  border-radius: var(--radius);
+  background: var(--card-solid);
+  border: 2px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.profile-select__card h1 {
+  margin: 0 0 1.25rem;
+}
+.profile-select__list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+.profile-select__list button {
+  font-size: 0.95rem;
+  padding: 0.85rem 1.6rem;
+}
+.profile-select__new {
+  margin-top: 1.25rem;
+}
+.profile-select__list + .profile-select__form {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1.5px dashed var(--border);
+}
+.profile-select__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: left;
+}
+.profile-select__form label {
+  font-weight: 700;
+  color: var(--text-h);
+}
+.profile-select__form input {
+  width: 100%;
+}
+.profile-select__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+/* ---------------------------------------------------------------------------
  * Profile screen
  * ------------------------------------------------------------------------ */
 .profile-screen {
