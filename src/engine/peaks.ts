@@ -18,6 +18,10 @@ export interface Peak {
  * it stopped being diluted by slower off-theme questions). Don't "clean
  * this back up" into a tidy ascending sequence without re-running the
  * pacing simulation across every peak and difficulty first.
+ *
+ * This is the full-length climb (levels 8-10). Lower levels climb a fraction
+ * of it — use `climbHeight` from `climb.ts`, never `height` directly, for
+ * anything drawn or counted during a climb.
  */
 export const PEAKS: readonly Peak[] = [
   { id: 1, name: 'Basecamp Bluff', emphasis: 'Reading analog clocks', height: 27 },

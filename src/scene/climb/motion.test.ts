@@ -71,7 +71,7 @@ describe('describeMove (driven by real climb rules)', () => {
   });
 
   it('the final correct answer is a summit move', () => {
-    const before = withPosition(createClimb(peak, 1), peak.height - 1);
+    const before = withPosition(createClimb(peak, 8), peak.height - 1);
     const after = applyCorrect(before, false);
     expect(after.status).toBe('summited');
     expect(describeMove(before, after, false, 5)).toMatchObject({

@@ -166,6 +166,7 @@ describe('describeDifficultyComparisonTable', () => {
       [
         'Answer order',
         'Answer style',
+        'Climb length',
         'Clock numbers',
         'Clock precision',
         'Date jumps',
@@ -209,12 +210,22 @@ describe('describeDifficultyComparisonTable', () => {
     expect(daySpan).toMatchObject({ changed: true });
   });
 
-  it('always includes Timer and Answer style, regardless of peak', () => {
+  it('always includes Timer, Answer style and Climb length, regardless of peak', () => {
     for (let peakId = 1; peakId <= 10; peakId++) {
       const items = describeDifficultyComparisonTable(1, 10, peakId).map((r) => r.item);
       expect(items).toContain('Timer');
       expect(items).toContain('Answer style');
+      expect(items).toContain('Climb length');
     }
+  });
+
+  it("shows the climb length with the peak's own step count", () => {
+    // Basecamp Bluff is 27 steps at full length: 14 when halved (rounded).
+    const row = (a: number, b: number) =>
+      describeDifficultyComparisonTable(a, b, 1).find((r) => r.item === 'Climb length');
+    expect(row(5, 6)).toMatchObject({ current: 'Short · 14 steps', next: 'Medium · 18 steps' });
+    expect(row(7, 8)).toMatchObject({ current: 'Medium · 23 steps', next: 'Full · 27 steps' });
+    expect(row(1, 2)).toMatchObject({ changed: false });
   });
 
   it('drops "Answer order" for an interactive-only peak (4: The Hourglass)', () => {
