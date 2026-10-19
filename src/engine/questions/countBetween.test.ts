@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { difficultyProfile } from '../difficulty';
 import { getPeak } from '../peaks';
 import { mulberry32 } from '../rng';
-import { countBetweenType, COUNT_BETWEEN_TYPE_ID, generateCountBetween } from './countBetween';
+import {
+  countBetweenType,
+  COUNT_BETWEEN_TYPE_ID,
+  describeCountBetweenLevel,
+  generateCountBetween,
+} from './countBetween';
 import { timeLimitFor } from './support';
 import type { GeneratorContext } from './types';
 
@@ -90,6 +95,89 @@ describe('generateCountBetween', () => {
       }
     }
     expect(sawLeapCrossing).toBe(true);
+  });
+
+  describe('difficulty ladder (issue #126)', () => {
+    function monthsApart(a: Date, b: Date): number {
+      return b.getFullYear() * 12 + b.getMonth() - (a.getFullYear() * 12 + a.getMonth());
+    }
+
+    function isOneYearApart(start: Date, end: Date): boolean {
+      return (
+        end.getFullYear() === start.getFullYear() + 1 &&
+        end.getMonth() === start.getMonth() &&
+        end.getDate() === start.getDate()
+      );
+    }
+
+    it('keeps both dates in the same month at levels 1-2', () => {
+      for (const difficulty of [1, 2]) {
+        for (let seed = 0; seed < 300; seed++) {
+          const q = generateCountBetween(mulberry32(seed), { ...ctx, difficulty });
+          const { start, end } = parsePrompt(q.prompt);
+          expect(monthsApart(start, end)).toBe(0);
+        }
+      }
+    });
+
+    it('crosses exactly one month boundary at levels 3-6', () => {
+      for (const difficulty of [3, 4, 5, 6]) {
+        for (let seed = 0; seed < 300; seed++) {
+          const q = generateCountBetween(mulberry32(seed), { ...ctx, difficulty });
+          const { start, end } = parsePrompt(q.prompt);
+          expect(monthsApart(start, end)).toBe(1);
+          expect(differenceInCalendarDays(end, start)).toBeLessThanOrEqual(30);
+        }
+      }
+    });
+
+    it('caps spans at about four months even at level 10, apart from whole-year questions', () => {
+      const caps: Record<number, number> = { 7: 50, 8: 60, 9: 90, 10: 120 };
+      for (const [difficulty, cap] of Object.entries(caps)) {
+        for (let seed = 0; seed < 300; seed++) {
+          const q = generateCountBetween(mulberry32(seed), {
+            ...ctx,
+            difficulty: Number(difficulty),
+          });
+          const { start, end } = parsePrompt(q.prompt);
+          const days = differenceInCalendarDays(end, start);
+          if (isOneYearApart(start, end)) {
+            expect([365, 366]).toContain(days);
+            continue;
+          }
+          expect(days).toBeLessThanOrEqual(cap);
+        }
+      }
+    });
+
+    it('asks whole-year questions (365 or 366) and both answers occur at level 9', () => {
+      const seen = new Set<number>();
+      for (let seed = 0; seed < 300; seed++) {
+        const q = generateCountBetween(mulberry32(seed), { ...ctx, difficulty: 9 });
+        const { start, end } = parsePrompt(q.prompt);
+        if (isOneYearApart(start, end)) seen.add(differenceInCalendarDays(end, start));
+      }
+      expect(seen).toEqual(new Set([365, 366]));
+    });
+
+    it('computes the day count independently at every level', () => {
+      for (let difficulty = 1; difficulty <= 10; difficulty++) {
+        for (let seed = 0; seed < 100; seed++) {
+          const q = generateCountBetween(mulberry32(seed), { ...ctx, difficulty });
+          const { start, end } = parsePrompt(q.prompt);
+          expect(q.answer).toMatchObject({
+            kind: 'number',
+            target: differenceInCalendarDays(end, start),
+          });
+        }
+      }
+    });
+
+    it('describes every level', () => {
+      for (let level = 1; level <= 10; level++) {
+        expect(describeCountBetweenLevel(level)).toMatch(/\w/);
+      }
+    });
   });
 
   it("uses the difficulty profile timer, scaled by this type's own multiplier", () => {

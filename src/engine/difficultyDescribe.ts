@@ -2,6 +2,9 @@ import type { AnswerMode, DateSpan, DescribePhrasingTier, DifficultyProfile } fr
 import { difficultyProfile } from './difficulty';
 import { getPeak } from './peaks';
 import { BUILT_IN_QUESTION_TYPES } from './questions';
+import { describeCountBetweenLevel } from './questions/countBetween';
+import { describeHour24Level } from './questions/hour24';
+import { describeOffsetDateLevel } from './questions/offsetDate';
 import { isOnThemeForPeak } from './questions/peakEmphasis';
 import type { TimePrecision } from './timeMath';
 
@@ -175,20 +178,25 @@ export interface DifficultyComparisonRow {
  * peak's table below, a fact about the engine rather than a peak quirk.
  * `'Timer'` and `'Answer style'` aren't listed per-type since every
  * generator has both — see `ALWAYS_RELEVANT_ITEMS`.
+ *
+ * `offsetDate` and `countBetween` no longer read `dateSpan` — each has its
+ * own per-level ladder (issue #126) — so they show their own row ('Date
+ * jumps', 'Day span') described by the generator itself, as does `hour24`
+ * ('Question kinds') for its level-gated question variants.
  */
 const GENERATOR_RELEVANT_ITEMS: Readonly<Record<string, readonly string[]>> = {
   readAnalog: ['Clock precision', 'Clock numbers', 'Answer order'],
   describeTime: ['Clock precision', 'Clock numbers', 'Time-in-words', 'Answer order'],
   readCalendar: ['Dates', 'Answer order'],
-  offsetDate: ['Dates', 'Answer order'],
+  offsetDate: ['Date jumps', 'Answer order'],
   elapsedAdd: ['Answer order'],
   elapsedBetween: [],
   setHands: ['Clock precision'],
   dayOfWeek: ['Answer order'],
   nthWeekday: ['Dates'],
   countWeekdays: ['Dates'],
-  hour24: ['Clock precision', 'Answer order'],
-  countBetween: ['Dates'],
+  hour24: ['Clock precision', 'Question kinds', 'Answer order'],
+  countBetween: ['Day span'],
 };
 
 /** Shown for every peak, regardless of which generator is on-theme —
@@ -261,6 +269,9 @@ export function describeDifficultyComparisonTable(
       capitalize(DATE_SPAN_PHRASES[pb.dateSpan]),
     ),
     row('24-hour time', pa.hour24 ? 'On' : 'Off', pb.hour24 ? 'On' : 'Off'),
+    row('Date jumps', describeOffsetDateLevel(a), describeOffsetDateLevel(b)),
+    row('Day span', describeCountBetweenLevel(a), describeCountBetweenLevel(b)),
+    row('Question kinds', describeHour24Level(a), describeHour24Level(b)),
     row(
       'Clock numbers',
       pa.clockNumerals ? 'Shown' : 'Hidden',

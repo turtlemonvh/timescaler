@@ -168,7 +168,10 @@ describe('describeDifficultyComparisonTable', () => {
         'Answer style',
         'Clock numbers',
         'Clock precision',
+        'Date jumps',
         'Dates',
+        'Day span',
+        'Question kinds',
         'Time-in-words',
         'Timer',
       ].sort(),
@@ -192,6 +195,18 @@ describe('describeDifficultyComparisonTable', () => {
     expect(items).not.toContain('Clock precision');
     expect(items).not.toContain('Clock numbers');
     expect(items).not.toContain('Time-in-words');
+  });
+
+  it("describes Monthfall Pass, Leap Crag and The Meridian with their own ladders' rows", () => {
+    const itemsFor = (peakId: number) =>
+      describeDifficultyComparisonTable(1, 10, peakId).map((r) => r.item);
+    expect(itemsFor(7)).toContain('Date jumps');
+    expect(itemsFor(7)).not.toContain('Dates');
+    expect(itemsFor(9)).toContain('Day span');
+    expect(itemsFor(9)).not.toContain('Dates');
+    expect(itemsFor(8)).toContain('Question kinds');
+    const daySpan = describeDifficultyComparisonTable(5, 10, 9).find((r) => r.item === 'Day span');
+    expect(daySpan).toMatchObject({ changed: true });
   });
 
   it('always includes Timer and Answer style, regardless of peak', () => {
