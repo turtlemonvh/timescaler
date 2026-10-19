@@ -45,7 +45,7 @@ type Screen =
       difficulty: number;
       reward: { coins: number; trophy: boolean };
     }
-  | { name: 'fell'; peakId: number };
+  | { name: 'fell'; peakId: number; difficulty: number };
 
 function requireActiveProfile(save: SaveFile): Profile {
   const profile = save.activeProfileId ? getProfile(save, save.activeProfileId) : undefined;
@@ -195,7 +195,7 @@ export default function App() {
           }}
           onFall={(_finalState, elapsedMs) => {
             setSave((current) => recordFall(current, profile.id, peakId, difficulty, elapsedMs));
-            setScreen({ name: 'fell', peakId });
+            setScreen({ name: 'fell', peakId, difficulty });
           }}
         />
       );
@@ -222,6 +222,7 @@ export default function App() {
       return (
         <Fell
           peak={getPeak(peakId)}
+          difficulty={screen.difficulty}
           animalId={resolveAnimal(profile.characterId).id}
           onRetry={() => setScreen({ name: 'climb', peakId, seed: Date.now() })}
           onReturnToMap={() => setScreen({ name: 'map' })}

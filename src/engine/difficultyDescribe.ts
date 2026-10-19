@@ -1,5 +1,6 @@
 import type { AnswerMode, DateSpan, DescribePhrasingTier, DifficultyProfile } from './difficulty';
 import { difficultyProfile } from './difficulty';
+import { climbHeight, climbLengthLabel } from './climb';
 import { getPeak } from './peaks';
 import { BUILT_IN_QUESTION_TYPES } from './questions';
 import { describeCountBetweenLevel } from './questions/countBetween';
@@ -158,6 +159,11 @@ export function describeDifficultyLevel(level: number, peakId: number): string[]
   ];
 }
 
+/** e.g. "Short · 14 steps" — the label for the level plus this peak's actual step count. */
+function climbLengthCell(level: number, peakId: number): string {
+  return `${climbLengthLabel(level)} · ${climbHeight(getPeak(peakId), level)} steps`;
+}
+
 export interface DifficultyComparisonRow {
   item: string;
   current: string;
@@ -201,8 +207,9 @@ const GENERATOR_RELEVANT_ITEMS: Readonly<Record<string, readonly string[]>> = {
 
 /** Shown for every peak, regardless of which generator is on-theme —
  * inherent to "how a question is asked and timed", not tied to any one
- * generator's content the way clock precision or date span are. */
-const ALWAYS_RELEVANT_ITEMS: readonly string[] = ['Timer', 'Answer style'];
+ * generator's content the way clock precision or date span are. 'Climb length'
+ * is set by the level, not the generator (`climbLengthFactor`). */
+const ALWAYS_RELEVANT_ITEMS: readonly string[] = ['Timer', 'Answer style', 'Climb length'];
 
 /**
  * Which of the 8 comparison items are actually meaningful for `peakId` —
@@ -262,6 +269,7 @@ export function describeDifficultyComparisonTable(
       PRECISION_LABELS[dominantPrecision(pb)],
     ),
     row('Timer', `~${timerSeconds(pa)}s`, `~${timerSeconds(pb)}s`),
+    row('Climb length', climbLengthCell(a, peakId), climbLengthCell(b, peakId)),
     row('Answer style', modeA, modeB),
     row(
       'Dates',

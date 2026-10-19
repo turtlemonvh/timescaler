@@ -227,6 +227,7 @@ export default function DebugScreensPage() {
       <p data-testid="screens-fell-action">{fellAction ?? 'No action yet'}</p>
       <Fell
         peak={PEAKS[0]}
+        difficulty={4}
         animalId="fox"
         onRetry={() => setFellAction('Retry')}
         onReturnToMap={() => setFellAction('Returned to map')}

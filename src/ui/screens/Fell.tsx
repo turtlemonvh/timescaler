@@ -1,4 +1,5 @@
 import { Suspense, useState } from 'react';
+import { climbHeight } from '../../engine/climb';
 import type { Peak } from '../../engine/peaks';
 import type { AnimalId } from '../../scene/animals/roster';
 import { ClimbScene } from '../../scene/lazy';
@@ -19,6 +20,8 @@ function randomMessage(): string {
 
 export interface FellProps {
   peak: Peak;
+  /** The level of the climb that fell, so the cliff matches its length. */
+  difficulty: number;
   animalId: AnimalId;
   onRetry: () => void;
   onReturnToMap: () => void;
@@ -29,7 +32,7 @@ export interface FellProps {
  * (the animal is down at the foot of the wall) with two exits — retrying in
  * place is the whole point of falling rather than summiting.
  */
-export default function Fell({ peak, animalId, onRetry, onReturnToMap }: FellProps) {
+export default function Fell({ peak, difficulty, animalId, onRetry, onReturnToMap }: FellProps) {
   const [message] = useState(randomMessage);
   const reducedMotion = usePrefersReducedMotion();
   return (
@@ -46,7 +49,7 @@ export default function Fell({ peak, animalId, onRetry, onReturnToMap }: FellPro
             peakId={peak.id}
             animalId={animalId}
             position={0}
-            height={peak.height}
+            height={climbHeight(peak, difficulty)}
             move={null}
             phase="fell"
             reducedMotion={reducedMotion}

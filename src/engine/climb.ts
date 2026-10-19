@@ -15,6 +15,33 @@ export interface ClimbState {
 
 const BOOST_CAPACITY = 5;
 
+/**
+ * How much of a peak's full `height` a climb at `difficulty` covers — shorter
+ * climbs are another difficulty lever (issue #131). Levels 1-5 are half
+ * length, stepping up through 6 and 7 to the full height at 8-10.
+ */
+export function climbLengthFactor(difficulty: number): number {
+  if (difficulty <= 5) return 0.5;
+  if (difficulty === 6) return 2 / 3;
+  if (difficulty === 7) return 5 / 6;
+  return 1;
+}
+
+/** Steps to the summit of `peak` at `difficulty`. Every screen that draws the
+ * cliff (climb, summit, fall) uses this rather than `peak.height` so the wall
+ * matches the climb. */
+export function climbHeight(peak: Peak, difficulty: number): number {
+  return Math.round(peak.height * climbLengthFactor(difficulty));
+}
+
+/** Short label for a climb's length at `difficulty`, for the level details table. */
+export function climbLengthLabel(difficulty: number): 'Short' | 'Medium' | 'Full' {
+  const factor = climbLengthFactor(difficulty);
+  if (factor <= 0.5) return 'Short';
+  if (factor < 1) return 'Medium';
+  return 'Full';
+}
+
 function fallRiskCapacityForDifficulty(difficulty: number): number {
   if (difficulty <= 3) return 5;
   if (difficulty <= 7) return 4;
@@ -24,7 +51,7 @@ function fallRiskCapacityForDifficulty(difficulty: number): number {
 export function createClimb(peak: Peak, difficulty: number): ClimbState {
   return {
     peakId: peak.id,
-    height: peak.height,
+    height: climbHeight(peak, difficulty),
     position: 0,
     boost: 0,
     boostCapacity: BOOST_CAPACITY,

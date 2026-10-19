@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { climbHeight } from './climb';
 import { PEAKS } from './peaks';
 import { simulatePeakCompletion, type PacingProfile } from './pacingSimulation';
 import { mulberry32 } from './rng';
@@ -19,8 +20,16 @@ const TYPICAL_PROFILE: PacingProfile = { accuracy: 0.9, answerSpeedFraction: 0.4
  * different seed offsets land consistently within the target band during
  * tuning; fewer made the test itself flaky, not just the game. */
 const SAMPLES_PER_COMBO = 20;
-const MIN_MINUTES = 2;
-const MAX_MINUTES = 5;
+
+/**
+ * Target average minutes per peak, by level. Levels 1-5 climb half the
+ * peak's height (`climbLengthFactor`, issue #131), so their target is about
+ * half the full-length 2-5 minutes.
+ */
+const TARGET_MINUTES: Readonly<Record<number, { min: number; max: number }>> = {
+  3: { min: 1, max: 2.5 },
+  8: { min: 2, max: 5 },
+};
 
 /** Distinct, reproducible seed per (peak, difficulty, sample) triple. */
 function seedFor(peakId: number, difficulty: number, sample: number): number {
@@ -49,7 +58,7 @@ describe('simulatePeakCompletion', () => {
     expect(result.questionsAnswered).toBeGreaterThan(0);
     // Perfect accuracy still needs at least height/2 correct answers (2 steps
     // per hit once boost maxes out), never fewer.
-    expect(result.questionsAnswered).toBeGreaterThanOrEqual(peak.height / 2);
+    expect(result.questionsAnswered).toBeGreaterThanOrEqual(climbHeight(peak, 1) / 2);
   });
 
   it('is deterministic for a given seed', () => {
@@ -62,18 +71,20 @@ describe('simulatePeakCompletion', () => {
   /**
    * The pacing tuning pass this test represents: per the design spec's own
    * testing-strategy section, a typical player's completion time per peak
-   * should land in 2-5 minutes. Checked at difficulty 3 and 8 — the same two
+   * should land in 2-5 minutes at full climb length — about half that at
+   * the half-length levels 1-5 (`TARGET_MINUTES`). Checked at difficulty 3 and 8 — the same two
    * levels the spec's own M5 "Verify" line names for a human playtest pass
    * — across every peak, since `selectGenerator` restricts each peak to
    * only its own on-theme generator(s) (`peakEmphasis.ts`), and different
    * peaks' matched generators carry different `TIME_LIMIT_MULTIPLIER`s.
    */
   describe.each([3, 8])('at difficulty %i', (difficulty) => {
+    const { min, max } = TARGET_MINUTES[difficulty];
     for (const peak of PEAKS) {
-      it(`peak ${peak.id} (${peak.name}, height ${peak.height}) completes in ${MIN_MINUTES}-${MAX_MINUTES} minutes on average`, () => {
+      it(`peak ${peak.id} (${peak.name}, ${climbHeight(peak, difficulty)} steps) completes in ${min}-${max} minutes on average`, () => {
         const minutes = averageCompletionMinutes(peak.id, difficulty);
-        expect(minutes).toBeGreaterThanOrEqual(MIN_MINUTES);
-        expect(minutes).toBeLessThanOrEqual(MAX_MINUTES);
+        expect(minutes).toBeGreaterThanOrEqual(min);
+        expect(minutes).toBeLessThanOrEqual(max);
       });
     }
   });

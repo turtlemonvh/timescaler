@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { applyCorrect, applyMiss, createClimb, isFastAnswer } from './climb';
-import type { Peak } from './peaks';
+import {
+  applyCorrect,
+  applyMiss,
+  climbHeight,
+  climbLengthFactor,
+  climbLengthLabel,
+  createClimb,
+  isFastAnswer,
+} from './climb';
+import { PEAKS, type Peak } from './peaks';
 
 // A fixed-height fixture, deliberately independent of the real PEAKS data
 // (whose heights are tuned per peak against the pacing simulation and don't
@@ -15,8 +23,13 @@ describe('createClimb', () => {
     expect(state.boost).toBe(0);
     expect(state.fallRisk).toBe(0);
     expect(state.status).toBe('climbing');
-    expect(state.height).toBe(20);
+    expect(state.height).toBe(10); // level 5 climbs half the peak's height
     expect(state.boostCapacity).toBe(5);
+  });
+
+  it('climbs the full peak height at difficulty 8-10', () => {
+    expect(createClimb(testPeak, 8).height).toBe(20);
+    expect(createClimb(testPeak, 10).height).toBe(20);
   });
 
   it('sets fall-risk capacity to 5 for difficulty 1-3', () => {
@@ -32,6 +45,42 @@ describe('createClimb', () => {
   it('sets fall-risk capacity to 3 for difficulty 8-10', () => {
     expect(createClimb(testPeak, 8).fallRiskCapacity).toBe(3);
     expect(createClimb(testPeak, 10).fallRiskCapacity).toBe(3);
+  });
+});
+
+describe('climb length by level (issue #131)', () => {
+  it('is half at 1-5, two thirds at 6, five sixths at 7, full at 8-10', () => {
+    const factors = Array.from({ length: 10 }, (_, i) => climbLengthFactor(i + 1));
+    expect(factors).toEqual([0.5, 0.5, 0.5, 0.5, 0.5, 2 / 3, 5 / 6, 1, 1, 1]);
+  });
+
+  it('never gets shorter as the level goes up', () => {
+    for (const peak of PEAKS) {
+      for (let level = 2; level <= 10; level++) {
+        expect(climbHeight(peak, level)).toBeGreaterThanOrEqual(climbHeight(peak, level - 1));
+      }
+    }
+  });
+
+  it('makes every real peak about half as long at 1-5 as at 8-10', () => {
+    for (const peak of PEAKS) {
+      const full = climbHeight(peak, 8);
+      expect(full).toBe(peak.height);
+      expect(climbHeight(peak, 10)).toBe(full);
+      for (let level = 1; level <= 5; level++) {
+        // Rounded to a whole step, so within half a step of exactly half.
+        expect(Math.abs(climbHeight(peak, level) - full / 2)).toBeLessThanOrEqual(0.5);
+      }
+    }
+  });
+
+  it('labels the lengths Short, Medium and Full', () => {
+    expect(climbLengthLabel(1)).toBe('Short');
+    expect(climbLengthLabel(5)).toBe('Short');
+    expect(climbLengthLabel(6)).toBe('Medium');
+    expect(climbLengthLabel(7)).toBe('Medium');
+    expect(climbLengthLabel(8)).toBe('Full');
+    expect(climbLengthLabel(10)).toBe('Full');
   });
 });
 
@@ -70,7 +119,7 @@ describe('applyCorrect', () => {
   });
 
   it('reaches summited exactly at height and clamps position there', () => {
-    let state = createClimb(testPeak, 5); // height 20
+    let state = createClimb(testPeak, 8); // height 20
     for (let i = 0; i < 20; i++) state = applyCorrect(state, false);
     expect(state.status).toBe('summited');
     expect(state.position).toBe(20);

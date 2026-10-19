@@ -1,4 +1,5 @@
 import { Suspense, useState, type CSSProperties } from 'react';
+import { climbHeight } from '../../engine/climb';
 import type { Peak } from '../../engine/peaks';
 import type { AnimalId } from '../../scene/animals/roster';
 import { ClimbScene } from '../../scene/lazy';
@@ -92,8 +93,8 @@ export default function Summit({
           <ClimbScene
             peakId={peak.id}
             animalId={animalId}
-            position={peak.height}
-            height={peak.height}
+            position={climbHeight(peak, difficulty)}
+            height={climbHeight(peak, difficulty)}
             move={null}
             phase="summit"
             reducedMotion={reducedMotion}

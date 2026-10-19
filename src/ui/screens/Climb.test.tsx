@@ -115,12 +115,33 @@ describe('Climb', () => {
     expect(screen.getByTestId('choice-option-1')).toHaveTextContent('Wrong');
   });
 
+  it('climbs half the peak at level 5 and all of it at level 8 (issue #131)', () => {
+    const tallPeak: Peak = { ...shortPeak, height: 20 };
+    const renderAt = (difficulty: number) =>
+      render(
+        <Climb
+          peak={tallPeak}
+          difficulty={difficulty}
+          animalId="fox"
+          seed={1}
+          onSummit={vi.fn()}
+          onFall={vi.fn()}
+          onBail={vi.fn()}
+        />,
+      );
+    const { unmount } = renderAt(5);
+    expect(screen.getByTestId('climb-scene')).toHaveAttribute('data-height', '10');
+    unmount();
+    renderAt(8);
+    expect(screen.getByTestId('climb-scene')).toHaveAttribute('data-height', '20');
+  });
+
   it('calls onSummit once enough correct answers reach the peak height', () => {
     const onSummit = vi.fn();
     render(
       <Climb
         peak={shortPeak}
-        difficulty={5}
+        difficulty={8}
         animalId="fox"
         seed={1}
         onSummit={onSummit}
