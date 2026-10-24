@@ -5,6 +5,17 @@ updates:
     schedule:
       interval: 'weekly'
     groups:
+      # react and react-dom must be the exact same version or React refuses
+      # to load ("Incompatible React versions") - a react-only bump (#135)
+      # failed every test file. Listed first because Dependabot assigns a
+      # dependency to the first group it matches, so the @types packages
+      # land here rather than in dev-dependencies.
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
       dev-dependencies:
         dependency-type: 'development'
     ignore:
