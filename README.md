@@ -1,5 +1,9 @@
 # Timescaler
 
+<p align="center">
+  <img src="docs/media/timescaler.gif" width="420" alt="A fox climbs a cliff, a deer slips, a wolf dances on the summit, and the map sweeps across ten peaks">
+</p>
+
 A local-storage-only, installable browser game that teaches telling time and working with
 calendars by climbing ten mountain peaks.
 
@@ -9,6 +13,13 @@ hops from ledge to ledge up a cliff as you answer, slips on a miss, tumbles if y
 and dances on the summit flag when you make it. The live site may lag the `main` branch.
 
 **Live:** <https://turtlemonvh.github.io/timescaler/>
+
+**Trailer** (30 seconds, with sound):
+
+https://github.com/user-attachments/assets/b71004d7-10d0-478a-bf7e-a36452405b0a
+
+The GIF, the trailer and the intro screen's video are all filmed from the real game; see
+[`trailer/`](./trailer/README.md) to re-shoot them after the scenes change.
 
 ## Setup
 
