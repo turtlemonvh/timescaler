@@ -70,6 +70,18 @@ especially by a fresh subagent with no prior context on this repo.
   works (`chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] })`
   renders WebGL headless). Kill the `vite --port <N>` you started when done.
 
+## Trailer and intro loop (`trailer/`)
+
+- **The intro video, the README GIF and the trailer are filmed from the real game**, so they go
+  stale when the scenes change: re-run `pnpm trailer:install && pnpm trailer:render` (about five
+  minutes) rather than editing the outputs. See `trailer/README.md`.
+- **`/debug/trailer` renders without `StrictMode`** (`main.tsx`). The `game` take's scripted player
+  predicts each question from the climb's seed; StrictMode's double-invoked `useState` initialisers
+  would draw an extra question from the RNG and the player would answer the wrong one.
+- **`trailer/virtual-time.js` yields a real macrotask after every timer it fires.** Without that,
+  two timers due in the same 1/30 s step both run before React re-renders, and code that reads the
+  DOM in the second one sees stale state.
+
 ## TypeScript project split
 
 - `tsconfig.app.json` (covers `src/`) uses `moduleResolution: "bundler"` — relative imports have no

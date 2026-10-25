@@ -3,6 +3,7 @@ import DebugHudPage from './DebugHudPage';
 import DebugQuestionsPage from './DebugQuestionsPage';
 import DebugScenePage from './DebugScenePage';
 import DebugScreensPage from './DebugScreensPage';
+import DebugTrailerPage from './DebugTrailerPage';
 import DebugWidgetsPage from './DebugWidgetsPage';
 
 export const DEBUG_PREFIX = '/debug/';
@@ -30,6 +31,8 @@ export default function DebugRouter({ pathname }: { pathname: string }) {
       return <DebugScreensPage />;
     case 'scene':
       return <DebugScenePage />;
+    case 'trailer':
+      return <DebugTrailerPage />;
     case 'preview':
       return <PreviewPlayer />;
     default:
@@ -57,6 +60,9 @@ export default function DebugRouter({ pathname }: { pathname: string }) {
             </li>
             <li>
               <a href="/debug/preview">/debug/preview</a>
+            </li>
+            <li>
+              <a href="/debug/trailer">/debug/trailer</a>
             </li>
           </ul>
         </main>

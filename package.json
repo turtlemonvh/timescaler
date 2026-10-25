@@ -12,6 +12,8 @@
     "icons": "tsx scripts/generate-icons.ts",
     "preview:questions": "tsx scripts/preview-questions.ts",
     "models:prepare": "tsx scripts/prepare-models.ts",
+    "trailer:install": "pnpm --dir trailer install",
+    "trailer:render": "pnpm --dir trailer render",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

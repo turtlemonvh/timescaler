@@ -22,10 +22,16 @@ const root = createRoot(document.getElementById('root')!);
 // longer match — the debug routes would silently stop working. Not fixed
 // here; just documented so a future reader isn't surprised.
 if (import.meta.env.DEV && window.location.pathname.startsWith(DEBUG_PREFIX)) {
+  const debug = <DebugRouter pathname={window.location.pathname} />;
+  // The trailer's scripted player predicts each question from the climb's
+  // seed, which only works if state initialisers run once, as in production.
+  // StrictMode's double-invoke would draw an extra question from the RNG.
   root.render(
-    <StrictMode>
-      <DebugRouter pathname={window.location.pathname} />
-    </StrictMode>,
+    window.location.pathname.startsWith(`${DEBUG_PREFIX}trailer`) ? (
+      debug
+    ) : (
+      <StrictMode>{debug}</StrictMode>
+    ),
   );
 } else {
   root.render(
