@@ -20,7 +20,7 @@ describe('Intro', () => {
     expect(onContinue).toHaveBeenCalledOnce();
   });
 
-  it('plays a muted looping video of the game, WebM first with an MP4 fallback', () => {
+  it('plays a muted looping WebM of the game over a poster frame', () => {
     render(<Intro onContinue={() => {}} />);
     const video = screen.getByTestId('intro-hero-video') as HTMLVideoElement;
     expect(video.muted).toBe(true);
@@ -28,7 +28,7 @@ describe('Intro', () => {
     expect(video.autoplay).toBe(true);
     expect(video.getAttribute('poster')).toMatch(/intro\/intro-hero-poster\.jpg$/);
     const sources = [...video.querySelectorAll('source')].map((s) => s.getAttribute('type'));
-    expect(sources).toEqual(['video/webm', 'video/mp4']);
+    expect(sources).toEqual(['video/webm']);
   });
 
   it('pauses the video while the tab is hidden and resumes when it returns', () => {

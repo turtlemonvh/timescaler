@@ -11,7 +11,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 const copies: [string, string][] = [
   ['out/intro-hero.webm', 'public/intro/intro-hero.webm'],
-  ['out/intro-hero.mp4', 'public/intro/intro-hero.mp4'],
   ['out/intro-hero-poster.jpg', 'public/intro/intro-hero-poster.jpg'],
   ['out/timescaler.gif', 'docs/media/timescaler.gif'],
 ];

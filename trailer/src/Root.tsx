@@ -11,10 +11,10 @@ export function Root() {
         component={IntroLoop}
         durationInFrames={INTRO_FRAMES}
         fps={FPS}
-        width={720}
-        height={720}
+        width={540}
+        height={540}
       />
-      <Still id="IntroPoster" component={IntroPoster} width={720} height={720} />
+      <Still id="IntroPoster" component={IntroPoster} width={540} height={540} />
       <Composition
         id="Trailer"
         component={Trailer}

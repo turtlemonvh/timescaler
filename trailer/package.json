@@ -6,7 +6,7 @@
     "typecheck": "tsc -p .",
     "record": "tsx record.ts",
     "studio": "remotion studio src/index.ts",
-    "render:intro": "remotion render src/index.ts IntroLoop out/intro-hero.webm --codec=vp9 --crf=36 && remotion render src/index.ts IntroLoop out/intro-hero.mp4 --codec=h264 --crf=28",
+    "render:intro": "remotion render src/index.ts IntroLoop out/intro-hero.webm --codec=vp9 --crf=36",
     "render:poster": "remotion still src/index.ts IntroPoster out/intro-hero-poster.jpg --image-format=jpeg --jpeg-quality=82",
     "render:trailer": "remotion render src/index.ts Trailer out/timescaler-trailer.mp4 --codec=h264 --crf=23",
     "render:gif": "remotion ffmpeg -y -loglevel error -i out/intro-hero.webm -r 12 -filter_complex \"scale=420:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle\" out/timescaler.gif",

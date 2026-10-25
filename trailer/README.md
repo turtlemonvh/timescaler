@@ -2,12 +2,12 @@
 
 Films the real game and edits the footage into:
 
-| Output                                         | Where it goes                                |
-| ---------------------------------------------- | -------------------------------------------- |
-| `intro-hero.webm` / `.mp4` (8 s, square, mute) | `public/intro/`, played by the Intro screen  |
-| `intro-hero-poster.jpg`                        | `public/intro/`, the reduced-motion still    |
-| `timescaler.gif` (the same loop, 420 px)       | `docs/media/`, the README hero               |
-| `timescaler-trailer.mp4` (30 s, 1080p, sound)  | `out/` only, uploaded as a GitHub attachment |
+| Output                                        | Where it goes                                |
+| --------------------------------------------- | -------------------------------------------- |
+| `intro-hero.webm` (8 s, 540 px square, mute)  | `public/intro/`, played by the Intro screen  |
+| `intro-hero-poster.jpg`                       | `public/intro/`, the reduced-motion still    |
+| `timescaler.gif` (the same loop, 420 px)      | `docs/media/`, the README hero               |
+| `timescaler-trailer.mp4` (30 s, 1080p, sound) | `out/` only, uploaded as a GitHub attachment |
 
 ```sh
 pnpm trailer:install   # once, from the repo root (Remotion + Playwright live here, not in the app)

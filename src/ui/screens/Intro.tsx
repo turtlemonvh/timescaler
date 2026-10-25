@@ -14,7 +14,9 @@ const HERO = `${import.meta.env.BASE_URL}intro/`;
  * than redrawn when the game changes. A video rather than a live scene keeps
  * three.js out of the first screen's bundle.
  *
- * Paused while the tab is hidden; reduced motion gets the poster frame only.
+ * WebM only, to keep the offline precache small: a browser that can't play
+ * it (iPads before iPadOS 17.4) keeps showing the poster, which is the same
+ * still reduced motion gets. Paused while the tab is hidden.
  */
 function IntroHero() {
   const reducedMotion = usePrefersReducedMotion();
@@ -54,7 +56,6 @@ function IntroHero() {
       aria-label="Animals climbing cliffs by answering clock and calendar questions"
     >
       <source src={`${HERO}intro-hero.webm`} type="video/webm" />
-      <source src={`${HERO}intro-hero.mp4`} type="video/mp4" />
     </video>
   );
 }
