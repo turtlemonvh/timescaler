@@ -22,7 +22,7 @@ export default defineConfig({
         // vendored woff2 fonts, which would then need a network request on
         // first load after any cache eviction, contradicting the "no
         // network font requests" offline requirement.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,glb}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,jpg,svg,woff2,glb,webm,mp4}'],
         // drei's loaders reference draco/basis decoders that this app never
         // loads (models are meshopt-compressed); keep them out of the offline cache.
         globIgnores: ['**/draco_*', '**/basis_*'],

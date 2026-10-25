@@ -383,6 +383,41 @@ td {
   font-size: clamp(2.2rem, 4vw + 1rem, 3.4rem);
   letter-spacing: -0.02em;
 }
+/* The game loop above the card on phones, beside it from tablet-landscape
+ * up. The square is capped by height so Get Started stays on the first screen. */
+.intro-screen__layout {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(1100px, 100%);
+}
+.intro-hero {
+  display: block;
+  width: min(100%, 38svh, 520px);
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 4px solid var(--card-solid);
+  box-shadow: var(--shadow);
+  background: var(--text-h);
+}
+.intro-screen__more {
+  margin: 1.1rem 0 0;
+  font-size: 0.95rem;
+}
+@media (min-width: 900px) {
+  .intro-screen__layout {
+    flex-direction: row;
+    justify-content: center;
+    gap: 2rem;
+  }
+  .intro-hero {
+    width: min(46vw, 520px, 80svh);
+  }
+}
 
 /* ---------------------------------------------------------------------------
  * Climb: scene behind, HUD on top, question card docked at the bottom

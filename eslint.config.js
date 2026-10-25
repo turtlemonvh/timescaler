@@ -7,7 +7,16 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'dev-dist', 'public/icons', 'coverage', 'playwright-report', 'test-results'],
+    ignores: [
+      'dist',
+      'dev-dist',
+      'public/icons',
+      'coverage',
+      'playwright-report',
+      'test-results',
+      'trailer/out',
+      'trailer/public',
+    ],
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
@@ -26,7 +35,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['scripts/**/*.ts', 'vite.config.ts', 'playwright.config.ts'],
+    files: ['scripts/**/*.ts', 'trailer/*.ts', 'vite.config.ts', 'playwright.config.ts'],
     languageOptions: { globals: globals.node },
   },
   eslintConfigPrettier,
