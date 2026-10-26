@@ -6,7 +6,17 @@ import { mulberry32 } from '../../engine/rng';
 import type { PeakTheme } from '../theme/peakThemes';
 import Clouds from '../world/Clouds';
 import Pines, { type PineSpot } from '../world/Pines';
-import { FOREST_FLOOR, ledgePoints, summitY, wallZ, type Vec3 } from './cliffPath';
+import {
+  FOREST_FLOOR,
+  ledgePoints,
+  ledgeSlab,
+  summitPlateau,
+  summitY,
+  wallZ,
+  type Box3Like,
+  type LedgeSlab,
+  type Vec3,
+} from './cliffPath';
 
 export interface CliffWorldProps {
   theme: PeakTheme;
@@ -78,6 +88,14 @@ function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
   return geometry;
 }
 
+function boxCenter(box: Box3Like): [number, number, number] {
+  return [(box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (box.min.z + box.max.z) / 2];
+}
+
+function boxSize(box: Box3Like): [number, number, number] {
+  return [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z];
+}
+
 function basePines(theme: PeakTheme): PineSpot[] {
   const rng = mulberry32(theme.peak.id * 101 + 3);
   const spots: PineSpot[] = [];
@@ -117,37 +135,23 @@ function wallPines(height: number, theme: PeakTheme): PineSpot[] {
 }
 
 function Ledge({
-  point,
-  index,
+  slab,
   active,
   snowy,
   theme,
 }: {
-  point: Vec3;
-  index: number;
+  slab: LedgeSlab;
   active: boolean;
   snowy: boolean;
   theme: PeakTheme;
 }) {
-  const rng = mulberry32(theme.peak.id * 977 + index * 13);
-  const tilt = (rng() - 0.5) * 0.18;
-  const yaw = (rng() - 0.5) * 0.5;
-  const width = 1.2 + rng() * 0.5;
-  const depth = 0.9 + rng() * 0.3;
+  const { center, width, depth, thickness, yaw } = slab;
+  // No boulder under the slab: the climber's flight path passes just in
+  // front of each slab, and anything hanging below one sat right where the
+  // climber's head goes on the hop up to it.
   return (
-    <group position={[point.x, point.y - 0.12, point.z + 0.2]}>
-      {/* A boulder tucked under the slab and into the wall, so it never hides the climber. */}
-      <mesh
-        castShadow
-        receiveShadow
-        position={[0.1, -0.5, -0.5]}
-        rotation={[tilt * 0.3, yaw, tilt]}
-        scale={[0.55, 0.4, 0.5]}
-      >
-        <dodecahedronGeometry args={[1, 0]} />
-        <meshStandardMaterial color={theme.rockDark} flatShading roughness={1} />
-      </mesh>
-      <mesh castShadow receiveShadow rotation={[0, yaw * 0.4, 0]} scale={[width, 0.24, depth]}>
+    <group position={[center.x, center.y, center.z]} rotation={[0, yaw, 0]}>
+      <mesh castShadow receiveShadow scale={[width, thickness, depth]}>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial
           color={active ? theme.rock : theme.rockDark}
@@ -156,21 +160,13 @@ function Ledge({
         />
       </mesh>
       {snowy && !active && (
-        <mesh
-          position={[0, 0.13, 0]}
-          rotation={[0, yaw * 0.4, 0]}
-          scale={[width * 0.95, 0.06, depth * 0.9]}
-        >
+        <mesh position={[0, thickness / 2 + 0.01, 0]} scale={[width * 0.95, 0.06, depth * 0.9]}>
           <boxGeometry args={[1, 1, 1]} />
           <meshStandardMaterial color={theme.snow} flatShading roughness={1} />
         </mesh>
       )}
       {active && (
-        <mesh
-          position={[0, 0.13, 0]}
-          rotation={[0, yaw * 0.4, 0]}
-          scale={[width * 0.98, 0.03, depth * 0.94]}
-        >
+        <mesh position={[0, thickness / 2 + 0.01, 0]} scale={[width * 0.98, 0.03, depth * 0.94]}>
           <boxGeometry args={[1, 1, 1]} />
           <meshBasicMaterial color={theme.flag} transparent opacity={0.6} />
         </mesh>
@@ -270,6 +266,11 @@ function DistantPeaks({ theme }: { theme: PeakTheme }) {
 export default function CliffWorld({ theme, height, position }: CliffWorldProps) {
   const wall = useMemo(() => buildWall(height, theme), [height, theme]);
   const route = useMemo(() => ledgePoints(height, theme.peak.id), [height, theme.peak.id]);
+  const slabs = useMemo(
+    () => route.map((_, i) => ledgeSlab(i, theme.peak.id)),
+    [route, theme.peak.id],
+  );
+  const plateau = useMemo(() => summitPlateau(height, theme.peak.id), [height, theme.peak.id]);
   const forest = useMemo(() => basePines(theme), [theme]);
   const clingers = useMemo(() => wallPines(height, theme), [height, theme]);
   const top = summitY(height);
@@ -281,25 +282,20 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
       </mesh>
 
       <Rope route={route} color={theme.flag} />
-      {route.map((point, i) => (
+      {slabs.map((slab, i) => (
         <Ledge
           key={i}
-          point={point}
-          index={i}
+          slab={slab}
           active={i === position}
-          snowy={point.y > top - 3.5}
+          snowy={route[i].y > top - 3.5}
           theme={theme}
         />
       ))}
 
-      {/* Summit plateau */}
-      {/* Thin, so a climber on the last ledge does not poke through it from below. */}
-      <mesh
-        position={[route[height].x, top - 0.17, route[height].z + 0.25]}
-        receiveShadow
-        castShadow
-      >
-        <boxGeometry args={[4.2, 0.34, 1.7]} />
+      {/* Summit plateau: as thin and as shallow as a ledge slab, so the climber's
+          head clears it from the ledge below and the summit hop clears its front. */}
+      <mesh position={boxCenter(plateau)} receiveShadow castShadow>
+        <boxGeometry args={boxSize(plateau)} />
         <meshStandardMaterial color={theme.snow} flatShading roughness={1} />
       </mesh>
       <Flag point={route[height]} color={theme.flag} />
