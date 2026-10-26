@@ -12,6 +12,11 @@ import {
 // https://vite.dev/config/
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',
+  // Answer on Tailscale MagicDNS names (`<machine>.<tailnet>.ts.net`) so a dev or
+  // preview server started with `--host` can be opened from a phone on the tailnet.
+  // Vite otherwise rejects any Host header that isn't localhost or an IP with a 403.
+  server: { allowedHosts: ['.ts.net'] },
+  preview: { allowedHosts: ['.ts.net'] },
   plugins: [
     react(),
     VitePWA({
