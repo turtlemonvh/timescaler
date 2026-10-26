@@ -47,11 +47,23 @@ export interface TravelPlan {
  * How the animal covers `distance` units of trail: a gallop whose playback
  * rate matches its ground speed. Short hops take about a second; a long trip
  * is capped at MAX_TRIP_SECONDS by galloping faster.
-
+ *
+ * `runningTimeScale` is the playback rate of a gallop already under way (a
+ * new pick mid-trip). The plan then keeps that rate — changing it would
+ * restart the clip from frame 0, a visible hitch — and sets the ground speed
+ * to match it, only going faster if the cap demands.
  */
-export function travelPlan(distance: number, animalId: AnimalId): TravelPlan {
+export function travelPlan(
+  distance: number,
+  animalId: AnimalId,
+  runningTimeScale?: number,
+): TravelPlan {
   const gallop = GALLOP_SPEED[animalId];
   const capped = distance / MAX_TRIP_SECONDS;
+  if (runningTimeScale !== undefined) {
+    const speed = Math.max(gallop * runningTimeScale, capped);
+    return { pose: 'run', speed, ms: (distance / speed) * 1000, timeScale: runningTimeScale };
+  }
   if (distance < WALK_BELOW) {
     const timeScale = 1.6;
     const speed = WALK_SPEED * timeScale;

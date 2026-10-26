@@ -273,7 +273,9 @@ function Wanderer({
       } else {
         const from = alongRef.current;
         const total = Math.abs(to - from);
-        const plan = travelPlan(total, animalId);
+        // Mid-gallop, keep the clip's rate: changing it restarts the clip.
+        const galloping = walkRef.current !== null && pose === 'run';
+        const plan = travelPlan(total, animalId, galloping ? timeScale : undefined);
         walkRef.current = total > 0.05 ? { from, to, started: sceneNow(), ms: plan.ms } : null;
         if (walkRef.current) {
           setPose(plan.pose);

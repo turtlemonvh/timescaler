@@ -24,6 +24,9 @@ describe('travelPlan', () => {
         expect(travelPlan(distance, animal.id).ms).toBeLessThanOrEqual(
           MAX_TRIP_SECONDS * 1000 + 1e-6,
         );
+        expect(travelPlan(distance, animal.id, 1.4).ms).toBeLessThanOrEqual(
+          MAX_TRIP_SECONDS * 1000 + 1e-6,
+        );
       }
     }
   });
@@ -48,5 +51,14 @@ describe('travelPlan', () => {
     // The slowest gallop isn't left far behind on a longer trip.
     expect(travelPlan(10, 'alpaca').ms).toBeLessThan(travelPlan(10, 'deer').ms * 1.25);
     expect(travelPlan(0.4, 'deer').pose).toBe('walk');
+  });
+
+  it('keeps a gallop already under way at its rate, so the clip does not restart', () => {
+    const plan = travelPlan(6, 'wolf', 1.3);
+    expect(plan.pose).toBe('run');
+    expect(plan.timeScale).toBe(1.3);
+    expect(plan.speed).toBeCloseTo(GALLOP_SPEED.wolf * 1.3, 9);
+    // A short re-target mid-gallop keeps galloping rather than dropping to a walk.
+    expect(travelPlan(0.3, 'wolf', 1.3).pose).toBe('run');
   });
 });
