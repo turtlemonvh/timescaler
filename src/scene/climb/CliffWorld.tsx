@@ -5,7 +5,8 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { mulberry32 } from '../../engine/rng';
 import type { PeakTheme } from '../theme/peakThemes';
 import Clouds from '../world/Clouds';
-import Pines, { type PineSpot } from '../world/Pines';
+import Pines from '../world/Pines';
+import { basePines, wallPines } from './forest';
 import {
   FOREST_FLOOR,
   ledgePoints,
@@ -94,44 +95,6 @@ function boxCenter(box: Box3Like): [number, number, number] {
 
 function boxSize(box: Box3Like): [number, number, number] {
   return [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z];
-}
-
-function basePines(theme: PeakTheme): PineSpot[] {
-  const rng = mulberry32(theme.peak.id * 101 + 3);
-  const spots: PineSpot[] = [];
-  for (let i = 0; i < 90; i++) {
-    const x = (rng() - 0.5) * 34;
-    const z = 0.8 + rng() * 5;
-    // Keep the camera's lane (straight in front of the route) clear.
-    if (Math.abs(x) < 3.2) continue;
-    spots.push({ x, y: FOREST_FLOOR, z, scale: 0.7 + rng() * 0.9, rotation: rng() * Math.PI });
-  }
-  // A thin fringe right under the first ledge, well below eye level.
-  for (let i = 0; i < 14; i++) {
-    const x = (rng() - 0.5) * 6;
-    const z = 0.6 + rng() * 1.6;
-    spots.push({ x, y: FOREST_FLOOR, z, scale: 0.45 + rng() * 0.35, rotation: rng() * Math.PI });
-  }
-  return spots;
-}
-
-function wallPines(height: number, theme: PeakTheme): PineSpot[] {
-  const rng = mulberry32(theme.peak.id * 211 + 5);
-  const spots: PineSpot[] = [];
-  const top = summitY(height);
-  for (let i = 0; i < 16; i++) {
-    const side = rng() > 0.5 ? 1 : -1;
-    const y = 1 + rng() * Math.max(1, top - 3);
-    const x = side * (3.1 + rng() * 1.3);
-    spots.push({
-      x,
-      y: y - 0.2,
-      z: wallZ(y) + 0.25,
-      scale: 0.45 + rng() * 0.45,
-      rotation: rng() * Math.PI,
-    });
-  }
-  return spots;
 }
 
 function Ledge({
@@ -271,8 +234,8 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
     [route, theme.peak.id],
   );
   const plateau = useMemo(() => summitPlateau(height, theme.peak.id), [height, theme.peak.id]);
-  const forest = useMemo(() => basePines(theme), [theme]);
-  const clingers = useMemo(() => wallPines(height, theme), [height, theme]);
+  const forest = useMemo(() => basePines(theme.peak.id), [theme.peak.id]);
+  const clingers = useMemo(() => wallPines(height, theme.peak.id), [height, theme.peak.id]);
   const top = summitY(height);
 
   return (
