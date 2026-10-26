@@ -434,8 +434,14 @@ function MapCamera({
     // About 52° down (wide) / 57° (portrait): steep enough that a mountain
     // doesn't hide the foot of the one behind it, and the look point rides
     // up with tall peaks so their badge stays in frame.
-    const height = (portrait ? 16.5 : 11.5) * view.zoom;
-    const back = (portrait ? 10.5 : 9) * view.zoom;
+    // On a long trip the view also pulls back with the distance still to
+    // go, so the selected peak stays in frame alongside the animal; it
+    // settles back as the animal arrives. Never past MAX_ZOOM, which keeps
+    // the camera under the clouds.
+    const travel = 1 + clamp((lead - CAMERA_LEAD) / 12, 0, 0.45);
+    const zoom = Math.min(MAX_ZOOM, view.zoom * travel);
+    const height = (portrait ? 16.5 : 11.5) * zoom;
+    const back = (portrait ? 10.5 : 9) * zoom;
     desiredCamera.set(cx, ISLAND_TOP + height, cz + back);
     desiredLook.set(cx, ISLAND_TOP + spot.height * (portrait ? 0.6 : 0.55), cz - 2.5);
     if (firstRef.current || reducedMotion) {
