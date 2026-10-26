@@ -1,9 +1,14 @@
 import { useRef, type RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { framingFor, keepInFrame, slotDistance } from './framing';
 
 export interface CameraRigProps {
   targetRef: RefObject<THREE.Vector3>;
+  /** Where the current move ends (the climber's position at rest); the camera leads towards it. */
+  framingRef?: RefObject<THREE.Vector3>;
+  /** The climber's height in scene units, for keeping its head in frame. */
+  heroHeight: number;
   shakeRef: RefObject<number>;
   phase: 'climb' | 'summit' | 'fell';
   reducedMotion: boolean;
@@ -13,17 +18,39 @@ export interface CameraRigProps {
 
 // Scratch vectors shared by every rig; each useFrame callback fills them
 // before use, so sharing is safe.
+const anchor = new THREE.Vector3();
+const lead = new THREE.Vector3();
 const desired = new THREE.Vector3();
 const look = new THREE.Vector3();
+const forward = new THREE.Vector3();
+const right = new THREE.Vector3();
+const up = new THREE.Vector3();
+const corner = new THREE.Vector3();
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const box = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+
+/** Fills `right`/`up`/`forward` for a camera at `from` looking at `to`; returns the distance. */
+function basis(from: THREE.Vector3, to: THREE.Vector3): number {
+  forward.subVectors(to, from);
+  const distance = forward.length();
+  forward.divideScalar(distance || 1);
+  right.crossVectors(forward, WORLD_UP).normalize();
+  up.crossVectors(right, forward);
+  return distance;
+}
 
 /**
  * Follows the climber with critically-damped easing; swings across the
- * front of the summit; shakes on a hard landing. In portrait the look-at
- * point is lowered so the climber sits in the top third of the viewport,
- * above the docked question card.
+ * front of the summit; shakes on a hard landing. The climber is framed in
+ * the part of the viewport the HTML card leaves open (`framing.ts`), the
+ * camera leads towards where a hop will land, and a hard guard pans the
+ * view whenever any part of the climber's body would leave that area — so
+ * a fast double hop or a phone's short top margin can't lose the hero.
  */
 export default function CameraRig({
   targetRef,
+  framingRef,
+  heroHeight,
   shakeRef,
   phase,
   reducedMotion,
@@ -37,33 +64,47 @@ export default function CameraRig({
   useFrame((_, delta) => {
     const t = targetRef.current;
     if (!t) return;
+    const goal = framingRef?.current ?? t;
+    const inFlight = phase === 'climb' && goal.distanceToSquared(t) > 1e-4;
     const portrait = size.height > size.width * 1.05;
-    const distance = portrait ? 9.5 : 7.2;
-    const lift = portrait ? 1.0 : 1.4;
-    const lookDrop = portrait ? -1.6 : -0.1;
+    const aspect = size.width / Math.max(1, size.height);
+    const framing = framingFor(size.width, size.height, phase);
+    const fov = (camera as THREE.PerspectiveCamera).fov;
+    const tanHalf = Math.tan(THREE.MathUtils.degToRad(fov / 2));
 
+    // The body centre the camera frames: halfway to the landing spot during a
+    // hop, so the camera leads without stranding the take-off at the edge.
+    // The route zig-zags ±1.75; tracking nearly all of it keeps it near `home`.
+    lead.lerpVectors(t, goal, 0.55);
+    anchor.set(phase === 'climb' ? lead.x * 0.9 : lead.x, lead.y + heroHeight * 0.5, lead.z);
+    look.copy(anchor);
     if (phase === 'summit') {
       // Swing across the front of the summit rather than orbiting into the wall.
       orbitRef.current += delta;
       const angle = Math.sin(orbitRef.current * 0.45) * 0.85;
       const radius = portrait ? 6.5 : 5.2;
-      const sideShift = !portrait && size.width >= 720 ? 1.6 : 0;
       desired.set(
-        t.x + Math.sin(angle) * radius + sideShift,
-        t.y + 2.2,
-        t.z + Math.cos(angle) * radius + 0.5,
+        anchor.x + Math.sin(angle) * radius,
+        anchor.y + 1.5,
+        anchor.z + Math.cos(angle) * radius + 0.5,
       );
-      look.set(t.x + sideShift, t.y + 0.7 + (portrait ? -1.3 : 0), t.z);
+    } else if (phase === 'fell') {
+      // From up and to the left, looking down at the animal on the forest
+      // floor: the wall behind it, the big forest pines on the right pushed
+      // back into the distance instead of filling the lens.
+      desired.set(anchor.x - 2.4, anchor.y + 2.6, anchor.z + (portrait ? 8.6 : 6.6));
     } else {
-      // Landscape docks the question card down the right-hand side, so the
-      // framing centre sits to the right of the climber and the climber lands
-      // in the open left half of the viewport.
-      const follow = portrait ? 1 : 0.5;
-      // Matches the CSS breakpoint that docks the card on the right.
-      const sideShift = !portrait && size.width >= 720 ? 2.1 : 0;
-      desired.set(t.x * follow + sideShift, t.y + lift, t.z + distance);
-      look.set(t.x * follow + sideShift, t.y + 0.6 + lookDrop, t.z);
+      const distance = portrait ? 9.5 : slotDistance(7.2, framing.safe, aspect, tanHalf);
+      desired.set(anchor.x, anchor.y + distance * (portrait ? 0.21 : 0.125), anchor.z + distance);
     }
+
+    // Slide the whole view sideways/up (no rotation) so the anchor lands on
+    // the layout's home point instead of the centre of the screen.
+    const distance = basis(desired, look);
+    const shiftRight = -framing.homeX * distance * tanHalf * aspect;
+    const shiftUp = -framing.homeY * distance * tanHalf;
+    desired.addScaledVector(right, shiftRight).addScaledVector(up, shiftUp);
+    look.addScaledVector(right, shiftRight).addScaledVector(up, shiftUp);
 
     const shake = shakeRef.current ?? 0;
     if (shake > 0) {
@@ -77,11 +118,46 @@ export default function CameraRig({
       lookCurrentRef.current.copy(look);
       initializedRef.current = true;
     } else {
-      const k = 1 - Math.exp(-delta * (phase === 'fell' ? 2.2 : 3.4));
+      const rate = inFlight ? 7 : phase === 'fell' ? 2.2 : 3.4;
+      const k = 1 - Math.exp(-delta * rate);
       camera.position.lerp(desired, k);
       lookCurrentRef.current.lerp(look, k);
     }
     camera.lookAt(lookCurrentRef.current);
+    camera.updateMatrixWorld();
+
+    // Hard guard: project the climber's bounding box and pan until all of
+    // it is inside the safe area. The hop arc and the camera's easing both
+    // run ahead of or behind the animal; this is what makes "the hero never
+    // leaves the frame" hold for every move, aspect and animal.
+    const halfWidth = 0.45 + 0.5 * heroHeight;
+    box.minX = Infinity;
+    box.maxX = -Infinity;
+    box.minY = Infinity;
+    box.maxY = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      corner
+        .set(
+          t.x + (i & 1 ? halfWidth : -halfWidth),
+          t.y + (i & 2 ? heroHeight + 0.15 : -0.05),
+          t.z + (i & 4 ? 0.35 : -0.35),
+        )
+        .project(camera);
+      box.minX = Math.min(box.minX, corner.x);
+      box.maxX = Math.max(box.maxX, corner.x);
+      box.minY = Math.min(box.minY, corner.y);
+      box.maxY = Math.max(box.maxY, corner.y);
+    }
+    const { dx, dy } = keepInFrame(box, framing.safe);
+    if (dx !== 0 || dy !== 0) {
+      basis(camera.position, lookCurrentRef.current);
+      const depth = corner.subVectors(t, camera.position).dot(forward);
+      const moveRight = dx * depth * tanHalf * aspect;
+      const moveUp = dy * depth * tanHalf;
+      camera.position.addScaledVector(right, moveRight).addScaledVector(up, moveUp);
+      lookCurrentRef.current.addScaledVector(right, moveRight).addScaledVector(up, moveUp);
+      camera.lookAt(lookCurrentRef.current);
+    }
 
     const sun = lightRef.current;
     if (sun) {

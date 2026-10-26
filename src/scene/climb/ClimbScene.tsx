@@ -1,7 +1,7 @@
 import { Suspense, memo, useMemo, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { AnimalId } from '../animals/roster';
+import { ANIMALS, type AnimalId } from '../animals/roster';
 import { peakTheme } from '../theme/peakThemes';
 import { hasWebGL } from '../webgl';
 import Birds from '../world/Birds';
@@ -57,6 +57,8 @@ function ClimbScene({
   const particlesRef = useRef<ParticleApi | null>(null);
   const start = ledgePoint(position, peakId);
   const climberPositionRef = useRef(new THREE.Vector3(start.x, start.y, start.z));
+  const framingRef = useRef(new THREE.Vector3(start.x, start.y, start.z));
+  const heroHeight = ANIMALS.find((animal) => animal.id === animalId)?.height ?? 1.2;
   const shakeRef = useRef(0);
   const sunRef = useRef<THREE.DirectionalLight | null>(null);
 
@@ -125,6 +127,7 @@ function ClimbScene({
           theme={theme}
           particlesRef={particlesRef}
           worldPositionRef={climberPositionRef}
+          framingRef={framingRef}
           shakeRef={shakeRef}
           reducedMotion={reducedMotion}
         />
@@ -132,6 +135,8 @@ function ClimbScene({
 
       <CameraRig
         targetRef={climberPositionRef}
+        framingRef={framingRef}
+        heroHeight={heroHeight}
         shakeRef={shakeRef}
         phase={phase}
         reducedMotion={reducedMotion}
