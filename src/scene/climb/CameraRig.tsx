@@ -31,6 +31,8 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const box = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
 /** From the climber to the sun; matches the light's initial `position` in ClimbScene. */
 const SUN_OFFSET = { x: 6, y: 9, z: 7 };
+/** NDC beyond the safe area the guard lets the climber drift before it clamps hard (still on screen). */
+const GUARD_SLACK = 0.04;
 
 /** Fills `right`/`up`/`forward` for a camera at `from` looking at `to`; returns the distance. */
 function basis(from: THREE.Vector3, to: THREE.Vector3): number {
@@ -66,6 +68,9 @@ export default function CameraRig({
   /** Seconds since the current move started (0 at rest), for ramping the lead in. */
   const flightTimeRef = useRef(0);
   const lastGoalRef = useRef(new THREE.Vector3());
+  /** Seconds since `phase` last changed, for easing into the summit orbit. */
+  const phaseTimeRef = useRef(0);
+  const seenPhaseRef = useRef(phase);
 
   useFrame((_, delta) => {
     const t = targetRef.current;
@@ -82,6 +87,11 @@ export default function CameraRig({
     if (goal.distanceToSquared(lastGoalRef.current) > 0.01) flightTimeRef.current = 0;
     lastGoalRef.current.copy(goal);
     flightTimeRef.current = inFlight ? flightTimeRef.current + delta : 0;
+    if (phase !== seenPhaseRef.current) {
+      seenPhaseRef.current = phase;
+      phaseTimeRef.current = 0;
+    }
+    phaseTimeRef.current += delta;
     // 0 -> 1 over the first ~180 ms of a move: the lead and the faster chase
     // ease in, so the view doesn't set off before the animal leaves the ledge.
     const flightRamp = THREE.MathUtils.smoothstep(flightTimeRef.current, 0, 0.18);
@@ -132,7 +142,16 @@ export default function CameraRig({
       lookCurrentRef.current.copy(look);
       initializedRef.current = true;
     } else {
-      const rate = inFlight ? 3.4 + 3.6 * flightRamp : phase === 'fell' ? 2.2 : 3.4;
+      // Summit: ease into the orbit over its first ~1.2 s instead of dollying
+      // in from the climb distance at the resting rate.
+      const summitEase = THREE.MathUtils.smoothstep(phaseTimeRef.current, 0, 1.2);
+      const rate = inFlight
+        ? 3.4 + 3.6 * flightRamp
+        : phase === 'fell'
+          ? 2.2
+          : phase === 'summit'
+            ? 1.2 + 2.2 * summitEase
+            : 3.4;
       const k = 1 - Math.exp(-delta * rate);
       camera.position.lerp(desired, k);
       lookCurrentRef.current.lerp(look, k);
@@ -140,8 +159,8 @@ export default function CameraRig({
     camera.lookAt(lookCurrentRef.current);
     camera.updateMatrixWorld();
 
-    // Hard guard: project the climber's bounding box and pan until all of
-    // it is inside the safe area. The hop arc and the camera's easing both
+    // Guard: project the climber's bounding box and pan until all of it is
+    // inside the safe area. The hop arc and the camera's easing both
     // run ahead of or behind the animal; this is what makes "the hero never
     // leaves the frame" hold for every move, aspect and animal.
     const halfWidth = 0.45 + 0.5 * heroHeight;
@@ -162,7 +181,25 @@ export default function CameraRig({
       box.minY = Math.min(box.minY, corner.y);
       box.maxY = Math.max(box.maxY, corner.y);
     }
-    const { dx, dy } = keepInFrame(box, framing.safe);
+    // Inside the safe area the correction is eased (fast, ~18/s) so a body
+    // that pokes out — a tumbling fall, a stag's antlers — doesn't jerk the
+    // view in one frame; a margin beyond it is a hard limit, applied in full.
+    const inner = keepInFrame(box, framing.safe);
+    const outer = keepInFrame(box, {
+      minX: framing.safe.minX - GUARD_SLACK,
+      maxX: framing.safe.maxX + GUARD_SLACK,
+      minY: framing.safe.minY - GUARD_SLACK,
+      maxY: framing.safe.maxY + GUARD_SLACK,
+    });
+    const settling = phaseTimeRef.current < 0.8;
+    const soft =
+      initializedRef.current && !reducedMotion ? 1 - Math.exp(-delta * (settling ? 2.5 : 18)) : 1;
+    // Right after a phase change the safe area itself jumps (climb card ->
+    // result card), so the guard eases slowly and the hard limit waits until
+    // the camera has settled in.
+    const hard = settling ? 0 : 1;
+    const dx = Math.sign(inner.dx) * Math.max(Math.abs(outer.dx) * hard, Math.abs(inner.dx) * soft);
+    const dy = Math.sign(inner.dy) * Math.max(Math.abs(outer.dy) * hard, Math.abs(inner.dy) * soft);
     if (dx !== 0 || dy !== 0) {
       basis(camera.position, lookCurrentRef.current);
       const depth = corner.subVectors(t, camera.position).dot(forward);

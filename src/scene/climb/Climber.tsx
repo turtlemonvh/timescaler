@@ -31,7 +31,7 @@ export interface ClimberProps {
   particlesRef: RefObject<ParticleApi | null>;
   /** Written every frame: where the climber currently is, for the camera. */
   worldPositionRef: RefObject<THREE.Vector3>;
-  /** Written every frame: where the current hop lands (else the climber's position), so the camera can lead. */
+  /** Written every frame: where the current hop or fall lands (else the climber's position), so the camera can lead. */
   framingRef?: RefObject<THREE.Vector3>;
   /** Written when a fall lands, so the camera can shake. */
   shakeRef: RefObject<number>;
@@ -343,7 +343,7 @@ export default function Climber({
     worldPositionRef.current?.copy(node.position);
     const live = tweenRef.current;
     const landing =
-      live && (live.kind === 'hop' || live.kind === 'summit')
+      live && (live.kind === 'hop' || live.kind === 'summit' || live.kind === 'fall')
         ? live.segments[live.segments.length - 1]?.to
         : undefined;
     if (landing) framingRef?.current?.set(landing.x, landing.y, landing.z);
