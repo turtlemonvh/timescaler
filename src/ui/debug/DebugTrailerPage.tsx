@@ -100,16 +100,22 @@ function SceneShot({
   );
 }
 
-/** The overworld, gliding the climber from peak to peak. */
-function MapSweepShot({ stops, everyMs }: { stops: number[]; everyMs: number }) {
-  const [selected, setSelected] = useState(stops[0]);
+/**
+ * The overworld, the climber galloping from peak to peak: it starts at
+ * `start` and each of `stops` is picked at its `at` (ms). Leave each trip
+ * time to arrive (MapScene's `travelPlan`: ~1.2 s a leg, ~5.5 u/s on longer
+ * trips, never over 4 s) or the take cuts away mid-gallop.
+ */
+function MapSweepShot({
+  start,
+  stops,
+}: {
+  start: number;
+  stops: { peakId: number; at: number }[];
+}) {
+  const [selected, setSelected] = useState(start);
   useEffect(
-    () =>
-      schedule(
-        stops
-          .slice(1)
-          .map((peakId, i) => ({ at: 400 + i * everyMs, run: () => setSelected(peakId) })),
-      ),
+    () => schedule(stops.map(({ peakId, at }) => ({ at, run: () => setSelected(peakId) }))),
     // One take per mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -234,13 +240,34 @@ const SHOTS = {
   },
   'map-sweep': {
     animals: ['alpaca'],
-    render: () => <MapSweepShot stops={[1, 3, 6, 10, 1]} everyMs={1100} />,
+    // 4→7 and 7→10 are ~2.3 s and ~2.1 s gallops: at 10 by ~4.9 s of 6. The
+    // intro loop (trailer/src/IntroLoop.tsx) plays 3.0-5.0 s: the run to 10.
+    render: () => (
+      <MapSweepShot
+        start={4}
+        stops={[
+          { peakId: 7, at: 400 },
+          { peakId: 10, at: 2800 },
+        ]}
+      />
+    ),
   },
   game: { animals: [GAME.animal], render: () => <GameShot /> },
   pick: { animals: ['fox', 'deer', 'stag', 'wolf', 'alpaca', 'husky'], render: () => <PickShot /> },
   'map-wide': {
     animals: ['alpaca'],
-    render: () => <MapSweepShot stops={[1, 3, 5, 8, 10]} everyMs={1000} />,
+    // 4→6, 6→8 and 8→10 are ~1.3, ~1.6 and ~1.5 s gallops: at 10 by ~5.1 s of
+    // 5.5. trailer/src/Trailer.tsx's PeakTag stops follow these times.
+    render: () => (
+      <MapSweepShot
+        start={4}
+        stops={[
+          { peakId: 6, at: 400 },
+          { peakId: 8, at: 1900 },
+          { peakId: 10, at: 3600 },
+        ]}
+      />
+    ),
   },
   summit: { animals: ['wolf'], render: () => <SummitShot /> },
 } satisfies Record<string, { animals: AnimalId[]; render: () => React.ReactNode }>;
