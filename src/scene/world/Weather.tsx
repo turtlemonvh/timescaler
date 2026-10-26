@@ -52,6 +52,9 @@ const LEAF = (() => {
 export default function Weather({ kind, followRef, colors, count = 90 }: WeatherProps) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  // The band's depth, eased: a hop's leap towards the camera shouldn't drag
+  // every flake forward and back with it.
+  const depthRef = useRef<number | null>(null);
   const flakes = useMemo<Flake[]>(() => {
     // Seeded, so render stays pure and the same peak always snows the same way.
     const rng = mulberry32(count * 31 + (kind === 'snow' ? 1 : 2));
@@ -82,12 +85,17 @@ export default function Weather({ kind, followRef, colors, count = 90 }: Weather
     const follow = followRef.current;
     if (!instanced || !follow || kind === 'none') return;
     const t = clock.elapsedTime;
+    const depth =
+      depthRef.current === null
+        ? follow.z
+        : depthRef.current + (follow.z - depthRef.current) * (1 - Math.exp(-delta * 1.5));
+    depthRef.current = depth;
     const drift = kind === 'snow' ? 0.9 : 0.6;
     flakes.forEach((flake, i) => {
       flake.y -= flake.speed * drift * delta;
       if (flake.y < -BAND) flake.y += BAND * 2;
       const sway = Math.sin(t * 0.9 + flake.phase) * (kind === 'snow' ? 0.5 : 1.1);
-      dummy.position.set(flake.x + sway, follow.y + flake.y, follow.z + flake.z);
+      dummy.position.set(flake.x + sway, follow.y + flake.y, depth + flake.z);
       if (kind === 'leaves') {
         // Flutter: rock side to side and see-saw as it falls, with a slow turn.
         dummy.rotation.set(

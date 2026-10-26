@@ -133,7 +133,8 @@ export default function Birds({
     // Eased, so the flock drifts with the view rather than being nailed to it.
     const k = 1 - Math.exp(-delta * 6);
     group.position.y += (targetY - group.position.y) * k;
-    group.position.z += (targetZ - group.position.z) * k;
+    // Depth eases slower, so a hop's leap towards the camera barely moves the flock.
+    group.position.z += (targetZ - group.position.z) * (1 - Math.exp(-delta * 1.5));
   });
   const following = followRef !== undefined;
   // A following flock flies in a tighter band, so all three stay in the
