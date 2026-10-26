@@ -170,8 +170,11 @@ function NumberBadge({
   const texture = useMemo(() => badgeTexture(number, selected), [number, selected]);
   const size = selected ? 1.1 : 0.8;
   return (
-    <sprite position={position} scale={[size, size, 1]}>
-      <spriteMaterial map={texture} transparent depthTest={false} />
+    // Drawn last, over everything: depthTest off only beats opaque geometry,
+    // so without the render order a transparent mesh sorted behind the badge
+    // (a cloud, the selection ring) could still paint over it.
+    <sprite position={position} scale={[size, size, 1]} renderOrder={10}>
+      <spriteMaterial map={texture} transparent depthTest={false} depthWrite={false} />
     </sprite>
   );
 }
@@ -471,15 +474,20 @@ function MapScene({
         castShadow
         intensity={1.7}
         color="#fff1d6"
-        position={[14, 22, 10]}
+        // Twice as far out as the island needs, same direction, so the
+        // shadow camera also takes in the clouds high overhead.
+        position={[28, 44, 20]}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-20}
         shadow-camera-right={20}
         shadow-camera-top={20}
         shadow-camera-bottom={-20}
         shadow-camera-near={1}
-        shadow-camera-far={70}
+        shadow-camera-far={130}
         shadow-bias={-0.0006}
+        // Slightly see-through shadows, so a passing cloud's shade reads as
+        // shade rather than a hole in the island.
+        shadow-intensity={0.85}
       />
 
       {/* Sea, beach, island */}
@@ -507,13 +515,23 @@ function MapScene({
           onSelect={() => onSelectPeak(peak.id)}
         />
       ))}
+      {/* Clouds sit above the highest the camera ever goes (portrait, fully
+          zoomed out: y ≈ 27), so they never drift through the lens or hide a
+          badge; what the player sees is their shadows crawling over the
+          island. The sun is up and to the +X/+Z side, so a cloud at y 30
+          shadows the ground about (-19, -14) from where it is: the ranges are
+          offset by that much to put the shadows on the island. Opaque, so
+          they never join the transparent sort. */}
       <Clouds
-        count={10}
+        count={7}
         seed={99}
-        xRange={[-30, 30]}
-        yRange={[7, 12]}
-        zRange={[-22, 6]}
-        speed={0.4}
+        xRange={[-16, 52]}
+        yRange={[29, 32]}
+        zRange={[-4, 28]}
+        speed={0.6}
+        size={1.3}
+        opacity={1}
+        castShadow
       />
 
       <Suspense fallback={null}>

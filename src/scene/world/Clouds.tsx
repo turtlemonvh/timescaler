@@ -14,6 +14,10 @@ export interface CloudsProps {
   color?: string;
   opacity?: number;
   drift?: boolean;
+  /** Multiplies every cloud's size — distant backdrop clouds need to be bigger. */
+  size?: number;
+  /** Cast shadows, so clouds high over a scene drift their shadows across it. */
+  castShadow?: boolean;
 }
 
 interface Puff {
@@ -46,6 +50,8 @@ export default function Clouds({
   color = '#ffffff',
   opacity = 0.95,
   drift = true,
+  size = 1,
+  castShadow = false,
 }: CloudsProps) {
   const clouds = useMemo<Cloud[]>(() => {
     const rng = mulberry32(seed);
@@ -55,7 +61,7 @@ export default function Clouds({
         x: xRange[0] + rng() * (xRange[1] - xRange[0]),
         y: yRange[0] + rng() * (yRange[1] - yRange[0]),
         z: zRange[0] + rng() * (zRange[1] - zRange[0]),
-        scale: 0.8 + rng() * 1.4,
+        scale: (0.8 + rng() * 1.4) * size,
         speed: speed * (0.6 + rng() * 0.8),
         puffs: Array.from({ length: puffCount }, (_, i) => ({
           dx: (i - (puffCount - 1) / 2) * 0.9 + (rng() - 0.5) * 0.3,
@@ -65,7 +71,7 @@ export default function Clouds({
         })),
       };
     });
-  }, [count, seed, xRange, yRange, zRange, speed]);
+  }, [count, seed, xRange, yRange, zRange, speed, size]);
 
   const groups = useRef<(THREE.Group | null)[]>([]);
 
@@ -91,7 +97,12 @@ export default function Clouds({
           scale={cloud.scale}
         >
           {cloud.puffs.map((puff, j) => (
-            <mesh key={j} position={[puff.dx, puff.dy, puff.dz]} scale={[1, 0.7, 0.8]}>
+            <mesh
+              key={j}
+              position={[puff.dx, puff.dy, puff.dz]}
+              scale={[1, 0.7, 0.8]}
+              castShadow={castShadow}
+            >
               <sphereGeometry args={[puff.r, 7, 5]} />
               <meshStandardMaterial
                 color={color}
