@@ -9,7 +9,7 @@ import Particles, { type ParticleApi } from '../world/Particles';
 import SkyDome from '../world/SkyDome';
 import Weather from '../world/Weather';
 import CameraRig from './CameraRig';
-import { ledgePoint, summitY } from './cliffPath';
+import { FOREST_FLOOR, ledgePoint, summitY } from './cliffPath';
 import CliffWorld from './CliffWorld';
 import Climber from './Climber';
 import type { ClimbMove } from './motion';
@@ -104,7 +104,20 @@ function ClimbScene({
       />
 
       <CliffWorld theme={theme} height={height} position={position} />
-      <Birds y={Math.min(summitY(height), start.y + 4)} z={-5} />
+      {/* In front of the wall (which is solid down to its edge) and in the
+          strip of sky above the climber's head, clear of the forest. At the
+          summit they cross close in front of the flag pole and wall, so the
+          swinging camera never has them brush past the lens. */}
+      <Birds
+        followRef={climberPositionRef}
+        y={phase === 'summit' ? 2 : 2.6}
+        z={phase === 'summit' ? 0.9 : 1.4}
+        screenY={0.7}
+        span={7}
+        minY={phase === 'summit' ? summitY(height) + 2 : FOREST_FLOOR + 5}
+        maxY={summitY(height) + 3.4}
+        scale={phase === 'summit' ? 1.1 : 1.4}
+      />
       <Weather
         kind={reducedMotion ? 'none' : theme.weather}
         followRef={climberPositionRef}
