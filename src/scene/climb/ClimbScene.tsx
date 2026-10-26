@@ -93,14 +93,16 @@ function ClimbScene({
         intensity={1.9 * (0.55 + 0.45 * theme.daylight)}
         color="#fff1d6"
         position={[6, 10, 7]}
-        shadow-mapSize={[1024, 1024]}
+        shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-9}
         shadow-camera-right={9}
         shadow-camera-top={9}
         shadow-camera-bottom={-9}
         shadow-camera-near={1}
         shadow-camera-far={40}
-        shadow-bias={-0.0008}
+        shadow-bias={-0.0003}
+        shadow-normalBias={0.03}
+        shadow-radius={3}
       />
 
       <CliffWorld theme={theme} height={height} position={position} />

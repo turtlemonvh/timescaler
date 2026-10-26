@@ -2,6 +2,7 @@ import { useRef, type RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { framingFor, keepInFrame, slotDistance } from './framing';
+import { snapShadowTarget } from './shadowSnap';
 
 export interface CameraRigProps {
   targetRef: RefObject<THREE.Vector3>;
@@ -28,6 +29,8 @@ const up = new THREE.Vector3();
 const corner = new THREE.Vector3();
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const box = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+/** From the climber to the sun; matches the light's initial `position` in ClimbScene. */
+const SUN_OFFSET = { x: 6, y: 9, z: 7 };
 
 /** Fills `right`/`up`/`forward` for a camera at `from` looking at `to`; returns the distance. */
 function basis(from: THREE.Vector3, to: THREE.Vector3): number {
@@ -161,8 +164,12 @@ export default function CameraRig({
 
     const sun = lightRef.current;
     if (sun) {
-      sun.position.set(t.x + 6, t.y + 9, t.z + 7);
-      sun.target.position.set(t.x, t.y, t.z);
+      // Follow the climber in whole shadow-map texels so edges don't crawl.
+      const shadowCam = sun.shadow.camera;
+      const texel = (shadowCam.right - shadowCam.left) / sun.shadow.mapSize.width;
+      const aim = snapShadowTarget(t, SUN_OFFSET, texel);
+      sun.position.set(aim.x + SUN_OFFSET.x, aim.y + SUN_OFFSET.y, aim.z + SUN_OFFSET.z);
+      sun.target.position.set(aim.x, aim.y, aim.z);
       sun.target.updateMatrixWorld();
     }
   });
