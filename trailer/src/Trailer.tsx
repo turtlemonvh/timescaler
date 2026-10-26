@@ -222,11 +222,10 @@ export function Trailer() {
         <Shot id="map-wide" from={0.1} />
         <PeakTag
           stops={[
-            { at: 0, peakId: 1 },
-            { at: 0.3, peakId: 3 },
-            { at: 1.3, peakId: 5 },
-            { at: 2.3, peakId: 8 },
-            { at: 3.3, peakId: 10 },
+            { at: 0, peakId: 4 },
+            { at: 0.3, peakId: 6 },
+            { at: 1.6, peakId: 8 },
+            { at: 3.2, peakId: 10 },
           ]}
         />
         <Caption>10 peaks · 10 time skills</Caption>

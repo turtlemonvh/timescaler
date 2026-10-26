@@ -5,8 +5,22 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { mulberry32 } from '../../engine/rng';
 import type { PeakTheme } from '../theme/peakThemes';
 import Clouds from '../world/Clouds';
-import Pines, { type PineSpot } from '../world/Pines';
-import { FOREST_FLOOR, ledgePoints, summitY, wallZ, type Vec3 } from './cliffPath';
+import Pines from '../world/Pines';
+import { basePines, wallPines } from './forest';
+import {
+  FOREST_FLOOR,
+  ROPE_RADIUS,
+  clamp01,
+  wallSurface,
+  ledgePoints,
+  ledgeSlab,
+  ropePoints,
+  summitPlateau,
+  summitY,
+  type Box3Like,
+  type LedgeSlab,
+  type Vec3,
+} from './cliffPath';
 
 export interface CliffWorldProps {
   theme: PeakTheme;
@@ -16,20 +30,10 @@ export interface CliffWorldProps {
 }
 
 const WALL_WIDTH = 10;
+/** The highlighted ledge's mat. */
+const MAT_THICKNESS = 0.012;
 const WALL_BELOW = 5;
 const WALL_ABOVE = 7;
-
-function noise(x: number, y: number, seed: number): number {
-  return (
-    Math.sin(x * 1.3 + y * 0.7 + seed) * 0.45 +
-    Math.sin(x * 0.45 - y * 1.15 + seed * 0.3) * 0.35 +
-    Math.sin(x * 2.7 + y * 2.1) * 0.2
-  );
-}
-
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
 
 function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
   const top = summitY(height) + WALL_ABOVE;
@@ -51,18 +55,8 @@ function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i);
     const y = positions.getY(i);
-    let nearest = Infinity;
-    for (const point of route) {
-      const d = Math.hypot(point.x - x, point.y - y);
-      if (d < nearest) nearest = d;
-    }
-    const routeDamp = clamp01((nearest - 0.7) / 1.2);
-    const n = noise(x, y, theme.peak.id) + (rng() - 0.5) * 0.35;
-    const edgeRecede = Math.abs(x) > 3.3 ? (Math.abs(x) - 3.3) * 0.75 : 0;
-    // A shallow groove follows the route: calmer rock near the ledges, and
-    // room for the rope to lie against the wall behind the climber.
-    const groove = 0.3 * (1 - routeDamp);
-    const z = wallZ(y) + n * 0.5 * (0.25 + 0.75 * routeDamp) - edgeRecede - groove;
+    const jitter = (rng() - 0.5) * 0.35;
+    const { z, n } = wallSurface(x, y, theme.peak.id, route, jitter);
     positions.setZ(i, z);
 
     const shade = clamp01(0.5 - n * 0.9) * 0.75;
@@ -78,126 +72,87 @@ function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
   return geometry;
 }
 
-function basePines(theme: PeakTheme): PineSpot[] {
-  const rng = mulberry32(theme.peak.id * 101 + 3);
-  const spots: PineSpot[] = [];
-  for (let i = 0; i < 90; i++) {
-    const x = (rng() - 0.5) * 34;
-    const z = 0.8 + rng() * 5;
-    // Keep the camera's lane (straight in front of the route) clear.
-    if (Math.abs(x) < 3.2) continue;
-    spots.push({ x, y: FOREST_FLOOR, z, scale: 0.7 + rng() * 0.9, rotation: rng() * Math.PI });
-  }
-  // A thin fringe right under the first ledge, well below eye level.
-  for (let i = 0; i < 14; i++) {
-    const x = (rng() - 0.5) * 6;
-    const z = 0.6 + rng() * 1.6;
-    spots.push({ x, y: FOREST_FLOOR, z, scale: 0.45 + rng() * 0.35, rotation: rng() * Math.PI });
-  }
-  return spots;
+function boxCenter(box: Box3Like): [number, number, number] {
+  return [(box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, (box.min.z + box.max.z) / 2];
 }
 
-function wallPines(height: number, theme: PeakTheme): PineSpot[] {
-  const rng = mulberry32(theme.peak.id * 211 + 5);
-  const spots: PineSpot[] = [];
-  const top = summitY(height);
-  for (let i = 0; i < 16; i++) {
-    const side = rng() > 0.5 ? 1 : -1;
-    const y = 1 + rng() * Math.max(1, top - 3);
-    const x = side * (3.1 + rng() * 1.3);
-    spots.push({
-      x,
-      y: y - 0.2,
-      z: wallZ(y) + 0.25,
-      scale: 0.45 + rng() * 0.45,
-      rotation: rng() * Math.PI,
-    });
-  }
-  return spots;
+function boxSize(box: Box3Like): [number, number, number] {
+  return [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z];
 }
 
 function Ledge({
-  point,
-  index,
+  slab,
   active,
   snowy,
+  summit,
   theme,
 }: {
-  point: Vec3;
-  index: number;
+  slab: LedgeSlab;
   active: boolean;
   snowy: boolean;
+  /** The summit stands on the plateau: no slab of its own, or the two top faces z-fight. */
+  summit: boolean;
   theme: PeakTheme;
 }) {
-  const rng = mulberry32(theme.peak.id * 977 + index * 13);
-  const tilt = (rng() - 0.5) * 0.18;
-  const yaw = (rng() - 0.5) * 0.5;
-  const width = 1.2 + rng() * 0.5;
-  const depth = 0.9 + rng() * 0.3;
+  const { center, width, depth, thickness, yaw } = slab;
+  // No boulder under the slab: the climber's flight path passes just in
+  // front of each slab, and anything hanging below one sat right where the
+  // climber's head goes on the hop up to it.
   return (
-    <group position={[point.x, point.y - 0.12, point.z + 0.2]}>
-      {/* A boulder tucked under the slab and into the wall, so it never hides the climber. */}
-      <mesh
-        castShadow
-        receiveShadow
-        position={[0.1, -0.5, -0.5]}
-        rotation={[tilt * 0.3, yaw, tilt]}
-        scale={[0.55, 0.4, 0.5]}
-      >
-        <dodecahedronGeometry args={[1, 0]} />
-        <meshStandardMaterial color={theme.rockDark} flatShading roughness={1} />
-      </mesh>
-      <mesh castShadow receiveShadow rotation={[0, yaw * 0.4, 0]} scale={[width, 0.24, depth]}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial
-          color={active ? theme.rock : theme.rockDark}
-          flatShading
-          roughness={1}
-        />
-      </mesh>
-      {snowy && !active && (
-        <mesh
-          position={[0, 0.13, 0]}
-          rotation={[0, yaw * 0.4, 0]}
-          scale={[width * 0.95, 0.06, depth * 0.9]}
-        >
+    <group position={[center.x, center.y, center.z]} rotation={[0, yaw, 0]}>
+      {!summit && (
+        <mesh castShadow receiveShadow scale={[width, thickness, depth]}>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial
+            color={active ? theme.rock : theme.rockDark}
+            flatShading
+            roughness={1}
+          />
+        </mesh>
+      )}
+      {snowy && !active && !summit && (
+        <mesh position={[0, thickness / 2 + 0.01, 0]} scale={[width * 0.95, 0.06, depth * 0.9]}>
           <boxGeometry args={[1, 1, 1]} />
           <meshStandardMaterial color={theme.snow} flatShading roughness={1} />
         </mesh>
       )}
       {active && (
+        // A thin decal just above the standing surface (slab or plateau):
+        // hooves stand on it, not in it, and it never shares a plane.
         <mesh
-          position={[0, 0.13, 0]}
-          rotation={[0, yaw * 0.4, 0]}
-          scale={[width * 0.98, 0.03, depth * 0.94]}
+          position={[0, thickness / 2 + MAT_THICKNESS / 2 + 0.002, 0]}
+          scale={[width * 0.98, MAT_THICKNESS, depth * 0.94]}
+          renderOrder={1}
         >
           <boxGeometry args={[1, 1, 1]} />
-          <meshBasicMaterial color={theme.flag} transparent opacity={0.6} />
+          <meshBasicMaterial
+            color={theme.flag}
+            transparent
+            opacity={0.6}
+            depthWrite={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
+          />
         </mesh>
       )}
     </group>
   );
 }
 
-/** Rope segments slung between consecutive ledges, lying against the wall
- * behind the climber so they never cross in front of it. */
-function Rope({ route, color }: { route: Vec3[]; color: string }) {
+/** Rope segments slung between consecutive ledges, over the back edge of
+ * each slab: behind a standing climber's body, and well behind the flight
+ * paths (which leap out from the wall). */
+function Rope({ route, color, peakId }: { route: Vec3[]; color: string; peakId: number }) {
   const geometry = useMemo(() => {
     const pieces: THREE.BufferGeometry[] = [];
     for (let i = 0; i < route.length - 1; i++) {
-      const a = route[i];
-      const b = route[i + 1];
-      const dir = Math.sign(b.x - a.x) || 1;
-      const reach = Math.abs(b.x - a.x) < 1.2 ? 0.3 : 0.6;
-      const start = new THREE.Vector3(a.x + dir * reach, a.y + 0.02, a.z - 0.22);
-      const end = new THREE.Vector3(b.x - dir * reach, b.y - 0.08, b.z - 0.22);
-      const mid = start.clone().lerp(end, 0.5);
-      mid.y -= 0.3;
-      const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
-      pieces.push(new THREE.TubeGeometry(curve, 8, 0.045, 5, false));
+      const points = ropePoints(i, peakId, route).map((p) => new THREE.Vector3(p.x, p.y, p.z));
+      const curve = new THREE.CatmullRomCurve3(points);
+      pieces.push(new THREE.TubeGeometry(curve, 16, ROPE_RADIUS, 5, false));
     }
     return mergeGeometries(pieces) ?? new THREE.BufferGeometry();
-  }, [route]);
+  }, [route, peakId]);
   return (
     <mesh geometry={geometry}>
       <meshStandardMaterial color={color} roughness={0.9} />
@@ -270,8 +225,13 @@ function DistantPeaks({ theme }: { theme: PeakTheme }) {
 export default function CliffWorld({ theme, height, position }: CliffWorldProps) {
   const wall = useMemo(() => buildWall(height, theme), [height, theme]);
   const route = useMemo(() => ledgePoints(height, theme.peak.id), [height, theme.peak.id]);
-  const forest = useMemo(() => basePines(theme), [theme]);
-  const clingers = useMemo(() => wallPines(height, theme), [height, theme]);
+  const slabs = useMemo(
+    () => route.map((_, i) => ledgeSlab(i, theme.peak.id)),
+    [route, theme.peak.id],
+  );
+  const plateau = useMemo(() => summitPlateau(height, theme.peak.id), [height, theme.peak.id]);
+  const forest = useMemo(() => basePines(theme.peak.id), [theme.peak.id]);
+  const clingers = useMemo(() => wallPines(height, theme.peak.id), [height, theme.peak.id]);
   const top = summitY(height);
 
   return (
@@ -280,26 +240,22 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
         <meshStandardMaterial vertexColors flatShading roughness={1} />
       </mesh>
 
-      <Rope route={route} color={theme.flag} />
-      {route.map((point, i) => (
+      <Rope route={route} color={theme.flag} peakId={theme.peak.id} />
+      {slabs.map((slab, i) => (
         <Ledge
           key={i}
-          point={point}
-          index={i}
+          slab={slab}
           active={i === position}
-          snowy={point.y > top - 3.5}
+          snowy={route[i].y > top - 3.5}
+          summit={i === height}
           theme={theme}
         />
       ))}
 
-      {/* Summit plateau */}
-      {/* Thin, so a climber on the last ledge does not poke through it from below. */}
-      <mesh
-        position={[route[height].x, top - 0.17, route[height].z + 0.25]}
-        receiveShadow
-        castShadow
-      >
-        <boxGeometry args={[4.2, 0.34, 1.7]} />
+      {/* Summit plateau: as thin and as shallow as a ledge slab, so the climber's
+          head clears it from the ledge below and the summit hop clears its front. */}
+      <mesh position={boxCenter(plateau)} receiveShadow castShadow>
+        <boxGeometry args={boxSize(plateau)} />
         <meshStandardMaterial color={theme.snow} flatShading roughness={1} />
       </mesh>
       <Flag point={route[height]} color={theme.flag} />
@@ -311,6 +267,20 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
       </mesh>
       <Pines spots={forest} leaf={theme.tree} leafDark={theme.treeDark} />
       <Pines spots={clingers} leaf={theme.tree} leafDark={theme.treeDark} />
+      {clingers.map(({ shelf }, i) => (
+        // The rock each wall pine's roots grip, so it does not float on the face.
+        <mesh
+          key={i}
+          position={[shelf.x, shelf.y, shelf.z]}
+          rotation={[0, i * 1.7, 0]}
+          scale={[shelf.size, shelf.size * 0.35, shelf.size * 0.8]}
+          castShadow
+          receiveShadow
+        >
+          <dodecahedronGeometry args={[1, 0]} />
+          <meshStandardMaterial color={theme.rock} flatShading roughness={1} />
+        </mesh>
+      ))}
 
       <DistantPeaks theme={theme} />
       <Clouds

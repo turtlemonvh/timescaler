@@ -2,14 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { PEAKS } from '../../engine/peaks';
 import {
   LEDGE_DY,
+  ROPE_RADIUS,
   ROUTE_AMPLITUDE,
+  WALL_JITTER,
   arcPoint,
   easeIn,
   easeInOut,
   easeOut,
   ledgePoint,
   ledgePoints,
+  ropePoints,
   summitY,
+  wallSurface,
   wallZ,
 } from './cliffPath';
 
@@ -67,5 +71,27 @@ describe('cliffPath', () => {
       expect(v).toBeGreaterThanOrEqual(last);
       last = v;
     }
+  });
+});
+
+describe('ropePoints', () => {
+  it('keeps the whole rope in front of the rock, so no stretch of it disappears', () => {
+    for (const peak of PEAKS) {
+      const route = ledgePoints(peak.height, peak.id);
+      for (let i = 0; i < route.length - 1; i++) {
+        for (const p of ropePoints(i, peak.id, route)) {
+          const rock = wallSurface(p.x, p.y, peak.id, route).z + WALL_JITTER;
+          expect(p.z - ROPE_RADIUS).toBeGreaterThan(rock);
+        }
+      }
+    }
+  });
+
+  it('stays behind the climber at the ledges it hangs between', () => {
+    const peak = PEAKS[0];
+    const route = ledgePoints(peak.height, peak.id);
+    const points = ropePoints(0, peak.id, route);
+    expect(points[0].z).toBeLessThan(route[0].z - 0.3);
+    expect(points[points.length - 1].z).toBeLessThan(route[1].z - 0.3);
   });
 });

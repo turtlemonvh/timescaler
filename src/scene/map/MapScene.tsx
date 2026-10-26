@@ -3,7 +3,6 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useCursor } from '@react-three/drei';
 import * as THREE from 'three';
 import { PEAKS } from '../../engine/peaks';
-import { mulberry32 } from '../../engine/rng';
 import Animal from '../animals/Animal';
 import type { Pose } from '../animals/clips';
 import type { AnimalId } from '../animals/roster';
@@ -11,9 +10,18 @@ import { sceneDelta, sceneNow } from '../clock';
 import { peakTheme } from '../theme/peakThemes';
 import { hasWebGL } from '../webgl';
 import Clouds from '../world/Clouds';
-import Pines, { type PineSpot } from '../world/Pines';
+import Pines from '../world/Pines';
 import SkyDome from '../world/SkyDome';
-import { ISLAND_RADIUS, PEAK_SPOTS, peakSpotFor, type PeakSpot } from './peakLayout';
+import { islandPines } from './islandPines';
+import {
+  ISLAND_RADIUS,
+  PEAK_SPOTS,
+  peakSpotFor,
+  standPoint as standSpot,
+  type PeakSpot,
+} from './peakLayout';
+import { trailHeadingAt, trailPointAt, trailSamples, trailStop } from './trailPath';
+import { travelPlan, tripProgress } from './travel';
 
 export interface MapSceneProps {
   selectedPeakId: number;
@@ -42,9 +50,10 @@ function clamp(value: number, min: number, max: number): number {
 const ISLAND_TOP = 0.75;
 const SKY = { top: '#3f86d8', bottom: '#d6ecff' };
 
-/** Where the animal stands for a given peak: at its foot, on the camera side. */
+/** Where the animal stands for a given peak (see `peakLayout.standPoint`), on the island top. */
 function standPoint(spot: PeakSpot): THREE.Vector3 {
-  return new THREE.Vector3(spot.x, ISLAND_TOP, spot.z + spot.radius + 0.7);
+  const stand = standSpot(spot);
+  return new THREE.Vector3(stand.x, ISLAND_TOP, stand.z);
 }
 
 function Mountain({
@@ -62,10 +71,17 @@ function Mountain({
   const [hovered, setHovered] = useState(false);
   useCursor(hovered);
   const ring = useRef<THREE.Mesh>(null);
+  const rock = useRef<THREE.MeshStandardMaterial>(null);
   useFrame(({ clock }) => {
     if (ring.current) {
       const s = 1 + Math.sin(clock.elapsedTime * 3) * 0.06;
       ring.current.scale.set(s, s, s);
+    }
+    // The selected mountain glows gently in its own colour, so the selection
+    // reads even where the ring at its foot is behind another cone, without
+    // tinting it (a saturated flag colour turned peak 10 magenta).
+    if (rock.current) {
+      rock.current.emissiveIntensity = selected ? 0.16 + Math.sin(clock.elapsedTime * 3) * 0.08 : 0;
     }
   });
   return (
@@ -83,7 +99,10 @@ function Mountain({
       >
         <coneGeometry args={[spot.radius, spot.height, 7]} />
         <meshStandardMaterial
+          ref={rock}
           color={hovered || selected ? theme.rock : theme.rockDark}
+          emissive={theme.rock}
+          emissiveIntensity={0}
           flatShading
         />
       </mesh>
@@ -161,22 +180,23 @@ function NumberBadge({
   const texture = useMemo(() => badgeTexture(number, selected), [number, selected]);
   const size = selected ? 1.1 : 0.8;
   return (
-    <sprite position={position} scale={[size, size, 1]}>
-      <spriteMaterial map={texture} transparent depthTest={false} />
+    // Drawn last, over everything: depthTest off only beats opaque geometry,
+    // so without the render order a transparent mesh sorted behind the badge
+    // (a cloud, the selection ring) could still paint over it.
+    <sprite position={position} scale={[size, size, 1]} renderOrder={10}>
+      <spriteMaterial map={texture} transparent depthTest={false} depthWrite={false} />
     </sprite>
   );
 }
 
+/** Stepping stones along the shared trail path — the same path the animal walks. */
 function Trail() {
   const stones = useMemo(() => {
-    const out: THREE.Vector3[] = [];
-    for (let i = 1; i < PEAK_SPOTS.length; i++) {
-      const a = standPoint(PEAK_SPOTS[i - 1]);
-      const b = standPoint(PEAK_SPOTS[i]);
-      const n = 5;
-      for (let k = 1; k < n; k++) out.push(a.clone().lerp(b, k / n));
-    }
-    return out;
+    const stands = PEAK_SPOTS.map(standSpot);
+    // Leave the stand points themselves clear: the animal and its ring sit there.
+    return trailSamples(0.9).filter((stone) =>
+      stands.every((stand) => Math.hypot(stand.x - stone.x, stand.z - stone.z) > 0.6),
+    );
   }, []);
   return (
     <group>
@@ -184,7 +204,7 @@ function Trail() {
         <mesh
           key={i}
           position={[stone.x, ISLAND_TOP + 0.02, stone.z]}
-          rotation={[-Math.PI / 2, 0, 0]}
+          rotation={[-Math.PI / 2, 0, i * 1.7]}
         >
           <circleGeometry args={[0.22, 6]} />
           <meshStandardMaterial color="#c9b58a" />
@@ -194,125 +214,103 @@ function Trail() {
   );
 }
 
-function islandPines(): PineSpot[] {
-  const rng = mulberry32(2026);
-  const spots: PineSpot[] = [];
-  let guard = 0;
-  while (spots.length < 140 && guard++ < 2000) {
-    const angle = rng() * Math.PI * 2;
-    const r = Math.sqrt(rng()) * (ISLAND_RADIUS - 1.2);
-    const x = Math.cos(angle) * r;
-    const z = Math.sin(angle) * r;
-    const nearPeak = PEAK_SPOTS.some(
-      (spot) => Math.hypot(spot.x - x, spot.z - z) < spot.radius + 1.6,
-    );
-    if (nearPeak) continue;
-    spots.push({
-      x,
-      y: ISLAND_TOP - 0.05,
-      z,
-      scale: 0.55 + rng() * 0.6,
-      rotation: rng() * Math.PI,
-    });
-  }
-  return spots;
-}
-
-/** Stand points from `fromId` to `toId`, following the trail peak by peak. */
-function trailBetween(fromId: number, toId: number): THREE.Vector3[] {
-  const step = toId > fromId ? 1 : -1;
-  const points: THREE.Vector3[] = [];
-  for (let id = fromId + step; step > 0 ? id <= toId : id >= toId; id += step) {
-    points.push(standPoint(peakSpotFor(id)));
-  }
-  return points;
-}
-
+/** A walk along the trail, from one arc length to another. */
 interface Walk {
-  points: THREE.Vector3[];
-  index: number;
+  from: number;
+  to: number;
   started: number;
-  /** Milliseconds per segment, by distance. */
-  durations: number[];
+  ms: number;
+  /** Speed up from a standstill (false when re-targeted mid-gallop). */
+  rampIn: boolean;
 }
+
+/** Shortest signed difference between two angles, so turning never goes the long way round. */
+function angleDelta(from: number, to: number): number {
+  return Math.atan2(Math.sin(to - from), Math.cos(to - from));
+}
+
+/** Facing when standing at a peak: towards the camera, a little to the right. */
+const IDLE_FACING = 0.35;
 
 function Wanderer({
   selectedPeakId,
   animalId,
   reducedMotion,
+  followRef,
 }: {
   selectedPeakId: number;
   animalId: AnimalId;
   reducedMotion: boolean;
+  /** Written every frame with where the animal is, for the camera to follow. */
+  followRef: RefObject<THREE.Vector3 | null>;
 }) {
   const group = useRef<THREE.Group>(null);
   const [pose, setPose] = useState<Pose>('idle');
+  const [timeScale, setTimeScale] = useState(1);
   const walkRef = useRef<Walk | null>(null);
-  const atRef = useRef(selectedPeakId);
-  const facingRef = useRef(0.35);
+  /** Where the animal is, as an arc length along the trail. */
+  const alongRef = useRef(trailStop(selectedPeakId));
+  const facingRef = useRef(IDLE_FACING);
   const seenRef = useRef(selectedPeakId);
+  // Mount-only: a fresh Vector3 every render would make react-three-fiber
+  // re-apply `position` and snap the animal onto the new peak before the walk
+  // below ever starts. A stable array is applied once and then left alone.
+  const [initialPosition] = useState(
+    () => standPoint(peakSpotFor(selectedPeakId)).toArray() as [number, number, number],
+  );
 
   useFrame((_, rawDelta) => {
     const node = group.current;
     if (!node) return;
     const delta = sceneDelta(rawDelta);
 
-    // A new selection starts a walk along the trail from wherever we are.
+    // A new selection starts a walk along the trail from wherever we are —
+    // mid-walk included, since the position is just a distance along it.
     if (selectedPeakId !== seenRef.current) {
       seenRef.current = selectedPeakId;
-      const target = standPoint(peakSpotFor(selectedPeakId));
+      const to = trailStop(selectedPeakId);
       if (reducedMotion) {
-        node.position.copy(target);
-        atRef.current = selectedPeakId;
+        alongRef.current = to;
         walkRef.current = null;
+        facingRef.current = IDLE_FACING;
       } else {
-        const points = [node.position.clone(), ...trailBetween(atRef.current, selectedPeakId)];
-        const total = points.reduce(
-          (sum, point, i) => (i === 0 ? 0 : sum + point.distanceTo(points[i - 1])),
-          0,
-        );
-        // Long trips run and are capped, so crossing the island never drags on.
-        const speed = total > 9 ? 9 : 5.5;
-        const scale = Math.min(1, 2400 / ((total / speed) * 1000));
-        walkRef.current = {
-          points,
-          index: 0,
-          started: sceneNow(),
-          durations: points.map((point, i) =>
-            i === 0 ? 0 : (point.distanceTo(points[i - 1]) / speed) * 1000 * scale,
-          ),
-        };
-        atRef.current = selectedPeakId;
-        if (total > 0.1) setPose(total > 9 ? 'run' : 'walk');
+        const from = alongRef.current;
+        const total = Math.abs(to - from);
+        // Mid-gallop, keep the clip's rate: changing it restarts the clip.
+        const galloping = walkRef.current !== null && pose === 'run';
+        const plan = travelPlan(total, animalId, galloping ? timeScale : undefined);
+        walkRef.current =
+          total > 0.05 ? { from, to, started: sceneNow(), ms: plan.ms, rampIn: plan.rampIn } : null;
+        if (walkRef.current) {
+          setPose(plan.pose);
+          setTimeScale(plan.timeScale);
+        }
       }
     }
 
     const walk = walkRef.current;
     if (walk) {
-      const next = walk.points[walk.index + 1];
-      if (!next) {
+      const t = Math.min(1, (sceneNow() - walk.started) / Math.max(1, walk.ms));
+      alongRef.current = walk.from + (walk.to - walk.from) * tripProgress(t, walk.rampIn);
+      const heading = trailHeadingAt(alongRef.current);
+      facingRef.current = walk.to > walk.from ? heading : heading + Math.PI;
+      if (t >= 1) {
         walkRef.current = null;
-        if (pose !== 'idle') setPose('idle');
-        facingRef.current = 0.35;
-      } else {
-        const from = walk.points[walk.index];
-        const ms = Math.max(1, walk.durations[walk.index + 1]);
-        const t = Math.min(1, (sceneNow() - walk.started) / ms);
-        node.position.lerpVectors(from, next, t);
-        node.position.y = ISLAND_TOP + Math.abs(Math.sin(t * Math.PI * 5)) * 0.05;
-        facingRef.current = Math.atan2(next.x - from.x, next.z - from.z);
-        if (t >= 1) {
-          walk.index += 1;
-          walk.started = sceneNow();
-        }
+        facingRef.current = IDLE_FACING;
       }
+    } else if (pose !== 'idle') {
+      setPose('idle');
     }
-    node.rotation.y += (facingRef.current - node.rotation.y) * Math.min(1, delta * 8);
+    const at = trailPointAt(alongRef.current);
+    node.position.set(at.x, ISLAND_TOP, at.z);
+    if (followRef.current) followRef.current.copy(node.position);
+    else followRef.current = node.position.clone();
+    node.rotation.y += angleDelta(node.rotation.y, facingRef.current) * Math.min(1, delta * 8);
   });
 
   return (
-    <group ref={group} position={standPoint(peakSpotFor(selectedPeakId))}>
-      <Animal id={animalId} pose={pose} scale={0.9} />
+    <group ref={group} position={initialPosition}>
+      <Animal id={animalId} pose={pose} timeScale={pose === 'idle' ? 1 : timeScale} scale={0.9} />
     </group>
   );
 }
@@ -391,6 +389,11 @@ function PanControls({ viewRef }: { viewRef: RefObject<ViewControl> }) {
   return null;
 }
 
+/** How far ahead of the animal, towards where it's going, the camera aims. */
+const CAMERA_LEAD = 2.5;
+/** Camera follow rate (1/s) at rest, and the most it stiffens to during a dash. */
+const CAMERA_RATE = 3.2;
+const CAMERA_MAX_RATE = 12;
 const desiredCamera = new THREE.Vector3();
 const desiredLook = new THREE.Vector3();
 
@@ -398,17 +401,22 @@ function MapCamera({
   selectedPeakId,
   recenterKey,
   viewRef,
+  followRef,
   reducedMotion,
 }: {
   selectedPeakId: number;
   recenterKey: number;
   viewRef: RefObject<ViewControl>;
+  /** The animal's position (from `Wanderer`); the stand point until it has loaded. */
+  followRef: RefObject<THREE.Vector3 | null>;
   reducedMotion: boolean;
 }) {
   const { camera, size } = useThree();
   const lookRef = useRef(new THREE.Vector3());
   const firstRef = useRef(true);
   const seenRef = useRef(`${selectedPeakId}:${recenterKey}`);
+  const lastFocusRef = useRef<THREE.Vector3 | null>(null);
+  const rateRef = useRef(CAMERA_RATE);
   useFrame((_, delta) => {
     const view = viewRef.current;
     if (!view) return;
@@ -422,23 +430,49 @@ function MapCamera({
     }
     const spot = peakSpotFor(selectedPeakId);
     const portrait = size.height > size.width;
+    // Follow the animal, not the destination: on a long trip the camera
+    // travels with it along the trail instead of leaving it off-screen.
+    // It leads a little towards the destination, so the peak being walked to
+    // comes into view before the animal gets there.
     const stand = standPoint(spot);
-    const cx = stand.x * 0.6 + view.panX;
-    const cz = stand.z + view.panZ;
-    const height = (portrait ? 11 : 8.5) * view.zoom;
-    const back = (portrait ? 13 : 11) * view.zoom;
+    const focus = followRef.current ?? stand;
+    const lead = Math.hypot(stand.x - focus.x, stand.z - focus.z);
+    const k = lead > 0 ? Math.min(1, CAMERA_LEAD / lead) : 0;
+    // Wide screens keep the island's middle in view; a narrow portrait frame
+    // has no room for that and must centre on the animal or lose it.
+    const cx = (focus.x + (stand.x - focus.x) * k) * (portrait ? 0.9 : 0.6) + view.panX;
+    const cz = focus.z + (stand.z - focus.z) * k + view.panZ;
+    // About 52° down (wide) / 57° (portrait): steep enough that a mountain
+    // doesn't hide the foot of the one behind it, and the look point rides
+    // up with tall peaks so their badge stays in frame.
+    // On a long trip the view also pulls back with the distance still to
+    // go, so the selected peak stays in frame alongside the animal; it
+    // settles back as the animal arrives. Never past MAX_ZOOM, which keeps
+    // the camera under the clouds.
+    const travel = 1 + clamp((lead - CAMERA_LEAD) / 12, 0, 0.45);
+    const zoom = Math.min(MAX_ZOOM, view.zoom * travel);
+    const height = (portrait ? 16.5 : 11.5) * zoom;
+    const back = (portrait ? 10.5 : 9) * zoom;
     desiredCamera.set(cx, ISLAND_TOP + height, cz + back);
-    desiredLook.set(cx, ISLAND_TOP + spot.height * 0.35, cz - 2.5);
+    desiredLook.set(cx, ISLAND_TOP + spot.height * (portrait ? 0.6 : 0.55), cz - 2.5);
     if (firstRef.current || reducedMotion) {
       camera.position.copy(desiredCamera);
       lookRef.current.copy(desiredLook);
       firstRef.current = false;
     } else {
-      const k = 1 - Math.exp(-delta * 3.2);
+      // Stiffen the follow while the animal dashes, so a fast trip never
+      // outruns the frame; ease back to the gentle glide when it stops.
+      const moved = lastFocusRef.current ? lastFocusRef.current.distanceTo(focus) : 0;
+      const speed = delta > 0 ? moved / delta : 0;
+      const wanted = Math.min(CAMERA_MAX_RATE, CAMERA_RATE + speed * 0.5);
+      rateRef.current += (wanted - rateRef.current) * Math.min(1, delta * 6);
+      const k = 1 - Math.exp(-delta * rateRef.current);
       camera.position.lerp(desiredCamera, k);
       lookRef.current.lerp(desiredLook, k);
     }
     camera.lookAt(lookRef.current);
+    if (lastFocusRef.current) lastFocusRef.current.copy(focus);
+    else lastFocusRef.current = new THREE.Vector3(focus.x, focus.y, focus.z);
   });
   return null;
 }
@@ -456,8 +490,9 @@ function MapScene({
   recenterKey = 0,
   reducedMotion = false,
 }: MapSceneProps) {
-  const pines = useMemo(() => islandPines(), []);
+  const pines = useMemo(() => islandPines(ISLAND_TOP), []);
   const viewRef = useRef<ViewControl>({ panX: 0, panZ: 0, zoom: 1 });
+  const followRef = useRef<THREE.Vector3 | null>(null);
   if (!hasWebGL()) {
     return (
       <div
@@ -485,15 +520,20 @@ function MapScene({
         castShadow
         intensity={1.7}
         color="#fff1d6"
-        position={[14, 22, 10]}
+        // Twice as far out as the island needs, same direction, so the
+        // shadow camera also takes in the clouds high overhead.
+        position={[28, 44, 20]}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-20}
         shadow-camera-right={20}
         shadow-camera-top={20}
         shadow-camera-bottom={-20}
         shadow-camera-near={1}
-        shadow-camera-far={70}
+        shadow-camera-far={130}
         shadow-bias={-0.0006}
+        // Slightly see-through shadows, so a passing cloud's shade reads as
+        // shade rather than a hole in the island.
+        shadow-intensity={0.85}
       />
 
       {/* Sea, beach, island */}
@@ -521,13 +561,24 @@ function MapScene({
           onSelect={() => onSelectPeak(peak.id)}
         />
       ))}
+      {/* Clouds sit above the highest the camera ever goes (portrait, fully
+          zoomed out: y ≈ 27.2; the lowest puff bottoms out ~2.3 below a
+          cloud's centre), so they never drift through the lens or hide a
+          badge; what the player sees is their shadows crawling over the
+          island. The sun is up and to the +X/+Z side, so a cloud at y 34
+          shadows the ground about (-22, -15) from where it is: the ranges are
+          offset by that much to put the shadows on the island. Opaque, so
+          they never join the transparent sort. */}
       <Clouds
-        count={10}
+        count={7}
         seed={99}
-        xRange={[-30, 30]}
-        yRange={[7, 12]}
-        zRange={[-22, 6]}
-        speed={0.4}
+        xRange={[-13, 55]}
+        yRange={[33, 36]}
+        zRange={[-2, 30]}
+        speed={0.6}
+        size={1.3}
+        opacity={1}
+        castShadow
       />
 
       <Suspense fallback={null}>
@@ -535,6 +586,7 @@ function MapScene({
           selectedPeakId={selectedPeakId}
           animalId={animalId}
           reducedMotion={reducedMotion}
+          followRef={followRef}
         />
       </Suspense>
       <PanControls viewRef={viewRef} />
@@ -542,6 +594,7 @@ function MapScene({
         selectedPeakId={selectedPeakId}
         recenterKey={recenterKey}
         viewRef={viewRef}
+        followRef={followRef}
         reducedMotion={reducedMotion}
       />
     </Canvas>

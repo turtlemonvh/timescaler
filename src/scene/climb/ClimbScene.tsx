@@ -1,7 +1,7 @@
 import { Suspense, memo, useMemo, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { AnimalId } from '../animals/roster';
+import { ANIMALS, type AnimalId } from '../animals/roster';
 import { peakTheme } from '../theme/peakThemes';
 import { hasWebGL } from '../webgl';
 import Birds from '../world/Birds';
@@ -9,7 +9,7 @@ import Particles, { type ParticleApi } from '../world/Particles';
 import SkyDome from '../world/SkyDome';
 import Weather from '../world/Weather';
 import CameraRig from './CameraRig';
-import { ledgePoint, summitY } from './cliffPath';
+import { FOREST_FLOOR, ledgePoint, summitY } from './cliffPath';
 import CliffWorld from './CliffWorld';
 import Climber from './Climber';
 import type { ClimbMove } from './motion';
@@ -54,9 +54,21 @@ function ClimbScene({
   reducedMotion = false,
 }: ClimbSceneProps) {
   const theme = useMemo(() => peakTheme(peakId), [peakId]);
+  // Birds read as distant wildlife, not black cut-outs: a dark brown pulled
+  // towards the sky haze, more so on the low-sun peaks where near-black
+  // would be a silhouette blob against the rock.
+  const birdColor = useMemo(
+    () =>
+      `#${new THREE.Color('#3b3029')
+        .lerp(new THREE.Color(theme.fog), 0.3 + 0.4 * (1 - theme.daylight))
+        .getHexString()}`,
+    [theme],
+  );
   const particlesRef = useRef<ParticleApi | null>(null);
   const start = ledgePoint(position, peakId);
   const climberPositionRef = useRef(new THREE.Vector3(start.x, start.y, start.z));
+  const framingRef = useRef(new THREE.Vector3(start.x, start.y, start.z));
+  const heroHeight = ANIMALS.find((animal) => animal.id === animalId)?.height ?? 1.2;
   const shakeRef = useRef(0);
   const sunRef = useRef<THREE.DirectionalLight | null>(null);
 
@@ -85,24 +97,54 @@ function ClimbScene({
 
       <hemisphereLight args={[theme.skyTop, theme.ground, 0.7 + 0.7 * (1 - theme.daylight)]} />
       <ambientLight intensity={0.4} />
+      {/* Directional lights only use position - target as a direction, so these
+          stay put while the sun follows the climber. A cool, shadowless fill
+          from the camera side lifts the shadowed faces (most on the low-sun
+          peaks, which otherwise crush to black), and a warm rim from behind
+          the wall catches the animal's back edge so it separates from the rock
+          (the wall faces +Z, so the rim never lights its face). */}
+      <directionalLight
+        intensity={0.25 + 0.6 * (1 - theme.daylight)}
+        color="#cfdcff"
+        position={[-4, 3, 8]}
+      />
+      <directionalLight intensity={0.7} color="#ffd9a8" position={[5, 4, -6]} />
       <directionalLight
         ref={sunRef}
         castShadow
         intensity={1.9 * (0.55 + 0.45 * theme.daylight)}
         color="#fff1d6"
         position={[6, 10, 7]}
-        shadow-mapSize={[1024, 1024]}
+        shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-9}
         shadow-camera-right={9}
         shadow-camera-top={9}
         shadow-camera-bottom={-9}
         shadow-camera-near={1}
         shadow-camera-far={40}
-        shadow-bias={-0.0008}
+        shadow-bias={-0.0003}
+        shadow-normalBias={0.03}
+        shadow-radius={3}
       />
 
       <CliffWorld theme={theme} height={height} position={position} />
-      <Birds y={Math.min(summitY(height), start.y + 4)} z={-5} />
+      {/* In front of the wall (which is solid down to its edge) and in the
+          strip of sky above the climber's head, clear of the forest. At the
+          summit they cross around the flag's top (+2.35), small and hazy, close to the wall, so the
+          swinging camera never has them brush past the lens. */}
+      {/* Banded on the hop's landing point, not the animal: a hop's apex stays
+          within ~1.8 (head) of the landing, so the flock never meets it. */}
+      <Birds
+        followRef={framingRef}
+        y={phase === 'summit' ? 2.5 : 3.5}
+        z={phase === 'summit' ? 0.9 : 1.4}
+        screenY={0.7}
+        span={7}
+        minY={phase === 'summit' ? summitY(height) + 2.5 : FOREST_FLOOR + 5}
+        maxY={summitY(height) + 4}
+        scale={phase === 'summit' ? 0.7 : 0.9}
+        color={birdColor}
+      />
       <Weather
         kind={reducedMotion ? 'none' : theme.weather}
         followRef={climberPositionRef}
@@ -125,6 +167,7 @@ function ClimbScene({
           theme={theme}
           particlesRef={particlesRef}
           worldPositionRef={climberPositionRef}
+          framingRef={framingRef}
           shakeRef={shakeRef}
           reducedMotion={reducedMotion}
         />
@@ -132,6 +175,8 @@ function ClimbScene({
 
       <CameraRig
         targetRef={climberPositionRef}
+        framingRef={framingRef}
+        heroHeight={heroHeight}
         shakeRef={shakeRef}
         phase={phase}
         reducedMotion={reducedMotion}

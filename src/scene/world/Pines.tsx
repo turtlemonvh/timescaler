@@ -8,6 +8,8 @@ export interface PineSpot {
   scale: number;
   /** Radians, so a forest is not a grid of identical trees. */
   rotation?: number;
+  /** Lean towards +Z (out from a wall), in radians, pivoting on the trunk's base. */
+  tilt?: number;
 }
 
 export interface PinesProps {
@@ -35,8 +37,11 @@ export default function Pines({ spots, leaf, leafDark, trunk = '#6b4a2e' }: Pine
     const place = (mesh: THREE.InstancedMesh | null, yOffset: number) => {
       if (!mesh) return;
       spots.forEach((spot, i) => {
-        dummy.position.set(spot.x, spot.y + yOffset * spot.scale, spot.z);
-        dummy.rotation.set(0, spot.rotation ?? 0, 0);
+        // Lean about the trunk's base, so a tilted tree stays rooted.
+        const tilt = spot.tilt ?? 0;
+        const up = yOffset * spot.scale;
+        dummy.position.set(spot.x, spot.y + up * Math.cos(tilt), spot.z + up * Math.sin(tilt));
+        dummy.rotation.set(tilt, spot.rotation ?? 0, 0);
         dummy.scale.setScalar(spot.scale);
         dummy.updateMatrix();
         mesh.setMatrixAt(i, dummy.matrix);
