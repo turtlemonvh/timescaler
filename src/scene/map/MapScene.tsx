@@ -13,7 +13,13 @@ import { hasWebGL } from '../webgl';
 import Clouds from '../world/Clouds';
 import Pines, { type PineSpot } from '../world/Pines';
 import SkyDome from '../world/SkyDome';
-import { ISLAND_RADIUS, PEAK_SPOTS, peakSpotFor, type PeakSpot } from './peakLayout';
+import {
+  ISLAND_RADIUS,
+  PEAK_SPOTS,
+  peakSpotFor,
+  standPoint as standSpot,
+  type PeakSpot,
+} from './peakLayout';
 
 export interface MapSceneProps {
   selectedPeakId: number;
@@ -42,9 +48,10 @@ function clamp(value: number, min: number, max: number): number {
 const ISLAND_TOP = 0.75;
 const SKY = { top: '#3f86d8', bottom: '#d6ecff' };
 
-/** Where the animal stands for a given peak: at its foot, on the camera side. */
+/** Where the animal stands for a given peak (see `peakLayout.standPoint`), on the island top. */
 function standPoint(spot: PeakSpot): THREE.Vector3 {
-  return new THREE.Vector3(spot.x, ISLAND_TOP, spot.z + spot.radius + 0.7);
+  const stand = standSpot(spot);
+  return new THREE.Vector3(stand.x, ISLAND_TOP, stand.z);
 }
 
 function Mountain({
