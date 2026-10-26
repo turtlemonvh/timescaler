@@ -3,7 +3,6 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useCursor } from '@react-three/drei';
 import * as THREE from 'three';
 import { PEAKS } from '../../engine/peaks';
-import { mulberry32 } from '../../engine/rng';
 import Animal from '../animals/Animal';
 import type { Pose } from '../animals/clips';
 import type { AnimalId } from '../animals/roster';
@@ -11,8 +10,9 @@ import { sceneDelta, sceneNow } from '../clock';
 import { peakTheme } from '../theme/peakThemes';
 import { hasWebGL } from '../webgl';
 import Clouds from '../world/Clouds';
-import Pines, { type PineSpot } from '../world/Pines';
+import Pines from '../world/Pines';
 import SkyDome from '../world/SkyDome';
+import { islandPines } from './islandPines';
 import {
   ISLAND_RADIUS,
   PEAK_SPOTS,
@@ -20,6 +20,7 @@ import {
   standPoint as standSpot,
   type PeakSpot,
 } from './peakLayout';
+import { trailHeadingAt, trailPointAt, trailSamples, trailStop } from './trailPath';
 
 export interface MapSceneProps {
   selectedPeakId: number;
@@ -174,16 +175,14 @@ function NumberBadge({
   );
 }
 
+/** Stepping stones along the shared trail path — the same path the animal walks. */
 function Trail() {
   const stones = useMemo(() => {
-    const out: THREE.Vector3[] = [];
-    for (let i = 1; i < PEAK_SPOTS.length; i++) {
-      const a = standPoint(PEAK_SPOTS[i - 1]);
-      const b = standPoint(PEAK_SPOTS[i]);
-      const n = 5;
-      for (let k = 1; k < n; k++) out.push(a.clone().lerp(b, k / n));
-    }
-    return out;
+    const stands = PEAK_SPOTS.map(standSpot);
+    // Leave the stand points themselves clear: the animal and its ring sit there.
+    return trailSamples(0.9).filter((stone) =>
+      stands.every((stand) => Math.hypot(stand.x - stone.x, stand.z - stone.z) > 0.6),
+    );
   }, []);
   return (
     <group>
@@ -191,7 +190,7 @@ function Trail() {
         <mesh
           key={i}
           position={[stone.x, ISLAND_TOP + 0.02, stone.z]}
-          rotation={[-Math.PI / 2, 0, 0]}
+          rotation={[-Math.PI / 2, 0, i * 1.7]}
         >
           <circleGeometry args={[0.22, 6]} />
           <meshStandardMaterial color="#c9b58a" />
@@ -201,47 +200,21 @@ function Trail() {
   );
 }
 
-function islandPines(): PineSpot[] {
-  const rng = mulberry32(2026);
-  const spots: PineSpot[] = [];
-  let guard = 0;
-  while (spots.length < 140 && guard++ < 2000) {
-    const angle = rng() * Math.PI * 2;
-    const r = Math.sqrt(rng()) * (ISLAND_RADIUS - 1.2);
-    const x = Math.cos(angle) * r;
-    const z = Math.sin(angle) * r;
-    const nearPeak = PEAK_SPOTS.some(
-      (spot) => Math.hypot(spot.x - x, spot.z - z) < spot.radius + 1.6,
-    );
-    if (nearPeak) continue;
-    spots.push({
-      x,
-      y: ISLAND_TOP - 0.05,
-      z,
-      scale: 0.55 + rng() * 0.6,
-      rotation: rng() * Math.PI,
-    });
-  }
-  return spots;
-}
-
-/** Stand points from `fromId` to `toId`, following the trail peak by peak. */
-function trailBetween(fromId: number, toId: number): THREE.Vector3[] {
-  const step = toId > fromId ? 1 : -1;
-  const points: THREE.Vector3[] = [];
-  for (let id = fromId + step; step > 0 ? id <= toId : id >= toId; id += step) {
-    points.push(standPoint(peakSpotFor(id)));
-  }
-  return points;
-}
-
+/** A walk along the trail, from one arc length to another. */
 interface Walk {
-  points: THREE.Vector3[];
-  index: number;
+  from: number;
+  to: number;
   started: number;
-  /** Milliseconds per segment, by distance. */
-  durations: number[];
+  ms: number;
 }
+
+/** Shortest signed difference between two angles, so turning never goes the long way round. */
+function angleDelta(from: number, to: number): number {
+  return Math.atan2(Math.sin(to - from), Math.cos(to - from));
+}
+
+/** Facing when standing at a peak: towards the camera, a little to the right. */
+const IDLE_FACING = 0.35;
 
 function Wanderer({
   selectedPeakId,
@@ -255,8 +228,9 @@ function Wanderer({
   const group = useRef<THREE.Group>(null);
   const [pose, setPose] = useState<Pose>('idle');
   const walkRef = useRef<Walk | null>(null);
-  const atRef = useRef(selectedPeakId);
-  const facingRef = useRef(0.35);
+  /** Where the animal is, as an arc length along the trail. */
+  const alongRef = useRef(trailStop(selectedPeakId));
+  const facingRef = useRef(IDLE_FACING);
   const seenRef = useRef(selectedPeakId);
   // Mount-only: a fresh Vector3 every render would make react-three-fiber
   // re-apply `position` and snap the animal onto the new peak before the walk
@@ -270,57 +244,42 @@ function Wanderer({
     if (!node) return;
     const delta = sceneDelta(rawDelta);
 
-    // A new selection starts a walk along the trail from wherever we are.
+    // A new selection starts a walk along the trail from wherever we are —
+    // mid-walk included, since the position is just a distance along it.
     if (selectedPeakId !== seenRef.current) {
       seenRef.current = selectedPeakId;
-      const target = standPoint(peakSpotFor(selectedPeakId));
+      const to = trailStop(selectedPeakId);
       if (reducedMotion) {
-        node.position.copy(target);
-        atRef.current = selectedPeakId;
+        alongRef.current = to;
         walkRef.current = null;
+        facingRef.current = IDLE_FACING;
       } else {
-        const points = [node.position.clone(), ...trailBetween(atRef.current, selectedPeakId)];
-        const total = points.reduce(
-          (sum, point, i) => (i === 0 ? 0 : sum + point.distanceTo(points[i - 1])),
-          0,
-        );
+        const from = alongRef.current;
+        const total = Math.abs(to - from);
         // Long trips run and are capped, so crossing the island never drags on.
         const speed = total > 9 ? 9 : 5.5;
-        const scale = Math.min(1, 2400 / ((total / speed) * 1000));
-        walkRef.current = {
-          points,
-          index: 0,
-          started: sceneNow(),
-          durations: points.map((point, i) =>
-            i === 0 ? 0 : (point.distanceTo(points[i - 1]) / speed) * 1000 * scale,
-          ),
-        };
-        atRef.current = selectedPeakId;
-        if (total > 0.1) setPose(total > 9 ? 'run' : 'walk');
+        const ms = Math.min(2400, (total / speed) * 1000);
+        walkRef.current = total > 0.05 ? { from, to, started: sceneNow(), ms } : null;
+        if (walkRef.current) setPose(total > 9 ? 'run' : 'walk');
       }
     }
 
     const walk = walkRef.current;
     if (walk) {
-      const next = walk.points[walk.index + 1];
-      if (!next) {
+      const t = Math.min(1, (sceneNow() - walk.started) / Math.max(1, walk.ms));
+      alongRef.current = walk.from + (walk.to - walk.from) * t;
+      const heading = trailHeadingAt(alongRef.current);
+      facingRef.current = walk.to > walk.from ? heading : heading + Math.PI;
+      if (t >= 1) {
         walkRef.current = null;
-        if (pose !== 'idle') setPose('idle');
-        facingRef.current = 0.35;
-      } else {
-        const from = walk.points[walk.index];
-        const ms = Math.max(1, walk.durations[walk.index + 1]);
-        const t = Math.min(1, (sceneNow() - walk.started) / ms);
-        node.position.lerpVectors(from, next, t);
-        node.position.y = ISLAND_TOP + Math.abs(Math.sin(t * Math.PI * 5)) * 0.05;
-        facingRef.current = Math.atan2(next.x - from.x, next.z - from.z);
-        if (t >= 1) {
-          walk.index += 1;
-          walk.started = sceneNow();
-        }
+        facingRef.current = IDLE_FACING;
       }
+    } else if (pose !== 'idle') {
+      setPose('idle');
     }
-    node.rotation.y += (facingRef.current - node.rotation.y) * Math.min(1, delta * 8);
+    const at = trailPointAt(alongRef.current);
+    node.position.set(at.x, ISLAND_TOP, at.z);
+    node.rotation.y += angleDelta(node.rotation.y, facingRef.current) * Math.min(1, delta * 8);
   });
 
   return (
@@ -469,7 +428,7 @@ function MapScene({
   recenterKey = 0,
   reducedMotion = false,
 }: MapSceneProps) {
-  const pines = useMemo(() => islandPines(), []);
+  const pines = useMemo(() => islandPines(ISLAND_TOP), []);
   const viewRef = useRef<ViewControl>({ panX: 0, panZ: 0, zoom: 1 });
   if (!hasWebGL()) {
     return (
