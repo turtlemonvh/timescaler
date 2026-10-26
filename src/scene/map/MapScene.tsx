@@ -21,6 +21,7 @@ import {
   type PeakSpot,
 } from './peakLayout';
 import { trailHeadingAt, trailPointAt, trailSamples, trailStop } from './trailPath';
+import { travelPlan } from './travel';
 
 export interface MapSceneProps {
   selectedPeakId: number;
@@ -230,6 +231,7 @@ function Wanderer({
 }) {
   const group = useRef<THREE.Group>(null);
   const [pose, setPose] = useState<Pose>('idle');
+  const [timeScale, setTimeScale] = useState(1);
   const walkRef = useRef<Walk | null>(null);
   /** Where the animal is, as an arc length along the trail. */
   const alongRef = useRef(trailStop(selectedPeakId));
@@ -259,11 +261,12 @@ function Wanderer({
       } else {
         const from = alongRef.current;
         const total = Math.abs(to - from);
-        // Long trips run and are capped, so crossing the island never drags on.
-        const speed = total > 9 ? 9 : 5.5;
-        const ms = Math.min(2400, (total / speed) * 1000);
-        walkRef.current = total > 0.05 ? { from, to, started: sceneNow(), ms } : null;
-        if (walkRef.current) setPose(total > 9 ? 'run' : 'walk');
+        const plan = travelPlan(total, animalId);
+        walkRef.current = total > 0.05 ? { from, to, started: sceneNow(), ms: plan.ms } : null;
+        if (walkRef.current) {
+          setPose(plan.pose);
+          setTimeScale(plan.timeScale);
+        }
       }
     }
 
@@ -289,7 +292,7 @@ function Wanderer({
 
   return (
     <group ref={group} position={initialPosition}>
-      <Animal id={animalId} pose={pose} scale={0.9} />
+      <Animal id={animalId} pose={pose} timeScale={pose === 'idle' ? 1 : timeScale} scale={0.9} />
     </group>
   );
 }
