@@ -9,6 +9,8 @@ import Pines from '../world/Pines';
 import { basePines, wallPines } from './forest';
 import {
   FOREST_FLOOR,
+  ROPE_Z,
+  ROUTE_GROOVE,
   ledgePoints,
   ledgeSlab,
   summitPlateau,
@@ -70,10 +72,10 @@ function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
     const routeDamp = clamp01((nearest - 0.7) / 1.2);
     const n = noise(x, y, theme.peak.id) + (rng() - 0.5) * 0.35;
     const edgeRecede = Math.abs(x) > 3.3 ? (Math.abs(x) - 3.3) * 0.75 : 0;
-    // A shallow groove follows the route: calmer rock near the ledges, and
-    // room for the rope to lie against the wall behind the climber.
-    const groove = 0.3 * (1 - routeDamp);
-    const z = wallZ(y) + n * 0.5 * (0.25 + 0.75 * routeDamp) - edgeRecede - groove;
+    // A groove follows the route: calmer rock near the ledges, and room for
+    // the rope to run behind the climber instead of through its body.
+    const groove = ROUTE_GROOVE * (1 - routeDamp);
+    const z = wallZ(y) + n * 0.5 * (0.1 + 0.9 * routeDamp) - edgeRecede - groove;
     positions.setZ(i, z);
 
     const shade = clamp01(0.5 - n * 0.9) * 0.75;
@@ -138,8 +140,9 @@ function Ledge({
   );
 }
 
-/** Rope segments slung between consecutive ledges, lying against the wall
- * behind the climber so they never cross in front of it. */
+/** Rope segments slung between consecutive ledges, over the back edge of
+ * each slab: behind a standing climber's body, and well behind the flight
+ * paths (which leap out from the wall). */
 function Rope({ route, color }: { route: Vec3[]; color: string }) {
   const geometry = useMemo(() => {
     const pieces: THREE.BufferGeometry[] = [];
@@ -148,8 +151,8 @@ function Rope({ route, color }: { route: Vec3[]; color: string }) {
       const b = route[i + 1];
       const dir = Math.sign(b.x - a.x) || 1;
       const reach = Math.abs(b.x - a.x) < 1.2 ? 0.3 : 0.6;
-      const start = new THREE.Vector3(a.x + dir * reach, a.y + 0.02, a.z - 0.22);
-      const end = new THREE.Vector3(b.x - dir * reach, b.y - 0.08, b.z - 0.22);
+      const start = new THREE.Vector3(a.x + dir * reach, a.y + 0.02, a.z + ROPE_Z);
+      const end = new THREE.Vector3(b.x - dir * reach, b.y - 0.08, b.z + ROPE_Z);
       const mid = start.clone().lerp(end, 0.5);
       mid.y -= 0.3;
       const curve = new THREE.QuadraticBezierCurve3(start, mid, end);

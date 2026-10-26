@@ -22,8 +22,12 @@ export interface Vec3 {
 export const LEDGE_DY = 2.2;
 /** Ledge slab thickness; its top face is the standing surface. */
 export const SLAB_THICKNESS = 0.24;
-/** How far behind the standing point the slab's back edge sits (inside the route's groove). */
-const SLAB_BACK = 0.45;
+/** How far behind the standing point the slab's back edge sits: buried in the route's groove. */
+const SLAB_BACK = 0.7;
+/** The route's groove: how far the wall is cut back around the ledges, so the rope can run behind the climber. */
+export const ROUTE_GROOVE = 0.6;
+/** Where the rope runs, relative to the standing point: behind the climber's body, in front of the groove. */
+export const ROPE_Z = -0.5;
 /** How far the summit plateau reaches out from the wall: no further than the deepest ledge slab. */
 export const PLATEAU_FRONT = 0.6;
 /** Horizontal swing of the zig-zag route. */
@@ -79,7 +83,7 @@ export function ledgeSlab(index: number, peakId: number): LedgeSlab {
   rng(); // was the under-slab boulder's tilt; still drawn so each ledge keeps its old width
   const yaw = (rng() - 0.5) * 0.5 * 0.4;
   const width = 1.2 + rng() * 0.5;
-  const depth = 0.8 + rng() * 0.2;
+  const depth = SLAB_BACK + 0.35 + rng() * 0.2;
   return {
     center: { x: point.x, y: point.y - SLAB_THICKNESS / 2, z: point.z - SLAB_BACK + depth / 2 },
     width,
