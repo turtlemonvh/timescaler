@@ -545,18 +545,19 @@ function MapScene({
         />
       ))}
       {/* Clouds sit above the highest the camera ever goes (portrait, fully
-          zoomed out: y ≈ 27), so they never drift through the lens or hide a
+          zoomed out: y ≈ 27.2; the lowest puff bottoms out ~2.3 below a
+          cloud's centre), so they never drift through the lens or hide a
           badge; what the player sees is their shadows crawling over the
-          island. The sun is up and to the +X/+Z side, so a cloud at y 30
-          shadows the ground about (-19, -14) from where it is: the ranges are
+          island. The sun is up and to the +X/+Z side, so a cloud at y 34
+          shadows the ground about (-22, -15) from where it is: the ranges are
           offset by that much to put the shadows on the island. Opaque, so
           they never join the transparent sort. */}
       <Clouds
         count={7}
         seed={99}
-        xRange={[-16, 52]}
-        yRange={[29, 32]}
-        zRange={[-4, 28]}
+        xRange={[-13, 55]}
+        yRange={[33, 36]}
+        zRange={[-2, 30]}
         speed={0.6}
         size={1.3}
         opacity={1}
