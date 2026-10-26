@@ -63,6 +63,9 @@ export default function CameraRig({
   const lookCurrentRef = useRef(new THREE.Vector3(0, 1, 0));
   const orbitRef = useRef(0);
   const initializedRef = useRef(false);
+  /** Seconds since the current move started (0 at rest), for ramping the lead in. */
+  const flightTimeRef = useRef(0);
+  const lastGoalRef = useRef(new THREE.Vector3());
 
   useFrame((_, delta) => {
     const t = targetRef.current;
@@ -74,11 +77,19 @@ export default function CameraRig({
     const framing = framingFor(size.width, size.height, phase);
     const fov = (camera as THREE.PerspectiveCamera).fov;
     const tanHalf = Math.tan(THREE.MathUtils.degToRad(fov / 2));
+    // A new move (including one issued while the last is still in the air,
+    // e.g. back-to-back boosted hops) moves the goal: restart the ramp.
+    if (goal.distanceToSquared(lastGoalRef.current) > 0.01) flightTimeRef.current = 0;
+    lastGoalRef.current.copy(goal);
+    flightTimeRef.current = inFlight ? flightTimeRef.current + delta : 0;
+    // 0 -> 1 over the first ~180 ms of a move: the lead and the faster chase
+    // ease in, so the view doesn't set off before the animal leaves the ledge.
+    const flightRamp = THREE.MathUtils.smoothstep(flightTimeRef.current, 0, 0.18);
 
     // The body centre the camera frames: halfway to the landing spot during a
     // hop, so the camera leads without stranding the take-off at the edge.
     // The route zig-zags ±1.75; tracking nearly all of it keeps it near `home`.
-    lead.lerpVectors(t, goal, 0.55);
+    lead.lerpVectors(t, goal, 0.55 * flightRamp);
     anchor.set(phase === 'climb' ? lead.x * 0.9 : lead.x, lead.y + heroHeight * 0.5, lead.z);
     look.copy(anchor);
     if (phase === 'summit') {
@@ -121,7 +132,7 @@ export default function CameraRig({
       lookCurrentRef.current.copy(look);
       initializedRef.current = true;
     } else {
-      const rate = inFlight ? 7 : phase === 'fell' ? 2.2 : 3.4;
+      const rate = inFlight ? 3.4 + 3.6 * flightRamp : phase === 'fell' ? 2.2 : 3.4;
       const k = 1 - Math.exp(-delta * rate);
       camera.position.lerp(desired, k);
       lookCurrentRef.current.lerp(look, k);
