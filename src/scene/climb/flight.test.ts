@@ -4,6 +4,7 @@ import { BODY_ENVELOPES, envelopeAt, type BodyEnvelope } from '../animals/bodyEn
 import { ANIMALS, type AnimalId } from '../animals/roster';
 import {
   FOREST_FLOOR,
+  LEDGE_DY,
   ledgePoint,
   ledgeSlab,
   slabBounds,
@@ -32,7 +33,8 @@ import type { ClimbMove } from './motion';
 const REST_FACING = (Math.PI / 2) * 0.45;
 /** Overlap allowed before it counts: hooves resting on a slab's top face dip into it a hair. */
 const TOLERANCE = 0.06;
-const STEP = 0.01;
+/** Sample spacing: 2% of a segment is ~10 ms of a hop, finer than a rendered frame. */
+const STEP = 0.02;
 
 interface Hit {
   what: string;
@@ -278,7 +280,10 @@ describe('flight clearance', () => {
               tumbleAngles(raw),
               deathX(env, raw),
             );
-            for (let k = 0; k <= i; k++) {
+            // Only the slabs within the tumbling body's reach of its height.
+            const lo = Math.max(0, Math.floor((p.y - 2.5) / LEDGE_DY));
+            const hi = Math.min(i, Math.ceil((p.y + 2.5) / LEDGE_DY));
+            for (let k = lo; k <= hi; k++) {
               const depth = overlap(box, slabBounds(ledgeSlab(k, peak.id)));
               if (depth > TOLERANCE) hits.push({ what: `slab ${k}`, t: raw, depth });
             }
