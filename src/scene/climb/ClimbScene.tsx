@@ -87,6 +87,18 @@ function ClimbScene({
 
       <hemisphereLight args={[theme.skyTop, theme.ground, 0.7 + 0.7 * (1 - theme.daylight)]} />
       <ambientLight intensity={0.4} />
+      {/* Directional lights only use position - target as a direction, so these
+          stay put while the sun follows the climber. A cool, shadowless fill
+          from the camera side lifts the shadowed faces (most on the low-sun
+          peaks, which otherwise crush to black), and a warm rim from behind
+          the wall catches the animal's back edge so it separates from the rock
+          (the wall faces +Z, so the rim never lights its face). */}
+      <directionalLight
+        intensity={0.25 + 0.6 * (1 - theme.daylight)}
+        color="#cfdcff"
+        position={[-4, 3, 8]}
+      />
+      <directionalLight intensity={0.7} color="#ffd9a8" position={[5, 4, -6]} />
       <directionalLight
         ref={sunRef}
         castShadow
