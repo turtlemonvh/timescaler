@@ -72,17 +72,41 @@ export const STAND_GAP = 0.75;
 /** Minimum distance from a stand point to any *other* cone's foot. */
 export const STAND_CLEARANCE = 1.0;
 
+/** How strongly a stand point is pulled round to the camera side (+Z). */
+const CAMERA_SIDE_PULL = 0.6;
+
 /**
- * Where the animal stands for a given peak: at its foot, on the camera side
- * (+Z) where possible. If that spot is too close to another mountain the
- * stand point swings around the peak (±30°, ±60°, …) to the first clear
- * spot, so the animal is never half-buried in a neighbour.
+ * Which way round its peak a stand point sits: towards the neighbours the
+ * trail comes from and goes to, pulled a little towards the camera (+Z).
+ * Where the trail doubles back past a peak (4, 7 and 9 on the switchback),
+ * that puts the stand on the inside of the bend, so walking through it is a
+ * smooth turn instead of running past the corner and pirouetting back.
+ */
+function preferredStandAngle(spot: PeakSpot): number {
+  let x = 0;
+  let z = CAMERA_SIDE_PULL;
+  for (const id of [spot.id - 1, spot.id + 1]) {
+    const neighbour = PEAK_SPOTS.find((entry) => entry.id === id);
+    if (!neighbour) continue;
+    const distance = Math.hypot(neighbour.x - spot.x, neighbour.z - spot.z);
+    x += (neighbour.x - spot.x) / distance;
+    z += (neighbour.z - spot.z) / distance;
+  }
+  return Math.atan2(x, z);
+}
+
+/**
+ * Where the animal stands for a given peak: at its foot, on the side the
+ * trail bends round (see `preferredStandAngle`). If that spot is too close to
+ * another mountain the stand point swings around the peak (±30°, ±60°, …) to
+ * the first clear spot, so the animal is never half-buried in a neighbour.
  */
 export function standPoint(spot: PeakSpot): Vec2 {
   const distance = spot.radius + STAND_GAP;
+  const preferred = preferredStandAngle(spot);
   for (let step = 0; step <= 6; step++) {
     for (const sign of step === 0 ? [1] : [1, -1]) {
-      const angle = sign * step * (Math.PI / 6);
+      const angle = preferred + sign * step * (Math.PI / 6);
       const point = {
         x: spot.x + Math.sin(angle) * distance,
         z: spot.z + Math.cos(angle) * distance,

@@ -52,14 +52,24 @@ describe('trailPath', () => {
     }
   });
 
+  it('turns through every stand point without a hairpin', () => {
+    // A through-trip shouldn't overshoot a stand point and pirouette back:
+    // the stand sits on the inside of the trail's bend.
+    for (let id = 2; id < PEAK_SPOTS.length; id++) {
+      const stop = trailStop(id);
+      let turn = Math.abs(trailHeadingAt(stop + 0.8) - trailHeadingAt(stop - 0.8));
+      if (turn > Math.PI) turn = 2 * Math.PI - turn;
+      expect(turn, `peak ${id}`).toBeLessThan(Math.PI / 2);
+    }
+  });
+
   it('clamps beyond the ends and samples evenly', () => {
     expect(trailPointAt(-5)).toEqual(trailPointAt(0));
     expect(trailPointAt(TRAIL.length + 5)).toEqual(trailPointAt(TRAIL.length));
     const stones = trailSamples(0.9);
     for (let i = 1; i < stones.length; i++) {
       expect(distance(stones[i], stones[i - 1])).toBeLessThanOrEqual(0.9 + 1e-6);
-      // Stand points can be hairpins (the trail arrives and leaves on the
-      // same side of the peak), where neighbouring stones bunch up.
+      // Stand points are corners, where neighbouring stones can bunch up.
       const nearStop = TRAIL.stops.some((stop) => Math.abs(stop - i * 0.9) < 1);
       if (!nearStop) expect(distance(stones[i], stones[i - 1])).toBeGreaterThan(0.5);
     }
