@@ -122,8 +122,10 @@ function ClimbScene({
           strip of sky above the climber's head, clear of the forest. At the
           summit they cross close in front of the flag pole and wall, so the
           swinging camera never has them brush past the lens. */}
+      {/* Banded on the hop's landing point, not the animal: a hop's apex stays
+          within ~1.8 (head) of the landing, so the flock never meets it. */}
       <Birds
-        followRef={climberPositionRef}
+        followRef={framingRef}
         y={phase === 'summit' ? 2 : 2.6}
         z={phase === 'summit' ? 0.9 : 1.4}
         screenY={0.7}
