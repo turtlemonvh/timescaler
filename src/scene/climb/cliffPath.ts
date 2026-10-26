@@ -161,3 +161,47 @@ export function easeIn(t: number): number {
   const c = Math.max(0, Math.min(1, t));
   return c * c;
 }
+
+export function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function wallNoise(x: number, y: number, seed: number): number {
+  return (
+    Math.sin(x * 1.3 + y * 0.7 + seed) * 0.45 +
+    Math.sin(x * 0.45 - y * 1.15 + seed * 0.3) * 0.35 +
+    Math.sin(x * 2.7 + y * 2.1) * 0.2
+  );
+}
+
+/** Largest per-vertex jitter `CliffWorld` adds on top of `wallSurface` (half of its ±0.35 colour/shape noise). */
+export const WALL_JITTER = 0.5 * 0.175;
+
+/**
+ * The cliff face's z at (x, y): the lean, rock noise (calmer near the route),
+ * the route's groove and the sides receding. `jitter` is the per-vertex
+ * random term the mesh adds; anything placed on the wall without knowing it
+ * (wall pines) is off by at most `WALL_JITTER`. `n` is the noise value, which
+ * also drives the rock colour.
+ */
+export function wallSurface(
+  x: number,
+  y: number,
+  peakId: number,
+  route: readonly Vec3[],
+  jitter = 0,
+): { z: number; n: number } {
+  let nearest = Infinity;
+  for (const point of route) {
+    const d = Math.hypot(point.x - x, point.y - y);
+    if (d < nearest) nearest = d;
+  }
+  const routeDamp = clamp01((nearest - 0.7) / 1.2);
+  const n = wallNoise(x, y, peakId) + jitter;
+  const edgeRecede = Math.abs(x) > 3.3 ? (Math.abs(x) - 3.3) * 0.75 : 0;
+  // A groove follows the route: calmer rock near the ledges, and room for
+  // the rope to run behind the climber instead of through its body.
+  const groove = ROUTE_GROOVE * (1 - routeDamp);
+  const z = wallZ(y) + n * 0.5 * (0.1 + 0.9 * routeDamp) - edgeRecede - groove;
+  return { z, n };
+}

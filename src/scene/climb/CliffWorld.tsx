@@ -10,12 +10,12 @@ import { basePines, wallPines } from './forest';
 import {
   FOREST_FLOOR,
   ROPE_Z,
-  ROUTE_GROOVE,
+  clamp01,
+  wallSurface,
   ledgePoints,
   ledgeSlab,
   summitPlateau,
   summitY,
-  wallZ,
   type Box3Like,
   type LedgeSlab,
   type Vec3,
@@ -33,18 +33,6 @@ const WALL_WIDTH = 10;
 const MAT_THICKNESS = 0.012;
 const WALL_BELOW = 5;
 const WALL_ABOVE = 7;
-
-function noise(x: number, y: number, seed: number): number {
-  return (
-    Math.sin(x * 1.3 + y * 0.7 + seed) * 0.45 +
-    Math.sin(x * 0.45 - y * 1.15 + seed * 0.3) * 0.35 +
-    Math.sin(x * 2.7 + y * 2.1) * 0.2
-  );
-}
-
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
 
 function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
   const top = summitY(height) + WALL_ABOVE;
@@ -66,18 +54,8 @@ function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i);
     const y = positions.getY(i);
-    let nearest = Infinity;
-    for (const point of route) {
-      const d = Math.hypot(point.x - x, point.y - y);
-      if (d < nearest) nearest = d;
-    }
-    const routeDamp = clamp01((nearest - 0.7) / 1.2);
-    const n = noise(x, y, theme.peak.id) + (rng() - 0.5) * 0.35;
-    const edgeRecede = Math.abs(x) > 3.3 ? (Math.abs(x) - 3.3) * 0.75 : 0;
-    // A groove follows the route: calmer rock near the ledges, and room for
-    // the rope to run behind the climber instead of through its body.
-    const groove = ROUTE_GROOVE * (1 - routeDamp);
-    const z = wallZ(y) + n * 0.5 * (0.1 + 0.9 * routeDamp) - edgeRecede - groove;
+    const jitter = (rng() - 0.5) * 0.35;
+    const { z, n } = wallSurface(x, y, theme.peak.id, route, jitter);
     positions.setZ(i, z);
 
     const shade = clamp01(0.5 - n * 0.9) * 0.75;
@@ -295,6 +273,20 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
       </mesh>
       <Pines spots={forest} leaf={theme.tree} leafDark={theme.treeDark} />
       <Pines spots={clingers} leaf={theme.tree} leafDark={theme.treeDark} />
+      {clingers.map(({ shelf }, i) => (
+        // The rock each wall pine's roots grip, so it does not float on the face.
+        <mesh
+          key={i}
+          position={[shelf.x, shelf.y, shelf.z]}
+          rotation={[0, i * 1.7, 0]}
+          scale={[shelf.size, shelf.size * 0.35, shelf.size * 0.8]}
+          castShadow
+          receiveShadow
+        >
+          <dodecahedronGeometry args={[1, 0]} />
+          <meshStandardMaterial color={theme.rock} flatShading roughness={1} />
+        </mesh>
+      ))}
 
       <DistantPeaks theme={theme} />
       <Clouds
