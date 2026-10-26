@@ -224,8 +224,8 @@ export function Trailer() {
           stops={[
             { at: 0, peakId: 4 },
             { at: 0.3, peakId: 6 },
-            { at: 1.8, peakId: 8 },
-            { at: 3.5, peakId: 10 },
+            { at: 1.6, peakId: 8 },
+            { at: 3.2, peakId: 10 },
           ]}
         />
         <Caption>10 peaks · 10 time skills</Caption>

@@ -240,8 +240,8 @@ const SHOTS = {
   },
   'map-sweep': {
     animals: ['alpaca'],
-    // 4→7 and 7→10 are ~2.3 s and ~2.1 s gallops: at 10 by ~4.9 s of 6. The
-    // intro loop (trailer/src/IntroLoop.tsx) plays 3.0-5.0 s: the run to 10.
+    // 4→7 and 7→10 are ~1.9 s dashes: at 7 by ~2.3 s, at 10 by ~4.7 s of 6.
+    // The intro loop (trailer/src/IntroLoop.tsx) plays 3.0-5.0 s: the dash to 10.
     render: () => (
       <MapSweepShot
         start={4}
@@ -256,15 +256,15 @@ const SHOTS = {
   pick: { animals: ['fox', 'deer', 'stag', 'wolf', 'alpaca', 'husky'], render: () => <PickShot /> },
   'map-wide': {
     animals: ['alpaca'],
-    // 4→6, 6→8 and 8→10 are ~1.3, ~1.6 and ~1.5 s gallops: at 10 by ~5.1 s of
+    // 4→6, 6→8 and 8→10 are ~1.2, ~1.5 and ~1.4 s gallops: at 10 by ~4.7 s of
     // 5.5. trailer/src/Trailer.tsx's PeakTag stops follow these times.
     render: () => (
       <MapSweepShot
         start={4}
         stops={[
           { peakId: 6, at: 400 },
-          { peakId: 8, at: 1900 },
-          { peakId: 10, at: 3600 },
+          { peakId: 8, at: 1700 },
+          { peakId: 10, at: 3300 },
         ]}
       />
     ),

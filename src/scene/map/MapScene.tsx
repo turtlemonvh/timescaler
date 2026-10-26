@@ -21,7 +21,7 @@ import {
   type PeakSpot,
 } from './peakLayout';
 import { trailHeadingAt, trailPointAt, trailSamples, trailStop } from './trailPath';
-import { travelPlan } from './travel';
+import { travelPlan, tripProgress } from './travel';
 
 export interface MapSceneProps {
   selectedPeakId: number;
@@ -220,6 +220,8 @@ interface Walk {
   to: number;
   started: number;
   ms: number;
+  /** Speed up from a standstill (false when re-targeted mid-gallop). */
+  rampIn: boolean;
 }
 
 /** Shortest signed difference between two angles, so turning never goes the long way round. */
@@ -277,7 +279,8 @@ function Wanderer({
         // Mid-gallop, keep the clip's rate: changing it restarts the clip.
         const galloping = walkRef.current !== null && pose === 'run';
         const plan = travelPlan(total, animalId, galloping ? timeScale : undefined);
-        walkRef.current = total > 0.05 ? { from, to, started: sceneNow(), ms: plan.ms } : null;
+        walkRef.current =
+          total > 0.05 ? { from, to, started: sceneNow(), ms: plan.ms, rampIn: plan.rampIn } : null;
         if (walkRef.current) {
           setPose(plan.pose);
           setTimeScale(plan.timeScale);
@@ -288,7 +291,7 @@ function Wanderer({
     const walk = walkRef.current;
     if (walk) {
       const t = Math.min(1, (sceneNow() - walk.started) / Math.max(1, walk.ms));
-      alongRef.current = walk.from + (walk.to - walk.from) * t;
+      alongRef.current = walk.from + (walk.to - walk.from) * tripProgress(t, walk.rampIn);
       const heading = trailHeadingAt(alongRef.current);
       facingRef.current = walk.to > walk.from ? heading : heading + Math.PI;
       if (t >= 1) {
@@ -388,6 +391,9 @@ function PanControls({ viewRef }: { viewRef: RefObject<ViewControl> }) {
 
 /** How far ahead of the animal, towards where it's going, the camera aims. */
 const CAMERA_LEAD = 2.5;
+/** Camera follow rate (1/s) at rest, and the most it stiffens to during a dash. */
+const CAMERA_RATE = 3.2;
+const CAMERA_MAX_RATE = 12;
 const desiredCamera = new THREE.Vector3();
 const desiredLook = new THREE.Vector3();
 
@@ -409,6 +415,8 @@ function MapCamera({
   const lookRef = useRef(new THREE.Vector3());
   const firstRef = useRef(true);
   const seenRef = useRef(`${selectedPeakId}:${recenterKey}`);
+  const lastFocusRef = useRef<THREE.Vector3 | null>(null);
+  const rateRef = useRef(CAMERA_RATE);
   useFrame((_, delta) => {
     const view = viewRef.current;
     if (!view) return;
@@ -452,11 +460,19 @@ function MapCamera({
       lookRef.current.copy(desiredLook);
       firstRef.current = false;
     } else {
-      const k = 1 - Math.exp(-delta * 3.2);
+      // Stiffen the follow while the animal dashes, so a fast trip never
+      // outruns the frame; ease back to the gentle glide when it stops.
+      const moved = lastFocusRef.current ? lastFocusRef.current.distanceTo(focus) : 0;
+      const speed = delta > 0 ? moved / delta : 0;
+      const wanted = Math.min(CAMERA_MAX_RATE, CAMERA_RATE + speed * 0.5);
+      rateRef.current += (wanted - rateRef.current) * Math.min(1, delta * 6);
+      const k = 1 - Math.exp(-delta * rateRef.current);
       camera.position.lerp(desiredCamera, k);
       lookRef.current.lerp(desiredLook, k);
     }
     camera.lookAt(lookRef.current);
+    if (lastFocusRef.current) lastFocusRef.current.copy(focus);
+    else lastFocusRef.current = new THREE.Vector3(focus.x, focus.y, focus.z);
   });
   return null;
 }
