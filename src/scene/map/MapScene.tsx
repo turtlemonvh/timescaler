@@ -220,10 +220,13 @@ function Wanderer({
   selectedPeakId,
   animalId,
   reducedMotion,
+  followRef,
 }: {
   selectedPeakId: number;
   animalId: AnimalId;
   reducedMotion: boolean;
+  /** Written every frame with where the animal is, for the camera to follow. */
+  followRef: RefObject<THREE.Vector3 | null>;
 }) {
   const group = useRef<THREE.Group>(null);
   const [pose, setPose] = useState<Pose>('idle');
@@ -279,6 +282,8 @@ function Wanderer({
     }
     const at = trailPointAt(alongRef.current);
     node.position.set(at.x, ISLAND_TOP, at.z);
+    if (followRef.current) followRef.current.copy(node.position);
+    else followRef.current = node.position.clone();
     node.rotation.y += angleDelta(node.rotation.y, facingRef.current) * Math.min(1, delta * 8);
   });
 
@@ -370,11 +375,14 @@ function MapCamera({
   selectedPeakId,
   recenterKey,
   viewRef,
+  followRef,
   reducedMotion,
 }: {
   selectedPeakId: number;
   recenterKey: number;
   viewRef: RefObject<ViewControl>;
+  /** The animal's position (from `Wanderer`); the stand point until it has loaded. */
+  followRef: RefObject<THREE.Vector3 | null>;
   reducedMotion: boolean;
 }) {
   const { camera, size } = useThree();
@@ -394,9 +402,11 @@ function MapCamera({
     }
     const spot = peakSpotFor(selectedPeakId);
     const portrait = size.height > size.width;
-    const stand = standPoint(spot);
-    const cx = stand.x * 0.6 + view.panX;
-    const cz = stand.z + view.panZ;
+    // Follow the animal, not the destination: on a long trip the camera
+    // travels with it along the trail instead of leaving it off-screen.
+    const focus = followRef.current ?? standPoint(spot);
+    const cx = focus.x * 0.6 + view.panX;
+    const cz = focus.z + view.panZ;
     const height = (portrait ? 11 : 8.5) * view.zoom;
     const back = (portrait ? 13 : 11) * view.zoom;
     desiredCamera.set(cx, ISLAND_TOP + height, cz + back);
@@ -430,6 +440,7 @@ function MapScene({
 }: MapSceneProps) {
   const pines = useMemo(() => islandPines(ISLAND_TOP), []);
   const viewRef = useRef<ViewControl>({ panX: 0, panZ: 0, zoom: 1 });
+  const followRef = useRef<THREE.Vector3 | null>(null);
   if (!hasWebGL()) {
     return (
       <div
@@ -507,6 +518,7 @@ function MapScene({
           selectedPeakId={selectedPeakId}
           animalId={animalId}
           reducedMotion={reducedMotion}
+          followRef={followRef}
         />
       </Suspense>
       <PanControls viewRef={viewRef} />
@@ -514,6 +526,7 @@ function MapScene({
         selectedPeakId={selectedPeakId}
         recenterKey={recenterKey}
         viewRef={viewRef}
+        followRef={followRef}
         reducedMotion={reducedMotion}
       />
     </Canvas>
