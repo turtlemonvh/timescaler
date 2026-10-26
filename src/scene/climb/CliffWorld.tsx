@@ -29,6 +29,8 @@ export interface CliffWorldProps {
 }
 
 const WALL_WIDTH = 10;
+/** The highlighted ledge's mat. */
+const MAT_THICKNESS = 0.012;
 const WALL_BELOW = 5;
 const WALL_ABOVE = 7;
 
@@ -103,11 +105,14 @@ function Ledge({
   slab,
   active,
   snowy,
+  summit,
   theme,
 }: {
   slab: LedgeSlab;
   active: boolean;
   snowy: boolean;
+  /** The summit stands on the plateau: no slab of its own, or the two top faces z-fight. */
+  summit: boolean;
   theme: PeakTheme;
 }) {
   const { center, width, depth, thickness, yaw } = slab;
@@ -116,24 +121,40 @@ function Ledge({
   // climber's head goes on the hop up to it.
   return (
     <group position={[center.x, center.y, center.z]} rotation={[0, yaw, 0]}>
-      <mesh castShadow receiveShadow scale={[width, thickness, depth]}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial
-          color={active ? theme.rock : theme.rockDark}
-          flatShading
-          roughness={1}
-        />
-      </mesh>
-      {snowy && !active && (
+      {!summit && (
+        <mesh castShadow receiveShadow scale={[width, thickness, depth]}>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial
+            color={active ? theme.rock : theme.rockDark}
+            flatShading
+            roughness={1}
+          />
+        </mesh>
+      )}
+      {snowy && !active && !summit && (
         <mesh position={[0, thickness / 2 + 0.01, 0]} scale={[width * 0.95, 0.06, depth * 0.9]}>
           <boxGeometry args={[1, 1, 1]} />
           <meshStandardMaterial color={theme.snow} flatShading roughness={1} />
         </mesh>
       )}
       {active && (
-        <mesh position={[0, thickness / 2 + 0.01, 0]} scale={[width * 0.98, 0.03, depth * 0.94]}>
+        // A thin decal just above the standing surface (slab or plateau):
+        // hooves stand on it, not in it, and it never shares a plane.
+        <mesh
+          position={[0, thickness / 2 + MAT_THICKNESS / 2 + 0.002, 0]}
+          scale={[width * 0.98, MAT_THICKNESS, depth * 0.94]}
+          renderOrder={1}
+        >
           <boxGeometry args={[1, 1, 1]} />
-          <meshBasicMaterial color={theme.flag} transparent opacity={0.6} />
+          <meshBasicMaterial
+            color={theme.flag}
+            transparent
+            opacity={0.6}
+            depthWrite={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
+          />
         </mesh>
       )}
     </group>
@@ -254,6 +275,7 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
           slab={slab}
           active={i === position}
           snowy={route[i].y > top - 3.5}
+          summit={i === height}
           theme={theme}
         />
       ))}
