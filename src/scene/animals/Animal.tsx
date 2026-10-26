@@ -17,6 +17,10 @@ export interface AnimalProps {
   fitMs?: number;
   /** Playback speed when `fitMs` is not given. */
   timeScale?: number;
+  /** Freeze the clip at this fraction of its length instead of playing it. */
+  hold?: number;
+  /** Start the clip at this fraction of its length. */
+  startAt?: number;
   onPoseFinished?: (pose: Pose) => void;
   /** Multiplies the roster's normalized height. */
   scale?: number;
@@ -34,6 +38,8 @@ export default function Animal({
   poseKey = 0,
   fitMs,
   timeScale = 1,
+  hold,
+  startAt,
   onPoseFinished,
   scale = 1,
 }: AnimalProps) {
@@ -75,17 +81,18 @@ export default function Animal({
     const action = clipName ? actions[clipName] : undefined;
     if (!action) return;
     const once = ONE_SHOT_POSES.has(pose) || HOLD_LAST_FRAME_POSES.has(pose);
-    configureAction(action, { once, fitMs, timeScale });
+    configureAction(action, { once, fitMs, timeScale, hold, startAt });
+    // `isScheduled`, not `isRunning`: a held or clamped clip is paused, so it
+    // is not "running", but it is still blended in at full weight.
     for (const other of Object.values(actions)) {
-      if (other && other !== action && other.isRunning()) other.fadeOut(0.15);
+      if (other && other !== action && other.isScheduled()) other.fadeOut(0.15);
     }
-    action.fadeIn(0.12).play();
     const onFinished = (event: { action: THREE.AnimationAction }) => {
       if (event.action === action) finishedRef.current?.(pose);
     };
     mixer.addEventListener('finished', onFinished);
     return () => mixer.removeEventListener('finished', onFinished);
-  }, [pose, poseKey, fitMs, timeScale, actions, mixer, names]);
+  }, [pose, poseKey, fitMs, timeScale, hold, startAt, actions, mixer, names]);
 
   return (
     <group ref={groupRef}>
