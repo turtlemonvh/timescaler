@@ -205,3 +205,39 @@ export function wallSurface(
   const z = wallZ(y) + n * 0.5 * (0.1 + 0.9 * routeDamp) - edgeRecede - groove;
   return { z, n };
 }
+
+/** Rope tube radius. */
+export const ROPE_RADIUS = 0.045;
+
+/**
+ * The rope between ledge `index` and the next, as points along a sagging
+ * curve at `ROPE_Z`, pushed out wherever the rock bulges in front of it.
+ * The route's groove is cut around the ledges, not along the whole route,
+ * so halfway between two ledges the (less grooved, noisier) face can stand
+ * proud of `ROPE_Z` and would swallow the middle of a straight rope —
+ * which read as a broken rope with a gap. Pure, so the clearance is tested.
+ */
+export function ropePoints(
+  index: number,
+  peakId: number,
+  route: readonly Vec3[],
+  samples = 14,
+): Vec3[] {
+  const a = route[index];
+  const b = route[index + 1];
+  const dir = Math.sign(b.x - a.x) || 1;
+  const reach = Math.abs(b.x - a.x) < 1.2 ? 0.3 : 0.6;
+  const start = { x: a.x + dir * reach, y: a.y + 0.02, z: a.z + ROPE_Z };
+  const end = { x: b.x - dir * reach, y: b.y - 0.08, z: b.z + ROPE_Z };
+  const clearance = WALL_JITTER + ROPE_RADIUS + 0.03;
+  return Array.from({ length: samples + 1 }, (_, i) => {
+    const t = i / samples;
+    // Quadratic sag: the control point hangs 0.3 below the chord's midpoint.
+    const sag = 2 * t * (1 - t) * -0.3;
+    const x = start.x + (end.x - start.x) * t;
+    const y = start.y + (end.y - start.y) * t + sag;
+    const ideal = start.z + (end.z - start.z) * t;
+    const surface = wallSurface(x, y, peakId, route).z;
+    return { x, y, z: Math.max(ideal, surface + clearance) };
+  });
+}

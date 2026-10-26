@@ -9,11 +9,12 @@ import Pines from '../world/Pines';
 import { basePines, wallPines } from './forest';
 import {
   FOREST_FLOOR,
-  ROPE_Z,
+  ROPE_RADIUS,
   clamp01,
   wallSurface,
   ledgePoints,
   ledgeSlab,
+  ropePoints,
   summitPlateau,
   summitY,
   type Box3Like,
@@ -142,23 +143,16 @@ function Ledge({
 /** Rope segments slung between consecutive ledges, over the back edge of
  * each slab: behind a standing climber's body, and well behind the flight
  * paths (which leap out from the wall). */
-function Rope({ route, color }: { route: Vec3[]; color: string }) {
+function Rope({ route, color, peakId }: { route: Vec3[]; color: string; peakId: number }) {
   const geometry = useMemo(() => {
     const pieces: THREE.BufferGeometry[] = [];
     for (let i = 0; i < route.length - 1; i++) {
-      const a = route[i];
-      const b = route[i + 1];
-      const dir = Math.sign(b.x - a.x) || 1;
-      const reach = Math.abs(b.x - a.x) < 1.2 ? 0.3 : 0.6;
-      const start = new THREE.Vector3(a.x + dir * reach, a.y + 0.02, a.z + ROPE_Z);
-      const end = new THREE.Vector3(b.x - dir * reach, b.y - 0.08, b.z + ROPE_Z);
-      const mid = start.clone().lerp(end, 0.5);
-      mid.y -= 0.3;
-      const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
-      pieces.push(new THREE.TubeGeometry(curve, 8, 0.045, 5, false));
+      const points = ropePoints(i, peakId, route).map((p) => new THREE.Vector3(p.x, p.y, p.z));
+      const curve = new THREE.CatmullRomCurve3(points);
+      pieces.push(new THREE.TubeGeometry(curve, 16, ROPE_RADIUS, 5, false));
     }
     return mergeGeometries(pieces) ?? new THREE.BufferGeometry();
-  }, [route]);
+  }, [route, peakId]);
   return (
     <mesh geometry={geometry}>
       <meshStandardMaterial color={color} roughness={0.9} />
@@ -246,7 +240,7 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
         <meshStandardMaterial vertexColors flatShading roughness={1} />
       </mesh>
 
-      <Rope route={route} color={theme.flag} />
+      <Rope route={route} color={theme.flag} peakId={theme.peak.id} />
       {slabs.map((slab, i) => (
         <Ledge
           key={i}
