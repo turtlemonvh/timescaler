@@ -20,36 +20,52 @@ export const GALLOP_SPEED: Readonly<Record<AnimalId, number>> = {
 const WALK_SPEED = 0.7;
 /** A trip shorter than this walks instead of galloping. */
 const WALK_BELOW = 0.8;
-/** One leg between neighbouring peaks (~4-6 u) should take about this long. */
+/** One leg between neighbouring peaks (~3-5 u) should take about this long. */
 const LEG_SECONDS = 1.2;
-/** Clip playback stays within this band of 1×, so the gait still looks like a gait. */
+/** No trip takes longer than this, however far: a kid tapped a mountain and is waiting. */
+export const MAX_TRIP_SECONDS = 4;
+/** Clip playback stays within this band of 1×, so the gait still looks like a gait… */
 const MIN_TIME_SCALE = 1.0;
 const MAX_TIME_SCALE = 1.9;
+/** …except on a cross-island dash, which may hurry the clip this far (and, beyond
+ * it, accept a little skating rather than a longer wait). */
+export const MAX_DASH_TIME_SCALE = 2.6;
+/** Even the slowest gallop (the alpaca's) may cover a leg at this speed, so no
+ * animal is much slower to get about than the others. */
+const MIN_TOP_SPEED = 5.5;
 
 export interface TravelPlan {
   pose: Pose;
   /** Ground speed, units per second. */
   speed: number;
   ms: number;
-  /** Clip playback rate that matches `speed`, so the feet plant. */
+  /** Clip playback rate that matches `speed` (up to MAX_DASH_TIME_SCALE), so the feet plant. */
   timeScale: number;
 }
 
 /**
  * How the animal covers `distance` units of trail: a gallop whose playback
- * rate always matches its ground speed. Short hops take about a second;
- * crossing the whole island takes longer rather than skating.
+ * rate matches its ground speed. Short hops take about a second; a long trip
+ * is capped at MAX_TRIP_SECONDS by galloping faster.
+
  */
 export function travelPlan(distance: number, animalId: AnimalId): TravelPlan {
+  const gallop = GALLOP_SPEED[animalId];
+  const capped = distance / MAX_TRIP_SECONDS;
   if (distance < WALK_BELOW) {
     const timeScale = 1.6;
     const speed = WALK_SPEED * timeScale;
     return { pose: 'walk', speed, ms: (distance / speed) * 1000, timeScale };
   }
-  const gallop = GALLOP_SPEED[animalId];
-  const speed = Math.min(
-    gallop * MAX_TIME_SCALE,
-    Math.max(gallop * MIN_TIME_SCALE, distance / LEG_SECONDS),
+  const top = Math.max(gallop * MAX_TIME_SCALE, MIN_TOP_SPEED);
+  const speed = Math.max(
+    capped,
+    Math.min(top, Math.max(gallop * MIN_TIME_SCALE, distance / LEG_SECONDS)),
   );
-  return { pose: 'run', speed, ms: (distance / speed) * 1000, timeScale: speed / gallop };
+  return {
+    pose: 'run',
+    speed,
+    ms: (distance / speed) * 1000,
+    timeScale: Math.min(MAX_DASH_TIME_SCALE, speed / gallop),
+  };
 }
