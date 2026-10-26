@@ -178,16 +178,18 @@ export default function Climber({
     if (segment.squashOnLand) squashRef.current = 1;
     if (segment.dustOnLand) {
       const big = current.kind === 'fall';
+      // Small rock-coloured grit thrown off the front lip, falling fast:
+      // big white cubes resting on the slab read as sugar cubes.
       particlesRef.current?.burst({
         x: segment.to.x,
         y: segment.to.y + 0.05,
-        z: segment.to.z + 0.3,
+        z: segment.to.z + (big ? 0.3 : 0.5),
         count: segment.dustCount ?? (big ? 40 : current.kind === 'slip' ? 16 : 10),
-        colors: [theme.rockDark, theme.rock, theme.snow],
+        colors: big ? [theme.ground, theme.rockDark] : [theme.rockDark, theme.rock],
         speed: big ? 3.2 : 1.3,
-        gravity: 6,
-        life: big ? 1.1 : 0.6,
-        size: big ? 0.18 : 0.1,
+        gravity: big ? 6 : 9,
+        life: big ? 1.1 : 0.55,
+        size: big ? 0.14 : 0.07,
         up: 0.6,
       });
       if (big) shakeRef.current = 1;
