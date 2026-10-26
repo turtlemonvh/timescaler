@@ -92,7 +92,7 @@ export default function CameraRig({
       // From up and to the left, looking down at the animal on the forest
       // floor: the wall behind it, the big forest pines on the right pushed
       // back into the distance instead of filling the lens.
-      desired.set(anchor.x - 2.4, anchor.y + 2.6, anchor.z + (portrait ? 8.6 : 6.6));
+      desired.set(anchor.x - 1.4, anchor.y + 3.2, anchor.z + (portrait ? 8.8 : 7.0));
     } else {
       const distance = portrait ? 9.5 : slotDistance(7.2, framing.safe, aspect, tanHalf);
       desired.set(anchor.x, anchor.y + distance * (portrait ? 0.21 : 0.125), anchor.z + distance);
