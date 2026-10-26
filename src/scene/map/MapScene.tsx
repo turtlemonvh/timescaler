@@ -251,6 +251,12 @@ function Wanderer({
   const atRef = useRef(selectedPeakId);
   const facingRef = useRef(0.35);
   const seenRef = useRef(selectedPeakId);
+  // Mount-only: a fresh Vector3 every render would make react-three-fiber
+  // re-apply `position` and snap the animal onto the new peak before the walk
+  // below ever starts. A stable array is applied once and then left alone.
+  const [initialPosition] = useState(
+    () => standPoint(peakSpotFor(selectedPeakId)).toArray() as [number, number, number],
+  );
 
   useFrame((_, rawDelta) => {
     const node = group.current;
@@ -311,7 +317,7 @@ function Wanderer({
   });
 
   return (
-    <group ref={group} position={standPoint(peakSpotFor(selectedPeakId))}>
+    <group ref={group} position={initialPosition}>
       <Animal id={animalId} pose={pose} scale={0.9} />
     </group>
   );
