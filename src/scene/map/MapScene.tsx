@@ -71,10 +71,16 @@ function Mountain({
   const [hovered, setHovered] = useState(false);
   useCursor(hovered);
   const ring = useRef<THREE.Mesh>(null);
+  const rock = useRef<THREE.MeshStandardMaterial>(null);
   useFrame(({ clock }) => {
     if (ring.current) {
       const s = 1 + Math.sin(clock.elapsedTime * 3) * 0.06;
       ring.current.scale.set(s, s, s);
+    }
+    // The selected mountain glows gently, so the selection reads even where
+    // the ring at its foot is behind another cone.
+    if (rock.current) {
+      rock.current.emissiveIntensity = selected ? 0.07 + Math.sin(clock.elapsedTime * 3) * 0.04 : 0;
     }
   });
   return (
@@ -92,7 +98,10 @@ function Mountain({
       >
         <coneGeometry args={[spot.radius, spot.height, 7]} />
         <meshStandardMaterial
+          ref={rock}
           color={hovered || selected ? theme.rock : theme.rockDark}
+          emissive={theme.flag}
+          emissiveIntensity={0}
           flatShading
         />
       </mesh>
@@ -374,6 +383,8 @@ function PanControls({ viewRef }: { viewRef: RefObject<ViewControl> }) {
   return null;
 }
 
+/** How far ahead of the animal, towards where it's going, the camera aims. */
+const CAMERA_LEAD = 2.5;
 const desiredCamera = new THREE.Vector3();
 const desiredLook = new THREE.Vector3();
 
@@ -410,13 +421,23 @@ function MapCamera({
     const portrait = size.height > size.width;
     // Follow the animal, not the destination: on a long trip the camera
     // travels with it along the trail instead of leaving it off-screen.
-    const focus = followRef.current ?? standPoint(spot);
-    const cx = focus.x * 0.6 + view.panX;
-    const cz = focus.z + view.panZ;
-    const height = (portrait ? 11 : 8.5) * view.zoom;
-    const back = (portrait ? 13 : 11) * view.zoom;
+    // It leads a little towards the destination, so the peak being walked to
+    // comes into view before the animal gets there.
+    const stand = standPoint(spot);
+    const focus = followRef.current ?? stand;
+    const lead = Math.hypot(stand.x - focus.x, stand.z - focus.z);
+    const k = lead > 0 ? Math.min(1, CAMERA_LEAD / lead) : 0;
+    // Wide screens keep the island's middle in view; a narrow portrait frame
+    // has no room for that and must centre on the animal or lose it.
+    const cx = (focus.x + (stand.x - focus.x) * k) * (portrait ? 0.9 : 0.6) + view.panX;
+    const cz = focus.z + (stand.z - focus.z) * k + view.panZ;
+    // About 52° down (wide) / 57° (portrait): steep enough that a mountain
+    // doesn't hide the foot of the one behind it, and the look point rides
+    // up with tall peaks so their badge stays in frame.
+    const height = (portrait ? 16.5 : 11.5) * view.zoom;
+    const back = (portrait ? 10.5 : 9) * view.zoom;
     desiredCamera.set(cx, ISLAND_TOP + height, cz + back);
-    desiredLook.set(cx, ISLAND_TOP + spot.height * 0.35, cz - 2.5);
+    desiredLook.set(cx, ISLAND_TOP + spot.height * (portrait ? 0.6 : 0.55), cz - 2.5);
     if (firstRef.current || reducedMotion) {
       camera.position.copy(desiredCamera);
       lookRef.current.copy(desiredLook);
