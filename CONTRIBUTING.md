@@ -6,6 +6,9 @@
 2. `pnpm install`
 3. `pnpm dev`
 
+To try a dev server from a phone on your Tailscale tailnet, run `pnpm dev --host` and open
+`http://<machine>.<tailnet>.ts.net:5173`. `vite.config.ts` allows `*.ts.net` hosts for this.
+
 ## Debug pages
 
 `pnpm dev` also serves a few dev-only pages, gated behind `import.meta.env.DEV` and tree-shaken out
