@@ -54,6 +54,16 @@ function ClimbScene({
   reducedMotion = false,
 }: ClimbSceneProps) {
   const theme = useMemo(() => peakTheme(peakId), [peakId]);
+  // Birds read as distant wildlife, not black cut-outs: a dark brown pulled
+  // towards the sky haze, more so on the low-sun peaks where near-black
+  // would be a silhouette blob against the rock.
+  const birdColor = useMemo(
+    () =>
+      `#${new THREE.Color('#3b3029')
+        .lerp(new THREE.Color(theme.fog), 0.3 + 0.4 * (1 - theme.daylight))
+        .getHexString()}`,
+    [theme],
+  );
   const particlesRef = useRef<ParticleApi | null>(null);
   const start = ledgePoint(position, peakId);
   const climberPositionRef = useRef(new THREE.Vector3(start.x, start.y, start.z));
@@ -120,19 +130,20 @@ function ClimbScene({
       <CliffWorld theme={theme} height={height} position={position} />
       {/* In front of the wall (which is solid down to its edge) and in the
           strip of sky above the climber's head, clear of the forest. At the
-          summit they cross close in front of the flag pole and wall, so the
+          summit they cross around the flag's top (+2.35), small and hazy, close to the wall, so the
           swinging camera never has them brush past the lens. */}
       {/* Banded on the hop's landing point, not the animal: a hop's apex stays
           within ~1.8 (head) of the landing, so the flock never meets it. */}
       <Birds
         followRef={framingRef}
-        y={phase === 'summit' ? 2 : 2.6}
+        y={phase === 'summit' ? 2.5 : 3.5}
         z={phase === 'summit' ? 0.9 : 1.4}
         screenY={0.7}
         span={7}
-        minY={phase === 'summit' ? summitY(height) + 2 : FOREST_FLOOR + 5}
-        maxY={summitY(height) + 3.4}
-        scale={phase === 'summit' ? 1.1 : 1.4}
+        minY={phase === 'summit' ? summitY(height) + 2.5 : FOREST_FLOOR + 5}
+        maxY={summitY(height) + 4}
+        scale={phase === 'summit' ? 0.7 : 0.9}
+        color={birdColor}
       />
       <Weather
         kind={reducedMotion ? 'none' : theme.weather}
