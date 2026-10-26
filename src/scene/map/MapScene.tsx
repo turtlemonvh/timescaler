@@ -77,10 +77,11 @@ function Mountain({
       const s = 1 + Math.sin(clock.elapsedTime * 3) * 0.06;
       ring.current.scale.set(s, s, s);
     }
-    // The selected mountain glows gently, so the selection reads even where
-    // the ring at its foot is behind another cone.
+    // The selected mountain glows gently in its own colour, so the selection
+    // reads even where the ring at its foot is behind another cone, without
+    // tinting it (a saturated flag colour turned peak 10 magenta).
     if (rock.current) {
-      rock.current.emissiveIntensity = selected ? 0.07 + Math.sin(clock.elapsedTime * 3) * 0.04 : 0;
+      rock.current.emissiveIntensity = selected ? 0.16 + Math.sin(clock.elapsedTime * 3) * 0.08 : 0;
     }
   });
   return (
@@ -100,7 +101,7 @@ function Mountain({
         <meshStandardMaterial
           ref={rock}
           color={hovered || selected ? theme.rock : theme.rockDark}
-          emissive={theme.flag}
+          emissive={theme.rock}
           emissiveIntensity={0}
           flatShading
         />
