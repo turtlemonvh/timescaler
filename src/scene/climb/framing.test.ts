@@ -119,6 +119,7 @@ describe('climbFollow', () => {
     // track * lerp(climber, landing, lead), put on `homeX`. Project the guard's
     // box (half-width, at the climber's depth) through a camera that sits on
     // that point at `distance` and check it stays inside the safe area.
+    const failures: string[] = [];
     for (const [w, h] of [
       [720, 720],
       [800, 760],
@@ -149,12 +150,16 @@ describe('climbFollow', () => {
               const unit = depth * TAN_HALF * aspect;
               const minX = homeX + (p.x - half - anchorX) / unit;
               const maxX = homeX + (p.x + half - anchorX) / unit;
-              expect(minX).toBeGreaterThan(safe.minX - 0.02);
-              expect(maxX).toBeLessThan(safe.maxX + 0.02);
+              if (minX < safe.minX - 0.02 || maxX > safe.maxX + 0.02) {
+                failures.push(
+                  `${w}x${h} ${animal.id} peak ${peak.id} hop ${i} t=${raw.toFixed(2)}`,
+                );
+              }
             }
           }
         }
       }
     }
+    expect(failures).toEqual([]);
   });
 });
