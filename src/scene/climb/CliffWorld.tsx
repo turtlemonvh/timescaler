@@ -59,19 +59,26 @@ function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
   const scratch = new THREE.Color();
   const snowLine = summitY(height) - 2.5;
 
+  const rowStep = (top - WALL_BOTTOM) / rows;
   for (let row = 0; row <= rows; row++) {
-    const y = WALL_BOTTOM + (top - WALL_BOTTOM) * (row / rows);
-    const { minX, maxX } = wallOutline(y, height, peakId);
+    const rowY = WALL_BOTTOM + rowStep * row;
+    const { minX, maxX } = wallOutline(rowY, height, peakId);
+    const colStep = (maxX - minX) / COLUMNS;
     for (let col = 0; col <= COLUMNS; col++) {
       const i = row * (COLUMNS + 1) + col;
-      const x = minX + (maxX - minX) * (col / COLUMNS);
+      // Interior vertices wander within their cell, so the rows don't read
+      // as terraces where the peak's narrowing rows fan out; the outline's
+      // own vertices stay on it.
+      const inner = row > 0 && row < rows && col > 0 && col < COLUMNS;
+      const x = minX + colStep * col + (inner ? (rng() - 0.5) * 0.6 * colStep : 0);
+      const y = rowY + (inner ? (rng() - 0.5) * 0.7 * rowStep : 0);
       const jitter = (rng() - 0.5) * 0.35;
       const { z, n } = wallSurface(x, y, peakId, route, jitter);
       positions[i * 3] = x;
       positions[i * 3 + 1] = y;
       positions[i * 3 + 2] = z;
 
-      const shade = clamp01(0.5 - n * 0.9) * 0.75;
+      const shade = clamp01(0.5 - n * 0.9 + (rng() - 0.5) * 0.2) * 0.75;
       scratch.copy(rock).lerp(dark, shade);
       const snowT = clamp01((y - snowLine) / 3) * (n > -0.25 ? 1 : 0.35);
       scratch.lerp(snow, snowT);

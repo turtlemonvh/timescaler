@@ -211,7 +211,7 @@ export const WALL_BOTTOM = -5;
 /** How far the cliff's peak rises above the summit plateau, just behind it. */
 export const PEAK_RISE = 3.2;
 /** Mean half-width of the face below the peak; buttresses push it in and out around this. */
-const WALL_HALF = 6.6;
+const WALL_HALF = 5.25;
 /**
  * Nearest z of the backdrop behind the cliff: the clouds' range starts
  * here and the distant ranges' bases reach about this far forward. The
@@ -231,8 +231,8 @@ function ridgeReach(drop: number): number {
 function buttressEdge(y: number, peakId: number, side: 1 | -1): number {
   return (
     WALL_HALF +
-    Math.sin(y * 0.37 + peakId * 1.3 + side) * 0.7 +
-    Math.sin(y * 0.83 + peakId * 0.7 + 2 * side) * 0.45
+    Math.sin(y * 0.37 + peakId * 1.3 + side) * 0.35 +
+    Math.sin(y * 0.83 + peakId * 0.7 + 2 * side) * 0.2
   );
 }
 

@@ -135,17 +135,17 @@ describe('cliff silhouette', () => {
       expect(width(wallPeakY(peak.height))).toBe(0);
       // Sloping shoulders where the summit swing looks: no vertical edge.
       expect(width(summit.y + 2)).toBeLessThan(width(summit.y) - 2);
-      expect(width(summit.y)).toBeLessThan(width(summit.y - 3) - 2);
+      expect(width(summit.y)).toBeLessThan(width(summit.y - 3) - 1.2);
       // Below that, about the old ribbon's width, but never a straight edge.
       const edges: number[] = [];
       for (let y = 0; y < summit.y - 8; y += 0.5) {
         const { minX, maxX } = wallOutline(y, peak.height, peak.id);
-        expect(minX).toBeLessThan(-5);
-        expect(maxX).toBeGreaterThan(5);
-        expect(maxX).toBeLessThan(8);
+        expect(minX).toBeLessThan(-4.6);
+        expect(maxX).toBeGreaterThan(4.6);
+        expect(maxX).toBeLessThan(6);
         edges.push(maxX);
       }
-      expect(Math.max(...edges) - Math.min(...edges)).toBeGreaterThan(1.5);
+      expect(Math.max(...edges) - Math.min(...edges)).toBeGreaterThan(0.7);
     }
   });
 
