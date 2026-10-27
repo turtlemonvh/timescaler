@@ -16,7 +16,7 @@ and dances on the summit flag when you make it. The live site may lag the `main`
 
 **Trailer** (30 seconds, with sound):
 
-https://github.com/user-attachments/assets/d0423b43-cade-4d29-bbb4-f33eb37809d0
+https://github.com/user-attachments/assets/2b1e29cc-4860-498d-930f-b6f8260b5e49
 
 The GIF, the trailer and the intro screen's video are all filmed from the real game; see
 [`trailer/`](./trailer/README.md) to re-shoot them after the scenes change.
