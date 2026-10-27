@@ -15,6 +15,7 @@ import {
 import {
   AIR_TURN_RATE,
   buildFlight,
+  clipPhase,
   flightPoint,
   flightBody,
   tumbleAngles,
@@ -105,7 +106,7 @@ function deathX(env: BodyEnvelope, raw: number): readonly [number, number] {
 
 function poseY(env: BodyEnvelope, segment: FlightSegment, raw: number): [number, number] {
   if (segment.pose === 'jump') {
-    const phase = segment.hold ?? raw;
+    const phase = clipPhase(segment, raw);
     return envelopeAt(env.jump, phase - 0.06, phase + 0.06);
   }
   if (segment.pose === 'land') return envelopeAt(env.land, segment.startAt ?? 0, 1);
@@ -305,6 +306,22 @@ describe('flight clearance', () => {
     expect(mid.z - BODY_ENVELOPES.fox.x[1]).toBeGreaterThan(front);
     expect(flightPoint(segment, 0)).toEqual(ledgePoint(3, 1));
     expect(flightPoint(segment, 1)).toEqual(ledgePoint(4, 1));
+  });
+
+  it('plays one continuous jump clip through a slip: no pose pops between segments', () => {
+    for (const animal of ANIMALS) {
+      const body = flightBody(animal.id);
+      const [leap, hang, drop] = buildFlight(move('slip', 3, 2, 1), 3, body);
+      // Independent of clipPhase: the leap's clip runs at (clip length)/clipMs,
+      // so after the leap's ms it is leap.ms / clipMs of the way through.
+      expect(leap.ms / (leap.clipMs ?? leap.ms)).toBeCloseTo(body.reach);
+      expect(clipPhase(leap, 1)).toBeCloseTo(body.reach);
+      expect(clipPhase(hang, 0)).toBe(body.reach);
+      expect(clipPhase(hang, 1)).toBe(body.reach);
+      expect(clipPhase(drop, 0)).toBeCloseTo(body.reach);
+      expect(clipPhase(drop, 1)).toBe(1);
+      expect([leap.pose, hang.pose, drop.pose]).toEqual(['jump', 'jump', 'jump']);
+    }
   });
 
   it('lands a fall on the forest floor', () => {
