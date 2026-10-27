@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { PEAKS } from '../../engine/peaks';
 import {
+  BACKDROP_Z,
   LEDGE_DY,
   ROPE_RADIUS,
   ROUTE_AMPLITUDE,
+  WALL_BOTTOM,
   WALL_JITTER,
   arcPoint,
   easeIn,
@@ -14,8 +16,11 @@ import {
   ropePoints,
   summitY,
   wallSurface,
+  wallOutline,
+  wallPeakY,
   wallZ,
 } from './cliffPath';
+import { wallPines } from './forest';
 
 describe('cliffPath', () => {
   it('starts at the origin and climbs one LEDGE_DY per position on the wall surface', () => {
@@ -93,5 +98,68 @@ describe('ropePoints', () => {
     const points = ropePoints(0, peak.id, route);
     expect(points[0].z).toBeLessThan(route[0].z - 0.3);
     expect(points[points.length - 1].z).toBeLessThan(route[1].z - 0.3);
+  });
+});
+
+describe('cliff silhouette', () => {
+  it('spans every ledge and the climber standing on it, the summit too', () => {
+    for (const peak of PEAKS) {
+      for (const p of ledgePoints(peak.height, peak.id)) {
+        // The tallest animal mid-clip is 1.84 tall and 2.3 long side-on.
+        for (const y of [p.y, p.y + 1.9]) {
+          const { minX, maxX } = wallOutline(y, peak.height, peak.id);
+          expect(minX).toBeLessThan(p.x - 1.2);
+          expect(maxX).toBeGreaterThan(p.x + 1.2);
+        }
+      }
+    }
+  });
+
+  it('grows every wall pine on rock, not out of the sky', () => {
+    for (const peak of PEAKS) {
+      for (const pine of wallPines(peak.height, peak.id)) {
+        const { minX, maxX } = wallOutline(pine.y + 0.5, peak.height, peak.id);
+        expect(pine.x - pine.shelf.size).toBeGreaterThan(minX);
+        expect(pine.x + pine.shelf.size).toBeLessThan(maxX);
+      }
+    }
+  });
+
+  it('tapers to a peak behind the summit, with buttressed, wandering sides below', () => {
+    for (const peak of PEAKS) {
+      const summit = ledgePoint(peak.height, peak.id);
+      const width = (y: number) => {
+        const { minX, maxX } = wallOutline(y, peak.height, peak.id);
+        return maxX - minX;
+      };
+      expect(width(wallPeakY(peak.height))).toBe(0);
+      // Sloping shoulders where the summit swing looks: no vertical edge.
+      expect(width(summit.y + 2)).toBeLessThan(width(summit.y) - 2);
+      expect(width(summit.y)).toBeLessThan(width(summit.y - 3) - 2);
+      // Below that, about the old ribbon's width, but never a straight edge.
+      const edges: number[] = [];
+      for (let y = 0; y < summit.y - 8; y += 0.5) {
+        const { minX, maxX } = wallOutline(y, peak.height, peak.id);
+        expect(minX).toBeLessThan(-5);
+        expect(maxX).toBeGreaterThan(5);
+        expect(maxX).toBeLessThan(8);
+        edges.push(maxX);
+      }
+      expect(Math.max(...edges) - Math.min(...edges)).toBeGreaterThan(1.5);
+    }
+  });
+
+  it('keeps every part of the cliff well in front of the clouds and distant ranges', () => {
+    // A cloud's puffs reach up to ~3 units in front of its centre.
+    for (const peak of PEAKS) {
+      const route = ledgePoints(peak.height, peak.id);
+      for (let y = WALL_BOTTOM; y <= wallPeakY(peak.height); y += 1) {
+        const { minX, maxX } = wallOutline(y, peak.height, peak.id);
+        for (let x = minX; x <= maxX; x += 0.5) {
+          const z = wallSurface(x, y, peak.id, route).z - WALL_JITTER;
+          expect(z).toBeGreaterThan(BACKDROP_Z + 3.2);
+        }
+      }
+    }
   });
 });

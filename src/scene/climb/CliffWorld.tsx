@@ -8,9 +8,13 @@ import Clouds from '../world/Clouds';
 import Pines from '../world/Pines';
 import { basePines, wallPines } from './forest';
 import {
+  BACKDROP_Z,
   FOREST_FLOOR,
   ROPE_RADIUS,
+  WALL_BOTTOM,
   clamp01,
+  wallOutline,
+  wallPeakY,
   wallSurface,
   ledgePoints,
   ledgeSlab,
@@ -29,45 +33,67 @@ export interface CliffWorldProps {
   position: number;
 }
 
-const WALL_WIDTH = 10;
+/** Columns across each row of the face: ~0.3 units apart where it is widest. */
+const COLUMNS = 44;
 /** The highlighted ledge's mat. */
 const MAT_THICKNESS = 0.012;
-const WALL_BELOW = 5;
-const WALL_ABOVE = 7;
 
+/**
+ * The cliff: a grid whose rows each span the outline at their height
+ * (`wallOutline`), so the face tapers to a peak behind the summit between
+ * buttressed edges, instead of being a flat-topped ribbon with ruler-straight
+ * sides. About as many vertices as the old ribbon; still one draw.
+ */
 function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
-  const top = summitY(height) + WALL_ABOVE;
-  const bottom = -WALL_BELOW;
-  const segX = 36;
-  const segY = Math.ceil((top - bottom) * 2.2);
-  const geometry = new THREE.PlaneGeometry(WALL_WIDTH, top - bottom, segX, segY);
-  geometry.translate(0, (top + bottom) / 2, 0);
-  const route = ledgePoints(height, theme.peak.id);
-  const positions = geometry.attributes.position as THREE.BufferAttribute;
-  const colors = new Float32Array(positions.count * 3);
+  const peakId = theme.peak.id;
+  const top = wallPeakY(height);
+  const rows = Math.ceil((top - WALL_BOTTOM) * 2.2);
+  const route = ledgePoints(height, peakId);
+  const count = (COLUMNS + 1) * (rows + 1);
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
   const rock = new THREE.Color(theme.rock);
   const dark = new THREE.Color(theme.rockDark);
   const snow = new THREE.Color(theme.snow);
-  const rng = mulberry32(theme.peak.id * 31 + 7);
+  const rng = mulberry32(peakId * 31 + 7);
   const scratch = new THREE.Color();
   const snowLine = summitY(height) - 2.5;
 
-  for (let i = 0; i < positions.count; i++) {
-    const x = positions.getX(i);
-    const y = positions.getY(i);
-    const jitter = (rng() - 0.5) * 0.35;
-    const { z, n } = wallSurface(x, y, theme.peak.id, route, jitter);
-    positions.setZ(i, z);
+  for (let row = 0; row <= rows; row++) {
+    const y = WALL_BOTTOM + (top - WALL_BOTTOM) * (row / rows);
+    const { minX, maxX } = wallOutline(y, height, peakId);
+    for (let col = 0; col <= COLUMNS; col++) {
+      const i = row * (COLUMNS + 1) + col;
+      const x = minX + (maxX - minX) * (col / COLUMNS);
+      const jitter = (rng() - 0.5) * 0.35;
+      const { z, n } = wallSurface(x, y, peakId, route, jitter);
+      positions[i * 3] = x;
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = z;
 
-    const shade = clamp01(0.5 - n * 0.9) * 0.75;
-    scratch.copy(rock).lerp(dark, shade);
-    const snowT = clamp01((y - snowLine) / 3) * (n > -0.25 ? 1 : 0.35);
-    scratch.lerp(snow, snowT);
-    colors[i * 3] = scratch.r;
-    colors[i * 3 + 1] = scratch.g;
-    colors[i * 3 + 2] = scratch.b;
+      const shade = clamp01(0.5 - n * 0.9) * 0.75;
+      scratch.copy(rock).lerp(dark, shade);
+      const snowT = clamp01((y - snowLine) / 3) * (n > -0.25 ? 1 : 0.35);
+      scratch.lerp(snow, snowT);
+      colors[i * 3] = scratch.r;
+      colors[i * 3 + 1] = scratch.g;
+      colors[i * 3 + 2] = scratch.b;
+    }
   }
+
+  const index: number[] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < COLUMNS; col++) {
+      const a = row * (COLUMNS + 1) + col;
+      const c = a + COLUMNS + 1;
+      // Counter-clockwise seen from +Z: the face looks at the camera.
+      index.push(a, a + 1, c + 1, a, c + 1, c);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setIndex(index);
   geometry.computeVertexNormals();
   return geometry;
 }
@@ -288,7 +314,7 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
         seed={theme.peak.id}
         xRange={[-28, 28]}
         yRange={[4, top + 9]}
-        zRange={[-18, -9]}
+        zRange={[BACKDROP_Z - 9, BACKDROP_Z]}
         speed={0.45}
       />
     </group>

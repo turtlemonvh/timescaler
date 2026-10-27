@@ -206,6 +206,64 @@ export function wallSurface(
   return { z, n };
 }
 
+/** Bottom of the cliff mesh, under the forest floor. */
+export const WALL_BOTTOM = -5;
+/** How far the cliff's peak rises above the summit plateau, just behind it. */
+export const PEAK_RISE = 3.2;
+/** Mean half-width of the face below the peak; buttresses push it in and out around this. */
+const WALL_HALF = 6.6;
+/**
+ * Nearest z of the backdrop behind the cliff: the clouds' range starts
+ * here and the distant ranges' bases reach about this far forward. The
+ * cliff stays well in front of it, so no cloud pokes through the rock.
+ */
+export const BACKDROP_Z = -14;
+
+/**
+ * How far out to the side the peak's ridges are, `drop` units below it:
+ * the inverse of a drop of `0.7 d + 0.06 d²`, ever steeper further out.
+ */
+function ridgeReach(drop: number): number {
+  return (-0.7 + Math.sqrt(0.7 * 0.7 + 4 * 0.06 * drop)) / (2 * 0.06);
+}
+
+/** One side's buttressed edge at height `y`: a rocky outline, never a ruler-straight one. */
+function buttressEdge(y: number, peakId: number, side: 1 | -1): number {
+  return (
+    WALL_HALF +
+    Math.sin(y * 0.37 + peakId * 1.3 + side) * 0.7 +
+    Math.sin(y * 0.83 + peakId * 0.7 + 2 * side) * 0.45
+  );
+}
+
+/**
+ * The cliff's outline at height `y`: the x range the face spans there.
+ * At the top it is a peak just behind the summit plateau, with ridges falling
+ * away ever steeper on both sides, so the summit swing sees sky past sloping
+ * shoulders instead of the knife edge of a flat-topped slab. Lower down the
+ * face keeps about its old width (the climb's vista past its sides stays),
+ * between buttressed edges that wander in and out.
+ */
+export function wallOutline(
+  y: number,
+  height: number,
+  peakId: number,
+): { minX: number; maxX: number } {
+  const peak = ledgePoint(height, peakId);
+  const drop = peak.y + PEAK_RISE - y;
+  if (drop <= 0) return { minX: peak.x, maxX: peak.x };
+  const reach = ridgeReach(drop) * (1 + 0.12 * Math.sin(y * 1.1 + peakId));
+  return {
+    minX: Math.max(peak.x - reach, -buttressEdge(y, peakId, -1)),
+    maxX: Math.min(peak.x + reach, buttressEdge(y, peakId, 1)),
+  };
+}
+
+/** The top of the cliff: the peak, `PEAK_RISE` above the summit. */
+export function wallPeakY(height: number): number {
+  return summitY(height) + PEAK_RISE;
+}
+
 /** Rope tube radius. */
 export const ROPE_RADIUS = 0.045;
 
