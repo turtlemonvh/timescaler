@@ -1,7 +1,7 @@
 import { useRef, type RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { framingFor, keepInFrame, slotDistance } from './framing';
+import { climbFollow, framingFor, heroHalfWidth, keepInFrame } from './framing';
 import { snapShadowTarget } from './shadowSnap';
 
 export interface CameraRigProps {
@@ -99,8 +99,17 @@ export default function CameraRig({
     // The body centre the camera frames: halfway to the landing spot during a
     // hop, so the camera leads without stranding the take-off at the edge.
     // The route zig-zags ±1.75; tracking nearly all of it keeps it near `home`.
-    lead.lerpVectors(t, goal, 0.55 * flightRamp);
-    anchor.set(phase === 'climb' ? lead.x * 0.9 : lead.x, lead.y + heroHeight * 0.5, lead.z);
+    // A narrow docked layout leads and drifts less, so its closer camera
+    // keeps the whole hero in the open area (`climbFollow`).
+    const follow = portrait
+      ? { distance: 9.5, lead: 0.55, track: 0.9 }
+      : climbFollow(7.2, framing.safe, aspect, tanHalf, heroHeight);
+    lead.lerpVectors(t, goal, follow.lead * flightRamp);
+    anchor.set(
+      phase === 'climb' ? lead.x * follow.track : lead.x,
+      lead.y + heroHeight * 0.5,
+      lead.z,
+    );
     look.copy(anchor);
     if (phase === 'summit') {
       // Swing across the front of the summit rather than orbiting into the wall.
@@ -118,7 +127,7 @@ export default function CameraRig({
       // back into the distance instead of filling the lens.
       desired.set(anchor.x - 1.4, anchor.y + 3.2, anchor.z + (portrait ? 8.8 : 7.0));
     } else {
-      const distance = portrait ? 9.5 : slotDistance(7.2, framing.safe, aspect, tanHalf);
+      const distance = follow.distance;
       desired.set(anchor.x, anchor.y + distance * (portrait ? 0.21 : 0.125), anchor.z + distance);
     }
 
@@ -163,7 +172,7 @@ export default function CameraRig({
     // inside the safe area. The hop arc and the camera's easing both
     // run ahead of or behind the animal; this is what makes "the hero never
     // leaves the frame" hold for every move, aspect and animal.
-    const halfWidth = 0.45 + 0.5 * heroHeight;
+    const halfWidth = heroHalfWidth(heroHeight);
     box.minX = Infinity;
     box.maxX = -Infinity;
     box.minY = Infinity;

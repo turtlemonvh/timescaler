@@ -82,16 +82,60 @@ export function keepInFrame(box: SafeArea, safe: SafeArea): { dx: number; dy: nu
 /**
  * Camera distance for the climb: `base`, pulled back just enough that the
  * open part of the viewport is at least `slot` scene units wide at the
- * climber's depth (a hop plus the animal's length). Only narrow docked
- * layouts (a ~1:1 window with the card on the right) need it.
+ * climber's depth. Only narrow docked layouts (a ~1:1 window with the card
+ * on the right) need it.
  */
 export function slotDistance(
   base: number,
   safe: SafeArea,
   aspect: number,
   tanHalfFov: number,
-  slot = 3.6,
+  slot: number,
 ): number {
   const widthPerUnit = (safe.maxX - safe.minX) * tanHalfFov * aspect;
   return widthPerUnit > 0 ? Math.max(base, slot / widthPerUnit) : base;
+}
+
+/** Half the width of the box the camera guard keeps on screen, for a hero this tall. */
+export function heroHalfWidth(heroHeight: number): number {
+  return 0.45 + 0.5 * heroHeight;
+}
+
+/** Open width (scene units) a docked layout gets at least: the hero plus a little room to lead. */
+export const CLIMB_SLOT = 2.9;
+/** The widest sideways step between consecutive ledges (route swing plus jitter, `cliffPath.ts`). */
+export const MAX_HOP_DX = 1.75;
+/** How far towards a hop's landing the camera leads, when there is room. */
+const FULL_LEAD = 0.55;
+/** How much of the route's zig-zag the camera tracks, when there is room. */
+const FULL_TRACK = 0.9;
+
+export interface ClimbFollow {
+  distance: number;
+  /** Fraction of the way to a hop's landing the framed point leads. */
+  lead: number;
+  /** Fraction of the climber's x the framed point follows (the rest drifts off home). */
+  track: number;
+}
+
+/**
+ * How the climb camera follows on a landscape screen. A roomy layout sits
+ * at `base`, leads well ahead into each hop and lets the zig-zag drift the
+ * climber a little off home. A narrow docked one (~1:1, card on the right)
+ * comes in only to `CLIMB_SLOT` units of open width — so the hero is big —
+ * and spends what room is left on the lead: it leads only as far as keeps
+ * the hero's whole body inside the open area, and tracks the zig-zag fully.
+ */
+export function climbFollow(
+  base: number,
+  safe: SafeArea,
+  aspect: number,
+  tanHalfFov: number,
+  heroHeight: number,
+): ClimbFollow {
+  const distance = slotDistance(base, safe, aspect, tanHalfFov, CLIMB_SLOT);
+  const room = (safe.maxX - safe.minX) * distance * tanHalfFov * aspect;
+  const spare = room / 2 - heroHalfWidth(heroHeight);
+  const lead = Math.max(0.1, Math.min(FULL_LEAD, spare / MAX_HOP_DX));
+  return { distance, lead, track: lead < FULL_LEAD ? 1 : FULL_TRACK };
 }
