@@ -9,5 +9,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src", "record.ts", "publish.ts"]
+  "include": ["src", "capture", "record.ts", "publish.ts"]
 }

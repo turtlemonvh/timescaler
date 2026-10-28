@@ -65,6 +65,9 @@ especially by a fresh subagent with no prior context on this repo.
   in the raw packs (`Walk` and `AnimalArmature|Walk`); `scripts/prepare-models.ts` strips the
   prefixed copies. Clip spelling varies per animal (`Jump_ToIdle` vs `Jump_toIdle`), which is why
   `clips.ts` resolves poses from candidate lists case-insensitively.
+- **Before/after footage for a PR:** `pnpm capture`, `capture:sheet` and `capture:compare` film
+  deterministic gameplay scenarios from two dev servers (`main` vs your branch) and make side-by-side
+  GIFs. See `trailer/README.md`. Write footage outside `/tmp`, which is a small RAM disk here.
 - **Capturing screenshots:** the chrome-devtools MCP browser is often held by another session
   ("already running for ... chrome-profile"). A plain Playwright script against the dev server
   works (`chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] })`
