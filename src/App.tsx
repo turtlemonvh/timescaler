@@ -31,7 +31,7 @@ import type { Profile, SaveFile } from './storage/types';
 
 type Screen =
   | { name: 'intro' }
-  | { name: 'profileSelect' }
+  | { name: 'profileSelect'; startCreating?: boolean }
   | { name: 'characterPick'; pendingName: string }
   | { name: 'map' }
   | { name: 'profile'; section: ProfileSection }
@@ -79,6 +79,7 @@ export default function App() {
       return (
         <ProfileSelect
           profiles={save.profiles}
+          startCreating={screen.startCreating}
           onSelectProfile={(profileId) => {
             setSave((current) => ({ ...current, activeProfileId: profileId }));
             setScreen({ name: 'map' });
@@ -101,7 +102,15 @@ export default function App() {
       const profile = requireActiveProfile(save);
       return (
         <Map
+          // Keyed per profile so switching climbers starts the map fresh — their own first open
+          // peak and levels, not the previous climber's selection.
+          key={profile.id}
           profile={profile}
+          otherProfiles={save.profiles.filter((p) => p.id !== profile.id)}
+          onSwitchProfile={(profileId) =>
+            setSave((current) => ({ ...current, activeProfileId: profileId }))
+          }
+          onNewProfile={() => setScreen({ name: 'profileSelect', startCreating: true })}
           onClimb={(peakId, difficulty) => {
             setSave((current) => setPeakDifficulty(current, profile.id, peakId, difficulty));
             setScreen({ name: 'climb', peakId, seed: Date.now() });

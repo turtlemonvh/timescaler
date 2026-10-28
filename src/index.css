@@ -1345,6 +1345,93 @@ button.peak-tile--selected {
   background: var(--card-solid);
   box-shadow: var(--shadow);
 }
+
+/* The caret next to the profile pill and its "switch climber" menu. The pill's button drops the
+ * bar's generic button padding so the caret sits right beside the visible pill. */
+.map-screen__bar .chip-button[data-testid='profile-open'] {
+  padding: 0;
+}
+.profile-switcher {
+  position: relative;
+  display: inline-flex;
+}
+.chip-button.profile-switcher__trigger {
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  background: var(--card-solid);
+  box-shadow: var(--shadow);
+}
+.profile-switcher__trigger svg {
+  transition: transform 120ms ease;
+}
+.profile-switcher__trigger[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+.profile-switcher__trigger[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+.profile-switcher__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  max-width: calc(100vw - 2rem);
+  max-height: min(60svh, 360px);
+  overflow-y: auto;
+  padding: 0.4rem;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--card-solid);
+  box-shadow: var(--shadow);
+}
+.profile-switcher__heading {
+  margin: 0.15rem 0.5rem 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.profile-switcher .profile-switcher__item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.35rem 0.6rem 0.35rem 0.4rem;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-h);
+  font-size: 1rem;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: left;
+  white-space: nowrap;
+}
+.profile-switcher .profile-switcher__item:hover:not(:disabled),
+.profile-switcher .profile-switcher__item:focus {
+  filter: none;
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  outline: none;
+}
+.profile-switcher .profile-switcher__item:active:not(:disabled) {
+  transform: none;
+}
+.profile-switcher__separator {
+  height: 1px;
+  margin: 0.25rem 0.4rem;
+  background: var(--border);
+}
 .mute-button {
   background: var(--card-solid) !important;
   border: 2px solid var(--border) !important;
