@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import type { Question } from './engine/questions';
+import type { SaveFile } from './storage/types';
 
 const FIXED_QUESTION: Question = {
   id: 'test-question',
@@ -236,5 +237,43 @@ describe('App', () => {
     fireEvent.click(screen.getByTestId('intro-continue'));
     fireEvent.click(screen.getAllByTestId(/^profile-option-/)[0]);
     expect(screen.getByTestId('peak-progress-1')).toHaveTextContent('Summited');
+  });
+
+  it('switches climbers from the map without a reload, each with their own coins and trophies', () => {
+    const { unmount } = render(<App />);
+    createProfileAndReachMap('Riley');
+    startClimbAtDifficulty(1, 1);
+    climbToSummit();
+    fireEvent.click(screen.getByTestId('summit-continue'));
+    expect(screen.getByTestId('rewards-coins')).toHaveTextContent('5');
+
+    // "+ New climber" from the switcher runs the usual name -> animal flow.
+    fireEvent.click(screen.getByTestId('profile-switch-toggle'));
+    fireEvent.click(screen.getByTestId('profile-switch-new'));
+    fireEvent.change(screen.getByTestId('profile-name-input'), { target: { value: 'Sam' } });
+    fireEvent.click(screen.getByTestId('profile-create-submit'));
+    fireEvent.click(screen.getAllByTestId(/^character-option-/)[0]);
+    expect(screen.getByTestId('profile-chip-name')).toHaveTextContent('Sam');
+    expect(screen.getByTestId('rewards-coins')).toHaveTextContent('0');
+    expect(screen.getByTestId('rewards-trophies')).toHaveTextContent('0');
+
+    // Switch back to Riley: only the other climber is listed.
+    fireEvent.click(screen.getByTestId('profile-switch-toggle'));
+    const items = screen.getAllByRole('menuitem');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveAccessibleName('Riley');
+    expect(items[1]).toHaveAccessibleName('+ New climber');
+    fireEvent.click(items[0]);
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(screen.getByTestId('profile-chip-name')).toHaveTextContent('Riley');
+    expect(screen.getByTestId('rewards-coins')).toHaveTextContent('5');
+    expect(screen.getByTestId('rewards-trophies')).toHaveTextContent('1');
+    expect(screen.getByTestId('peak-progress-1')).toHaveTextContent('Summited');
+
+    // The switch is persisted as the active profile.
+    unmount();
+    const saved = JSON.parse(localStorage.getItem('timescaler.save') ?? '{}') as SaveFile;
+    expect(saved.profiles.map((p) => p.name)).toEqual(['Riley', 'Sam']);
+    expect(saved.activeProfileId).toBe(saved.profiles[0].id);
   });
 });

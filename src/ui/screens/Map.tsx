@@ -24,6 +24,7 @@ import {
 import { formatDuration } from '../formatDuration';
 import MuteButton from '../hud/MuteButton';
 import ProfileChip from '../hud/ProfileChip';
+import ProfileSwitcher from '../hud/ProfileSwitcher';
 import { CoinIcon, TrophyIcon } from '../hud/RewardIcons';
 import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
 
@@ -40,6 +41,12 @@ export interface MapProps {
   onViewFullHistory: (peakId: number, difficulty: number) => void;
   /** Opens the player's profile page; `'accomplishments'` scrolls to that section. */
   onOpenProfile: (section: 'climber' | 'accomplishments') => void;
+  /** Every saved profile except this one — listed in the "switch climber" menu next to the pill. */
+  otherProfiles?: Profile[];
+  /** Makes another saved profile the active one. The switcher is hidden when this isn't given. */
+  onSwitchProfile?: (profileId: string) => void;
+  /** Starts creating a new climber from the switcher menu. */
+  onNewProfile?: () => void;
 }
 
 interface PeakStatusProps {
@@ -355,6 +362,9 @@ export default function Map({
   onReview,
   onViewFullHistory,
   onOpenProfile,
+  otherProfiles = [],
+  onSwitchProfile,
+  onNewProfile,
 }: MapProps) {
   const animal = resolveAnimal(profile.characterId);
   const reducedMotion = usePrefersReducedMotion();
@@ -458,6 +468,13 @@ export default function Map({
                 }
               />
             </button>
+            {onSwitchProfile && onNewProfile && (
+              <ProfileSwitcher
+                otherProfiles={otherProfiles}
+                onSwitchProfile={onSwitchProfile}
+                onNewProfile={onNewProfile}
+              />
+            )}
             <button
               type="button"
               className="chip-button rewards-chip"
