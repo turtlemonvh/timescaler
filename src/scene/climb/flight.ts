@@ -52,6 +52,12 @@ export interface FlightSegment {
   hold?: number;
   /** Start `pose` at this fraction of its clip. */
   startAt?: number;
+  /**
+   * Stretch the clip (from `startAt` to its end) over this many ms instead of
+   * `ms`; the segment then ends part-way through it. A slip's leap uses it
+   * to arrive at the reach pose exactly as the hang freezes it.
+   */
+  clipMs?: number;
   /** Dust particle count when `dustOnLand`; the move kind's default when omitted. */
   dustCount?: number;
   /** Turn side-on towards +X (1) or -X (-1) for this segment; keep the current facing when omitted. */
@@ -164,6 +170,18 @@ export function flightPoint(segment: FlightSegment, raw: number): Vec3 {
   }
 }
 
+/**
+ * Which fraction of its clip `segment.pose` shows `raw` (0..1, linear time)
+ * through the segment, as `Climber` plays it: frozen at `hold`, else running
+ * from `startAt` to the clip's end over `clipMs` (default: the segment).
+ */
+export function clipPhase(segment: FlightSegment, raw: number): number {
+  if (segment.hold !== undefined) return segment.hold;
+  const start = segment.startAt ?? 0;
+  const t = Math.max(0, Math.min(1, raw)) * (segment.ms / (segment.clipMs ?? segment.ms));
+  return Math.min(1, start + (1 - start) * t);
+}
+
 /** The z a body side-on to the wall must be at to pass in front of the slab at `index`. */
 function clearOf(index: number, peakId: number, body: FlightBody): number {
   // The move does not know the climb's height, so allow for the summit
@@ -231,6 +249,9 @@ export function buildFlight(move: ClimbMove, peakId: number, body: FlightBody): 
       y: landing.y,
       z: outZ,
     };
+    // One continuous jump clip across leap, hang and drop: the leap plays it
+    // up to the reach, the hang freezes it there, and the drop carries on from
+    // the same frame — no pose pops where the segments meet.
     const reachPose = { pose: 'jump' as const, hold: body.reach };
     const face = side(target.x - from.x);
     segments.push(
@@ -241,6 +262,7 @@ export function buildFlight(move: ClimbMove, peakId: number, body: FlightBody): 
         apex: 0.2,
         bulge: hangPoint.z - from.z,
         ms: SLIP_LEAP_MS,
+        clipMs: SLIP_LEAP_MS / body.reach,
         squashOnLand: false,
         dustOnLand: true,
         dustCount: 5,
@@ -268,7 +290,7 @@ export function buildFlight(move: ClimbMove, peakId: number, body: FlightBody): 
         squashOnLand: true,
         dustOnLand: true,
         pose: 'jump',
-        hold: Math.min(0.98, body.reach + 0.2),
+        startAt: body.reach,
       },
       {
         shape: 'settle',

@@ -73,8 +73,10 @@ export function wallPines(height: number, peakId: number): WallPine[] {
   const route = ledgePoints(height, peakId);
   for (let i = 0; i < 16; i++) {
     const side = rng() > 0.5 ? 1 : -1;
-    const y = 1 + rng() * Math.max(1, top - 3);
-    const x = side * (3.1 + rng() * 1.3);
+    // Below the peak's shoulders, where the face is its full width.
+    const y = 1 + rng() * Math.max(1, top - 9);
+    // Inside the buttressed edge (never nearer than ~4.7), shelf and all.
+    const x = side * (3.0 + rng() * 0.9);
     const scale = 0.45 + rng() * 0.45;
     const rotation = rng() * Math.PI;
     const base = y - 0.2;

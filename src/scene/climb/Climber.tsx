@@ -16,7 +16,7 @@ import {
   tumbleAngles,
   type FlightSegment,
 } from './flight';
-import { FALL_MS, HOP_MS, SLIP_LEAP_MS, type ClimbMove } from './motion';
+import { FALL_MS, type ClimbMove } from './motion';
 
 export interface ClimberProps {
   animalId: AnimalId;
@@ -114,7 +114,10 @@ export default function Climber({
   }
 
   function playSegment(segment: FlightSegment) {
-    play(segment.pose, segment.ms, { hold: segment.hold, startAt: segment.startAt });
+    play(segment.pose, segment.clipMs ?? segment.ms, {
+      hold: segment.hold,
+      startAt: segment.startAt,
+    });
   }
 
   function startMove(next: ClimbMove, node: THREE.Group, now: number) {
@@ -154,11 +157,9 @@ export default function Climber({
         size: 0.12,
         up: 0.3,
       });
-    } else if (next.kind === 'slip') {
-      play('jump', SLIP_LEAP_MS);
-    } else {
-      play('jump', first ? first.ms : HOP_MS);
-      if (next.fast) {
+    } else if (first) {
+      playSegment(first);
+      if (next.kind !== 'slip' && next.fast) {
         particlesRef.current?.burst({
           x: from.x,
           y: from.y + 0.5,
