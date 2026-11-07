@@ -107,6 +107,7 @@ function assertDisplayWellFormed(display: DisplaySpec): void {
       expect(Number.isInteger(display.year)).toBe(true);
       expect(display.monthIndex).toBeGreaterThanOrEqual(0);
       expect(display.monthIndex).toBeLessThanOrEqual(11);
+      if (display.highlightDay === undefined) return;
       // The highlighted day must exist in the highlighted month.
       const date = new Date(display.year, display.monthIndex, display.highlightDay);
       expect(date.getFullYear()).toBe(display.year);
@@ -271,9 +272,12 @@ function assertDeclaredAnswerMatchesDisplay(q: Question): void {
   if (q.typeId === COUNT_WEEKDAYS_TYPE_ID) {
     expect(q.answer.kind).toBe('number');
     if (q.answer.kind !== 'number') return;
-    expect(q.display.kind).toBe('none');
+    expect(q.display.kind).toBe('calendar');
+    if (q.display.kind !== 'calendar') return;
+    expect(q.display.highlightDay).toBeUndefined();
     // Re-derive by brute-force scanning the stated month for the stated
-    // weekday, independent of the generator's own `weekdayOccurrencesInMonth`.
+    // weekday, independent of the generator's own `weekdayOccurrencesInMonth`,
+    // and check the calendar the player counts on is that same month.
     const match = q.prompt.match(/^How many (\w+)s are in ([A-Z][a-z]+) (\d{4})\?$/);
     expect(match).not.toBeNull();
     if (!match) return;
@@ -283,6 +287,8 @@ function assertDeclaredAnswerMatchesDisplay(q: Question): void {
     const monthIndex = MONTH_NAMES.indexOf(monthText);
     expect(monthIndex).toBeGreaterThanOrEqual(0);
     const year = Number(yearText);
+    expect(q.display.year).toBe(year);
+    expect(q.display.monthIndex).toBe(monthIndex);
     const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
     let count = 0;
     for (let day = 1; day <= daysInMonth; day++) {
@@ -331,7 +337,9 @@ function assertDeclaredAnswerMatchesDisplay(q: Question): void {
     }
     case READ_CALENDAR_TYPE_ID: {
       expect(q.display.kind).toBe('calendar');
-      if (q.display.kind !== 'calendar') return;
+      if (q.display.kind !== 'calendar' || q.display.highlightDay === undefined) {
+        throw new Error('readCalendar must highlight a day');
+      }
       const date = new Date(q.display.year, q.display.monthIndex, q.display.highlightDay);
       expect(declared).toBe(weekdayName(date));
       return;

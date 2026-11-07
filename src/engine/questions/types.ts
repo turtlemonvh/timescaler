@@ -16,14 +16,15 @@ export interface AnalogClockDisplay {
   showNumerals: boolean;
 }
 
-/** A month grid (weeks start Sunday) with exactly one day cell highlighted. */
+/** A month grid (weeks start Sunday), optionally with one day cell highlighted. */
 export interface CalendarDisplay {
   kind: 'calendar';
   year: number;
   /** 0 = January, matching `Date.prototype.getMonth()`. */
   monthIndex: number;
-  /** 1-based day of month; always a day that exists in this month. */
-  highlightDay: number;
+  /** 1-based day of month; always a day that exists in this month. Omitted
+   * when the whole month is the point (e.g. counting a weekday's columns). */
+  highlightDay?: number;
 }
 
 /**

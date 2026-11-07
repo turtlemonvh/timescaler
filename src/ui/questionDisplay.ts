@@ -34,8 +34,12 @@ export function describeDisplay(display: DisplaySpec): string {
       const seconds = display.showSeconds ? ', second hand shown' : '';
       return `analog clock at ${pad(hour)}:${pad(minute)}:${pad(second)} (24h internal)${seconds}`;
     }
-    case 'calendar':
-      return `calendar for ${MONTH_NAMES[display.monthIndex]} ${display.year}, day ${display.highlightDay} highlighted`;
+    case 'calendar': {
+      const month = `calendar for ${MONTH_NAMES[display.monthIndex]} ${display.year}`;
+      return display.highlightDay === undefined
+        ? month
+        : `${month}, day ${display.highlightDay} highlighted`;
+    }
     case 'none':
       return 'no visual — the prompt carries everything';
   }
