@@ -415,23 +415,8 @@ describe('Climb — portrait card layout (issue #113)', () => {
 });
 
 describe('Climb — setHands answer kind', () => {
-  const CENTER = 129; // AnalogClock's default target size (260) snaps to actualSize 258.
-  const RADIUS = 50;
-  const RECT = {
-    left: 0,
-    top: 0,
-    width: CENTER * 2,
-    height: CENTER * 2,
-    right: CENTER * 2,
-    bottom: CENTER * 2,
-    x: 0,
-    y: 0,
-    toJSON: () => {},
-  } as DOMRect;
-
   beforeEach(() => {
     vi.mocked(generateQuestion).mockReturnValue(SET_HANDS_QUESTION);
-    vi.spyOn(SVGElement.prototype, 'getBoundingClientRect').mockReturnValue(RECT);
   });
 
   function renderClimb(onQuestionAnswered = vi.fn()) {
@@ -450,33 +435,37 @@ describe('Climb — setHands answer kind', () => {
     return onQuestionAnswered;
   }
 
-  it('renders an interactive AnalogClock and a Submit button', () => {
+  function press(testId: string, times: number) {
+    for (let i = 0; i < times; i++) fireEvent.click(screen.getByTestId(testId));
+  }
+
+  it('renders an interactive AnalogClock with its button pad and a Submit button', () => {
     renderClimb();
     expect(screen.getByTestId('analog-clock')).toBeInTheDocument();
-    expect(screen.getByTestId('analog-clock-minute-hand')).toBeInTheDocument();
+    expect(screen.getByTestId('clock-step-hour-forward')).toBeEnabled();
+    expect(screen.getByTestId('clock-step-minute-forward')).toBeEnabled();
     expect(screen.getByTestId('climb-submit')).toBeInTheDocument();
   });
 
-  it('submitting without dragging (the default noon) misses against a different target', () => {
+  it('submitting without setting the hands (the default noon) misses against a different target', () => {
     const onQuestionAnswered = renderClimb();
     fireEvent.click(screen.getByTestId('climb-submit'));
     expect(onQuestionAnswered).toHaveBeenCalledWith('testSetHands', false, expect.any(Number));
   });
 
-  it('dragging both hands to the target and submitting grades correct', () => {
+  it('pressing the buttons to the target and submitting grades correct', () => {
     const onQuestionAnswered = renderClimb();
-    // Minute hand to the "3" position -> snaps to minute 15 at quarter precision.
-    fireEvent.pointerDown(screen.getByTestId('analog-clock-minute-hand'), {
-      clientX: CENTER + RADIUS,
-      clientY: CENTER,
-      pointerId: 1,
-    });
-    // Hour hand to the "3" position -> hour 15, preserving the default's PM half.
-    fireEvent.pointerDown(screen.getByTestId('analog-clock-hour-hand'), {
-      clientX: CENTER + RADIUS,
-      clientY: CENTER,
-      pointerId: 1,
-    });
+    // Noon -> 3 PM with three hour presses, then :15 with one quarter-hour press.
+    press('clock-step-hour-forward', 3);
+    press('clock-step-minute-forward', 1);
+    fireEvent.click(screen.getByTestId('climb-submit'));
+    expect(onQuestionAnswered).toHaveBeenCalledWith('testSetHands', true, expect.any(Number));
+  });
+
+  it('minutes carry into the hour: 3:15 PM reached by minute presses alone', () => {
+    const onQuestionAnswered = renderClimb();
+    // 13 quarter-hour presses from noon: 12:00 -> 3:15 PM.
+    press('clock-step-minute-forward', 13);
     fireEvent.click(screen.getByTestId('climb-submit'));
     expect(onQuestionAnswered).toHaveBeenCalledWith('testSetHands', true, expect.any(Number));
   });
@@ -484,22 +473,20 @@ describe('Climb — setHands answer kind', () => {
   it("an AM target is reachable too — the default draft starts in the target's own half", () => {
     vi.mocked(generateQuestion).mockReturnValue(SET_HANDS_QUESTION_AM);
     const onQuestionAnswered = renderClimb();
-    // Minute hand to the "3" position -> snaps to minute 15 at quarter precision.
-    fireEvent.pointerDown(screen.getByTestId('analog-clock-minute-hand'), {
-      clientX: CENTER + RADIUS,
-      clientY: CENTER,
-      pointerId: 1,
-    });
-    // Hour hand to the "3" position -> hour 3, preserving the default's AM half
-    // (midnight, since the target itself is AM) — this is exactly the case that
-    // was unreachable before `defaultDraftTime` matched the target's half.
-    fireEvent.pointerDown(screen.getByTestId('analog-clock-hour-hand'), {
-      clientX: CENTER + RADIUS,
-      clientY: CENTER,
-      pointerId: 1,
-    });
+    // Midnight -> 3:15 AM going backwards round the face: 9 hours back, then
+    // :15 — the hour arrows never cross into PM.
+    press('clock-step-hour-back', 9);
+    press('clock-step-minute-forward', 1);
     fireEvent.click(screen.getByTestId('climb-submit'));
     expect(onQuestionAnswered).toHaveBeenCalledWith('testSetHands', true, expect.any(Number));
+  });
+
+  it('keeps the pad on screen but disabled during the reveal', () => {
+    renderClimb();
+    fireEvent.click(screen.getByTestId('climb-submit'));
+    expect(screen.getByTestId('clock-pad')).toBeInTheDocument();
+    expect(screen.getByTestId('clock-step-minute-forward')).toBeDisabled();
+    expect(screen.getByTestId('clock-help')).toBeDisabled();
   });
 });
 

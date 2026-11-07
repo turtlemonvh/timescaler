@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from './rng';
-import { describeTime, formatTime12, randomTime, to24Hour } from './timeMath';
+import { describeTime, formatTime12, randomTime, stepTime, to24Hour } from './timeMath';
 
 describe('randomTime', () => {
   it('snaps to hour boundaries', () => {
@@ -138,5 +138,53 @@ describe('describeTime', () => {
   it('wraps the hour word at the top of the clock', () => {
     expect(describeTime({ hour: 23, minute: 45, second: 0 })).toBe('quarter to twelve');
     expect(describeTime({ hour: 11, minute: 45, second: 0 })).toBe('quarter to twelve');
+  });
+});
+
+describe('stepTime', () => {
+  const t = (hour: number, minute: number) => ({ hour, minute, second: 0 });
+
+  it('steps the hour and wraps 12 <-> 1 without touching the minutes', () => {
+    expect(stepTime(t(3, 20), 'hour', 1)).toEqual(t(4, 20));
+    expect(stepTime(t(12, 20), 'hour', 1)).toEqual(t(13, 20)); // 12 PM -> 1 PM
+    expect(stepTime(t(13, 20), 'hour', -1)).toEqual(t(12, 20)); // 1 PM -> 12 PM
+    expect(stepTime(t(0, 5), 'hour', 1)).toEqual(t(1, 5)); // 12 AM -> 1 AM
+  });
+
+  it('never changes AM/PM when stepping the hour', () => {
+    expect(stepTime(t(11, 0), 'hour', 1)).toEqual(t(0, 0)); // 11 AM -> 12 AM
+    expect(stepTime(t(23, 0), 'hour', 1)).toEqual(t(12, 0)); // 11 PM -> 12 PM, not AM
+    expect(stepTime(t(12, 0), 'hour', -1)).toEqual(t(23, 0)); // 12 PM -> 11 PM
+    expect(stepTime(t(0, 0), 'hour', -1)).toEqual(t(11, 0)); // 12 AM -> 11 AM
+  });
+
+  it('carries minutes into the hour like a real clock', () => {
+    expect(stepTime(t(9, 55), 'minute', 5)).toEqual(t(10, 0));
+    expect(stepTime(t(10, 0), 'minute', -1)).toEqual(t(9, 59));
+    expect(stepTime(t(14, 45), 'minute', 15)).toEqual(t(15, 0));
+    expect(stepTime(t(14, 30), 'minute', -30)).toEqual(t(14, 0));
+    expect(stepTime(t(14, 0), 'minute', -30)).toEqual(t(13, 30));
+  });
+
+  it('holds AM/PM at every minute boundary', () => {
+    expect(stepTime(t(11, 59), 'minute', 1)).toEqual(t(0, 0)); // 11:59 AM -> 12:00 AM
+    expect(stepTime(t(11, 55), 'minute', 5)).toEqual(t(0, 0)); // 11:55 AM -> 12:00 AM
+    expect(stepTime(t(12, 0), 'minute', -1)).toEqual(t(23, 59)); // 12:00 PM -> 11:59 PM
+    expect(stepTime(t(23, 59), 'minute', 1)).toEqual(t(12, 0)); // 11:59 PM -> 12:00 PM
+    expect(stepTime(t(0, 0), 'minute', -1)).toEqual(t(11, 59)); // 12:00 AM -> 11:59 AM
+    expect(stepTime(t(12, 59), 'minute', 1)).toEqual(t(13, 0)); // 12:59 PM -> 1:00 PM
+  });
+
+  it('always zeroes seconds', () => {
+    expect(stepTime({ hour: 4, minute: 10, second: 33 }, 'minute', 1).second).toBe(0);
+    expect(stepTime({ hour: 4, minute: 10, second: 33 }, 'hour', 1).second).toBe(0);
+  });
+
+  it('a full lap of either unit comes back to the start', () => {
+    let time = t(17, 25);
+    for (let i = 0; i < 12; i++) time = stepTime(time, 'hour', 1);
+    expect(time).toEqual(t(17, 25));
+    for (let i = 0; i < 720; i++) time = stepTime(time, 'minute', -1);
+    expect(time).toEqual(t(17, 25));
   });
 });

@@ -17,7 +17,7 @@ describe('generateSetHands', () => {
     expect(q.prompt.startsWith('Set the clock to ')).toBe(true);
   });
 
-  it("never targets second precision — there's no draggable second hand", () => {
+  it("never targets second precision — there's no second-hand control", () => {
     for (let seed = 0; seed < 300; seed++) {
       for (const difficulty of [1, 5, 9, 10]) {
         const q = generateSetHands(mulberry32(seed), { ...ctx, difficulty });

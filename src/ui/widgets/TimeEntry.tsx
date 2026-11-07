@@ -18,9 +18,8 @@ function pad2(n: number): string {
 
 /**
  * Dropdown-based exact time entry — the typed-input counterpart to
- * `AnalogClock`'s draggable hands. Reuses `to24Hour` (also used by
- * `AnalogClock`'s hour-hand drag) so both widgets convert between 12-hour
- * display and the engine's 24-hour `TimeOfDay` the same way.
+ * `AnalogClock`'s step-button hands. Uses `to24Hour` to convert between
+ * 12-hour display and the engine's 24-hour `TimeOfDay`.
  */
 export default function TimeEntry({
   time,

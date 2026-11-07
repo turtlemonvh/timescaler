@@ -160,7 +160,7 @@ function assertAnswerGrades(spec: AnswerSpec): void {
       expect(Number.isInteger(minute)).toBe(true);
       expect(minute).toBeGreaterThanOrEqual(0);
       expect(minute).toBeLessThanOrEqual(59);
-      // No draggable second hand — grading ignores seconds, and the
+      // No second-hand control — grading ignores seconds, and the
       // generator never sets a nonzero one (see setHands.ts).
       expect(second).toBe(0);
       expect(spec.precision).not.toBe('second');

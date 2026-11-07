@@ -83,9 +83,10 @@ describe('SampleQuestion', () => {
     render(<SampleQuestion question={question} />);
     const clock = screen.getByTestId('analog-clock');
     expect(clock).toBeInTheDocument();
-    // Non-interactive: the hand has no pointer handling when there's no onHandChange.
-    const hourHand = screen.getByTestId('analog-clock-hour-hand');
-    expect(hourHand.style.pointerEvents).toBe('none');
+    // Non-interactive: no button pad without onHandChange, and the hands show the target.
+    expect(screen.queryByTestId('clock-pad')).not.toBeInTheDocument();
+    expect(screen.getByTestId('analog-clock-hour-hand')).toHaveAttribute('data-hour', '3');
+    expect(screen.getByTestId('analog-clock-minute-hand')).toHaveAttribute('data-minute', '15');
   });
 
   it('renders a disabled, pre-filled NumberEntry for a number answer', () => {
