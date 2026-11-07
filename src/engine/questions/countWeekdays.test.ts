@@ -36,10 +36,12 @@ function countOccurrences(year: number, monthIndex: number, weekdayIndex: number
 }
 
 describe('generateCountWeekdays', () => {
-  it('asks a free-typed counting question with no visual aid', () => {
+  it('asks a free-typed counting question over an unhighlighted month calendar', () => {
     const q = generateCountWeekdays(mulberry32(1), ctx);
     expect(q.typeId).toBe(COUNT_WEEKDAYS_TYPE_ID);
-    expect(q.display.kind).toBe('none');
+    expect(q.display.kind).toBe('calendar');
+    if (q.display.kind !== 'calendar') return;
+    expect(q.display.highlightDay).toBeUndefined();
     expect(q.answer.kind).toBe('number');
     expect(q.prompt.startsWith('How many ')).toBe(true);
   });
@@ -63,6 +65,8 @@ describe('generateCountWeekdays', () => {
       const weekdayIndex = WEEKDAY_NAMES.indexOf(weekdayText);
       const monthIndex = MONTH_NAMES.indexOf(monthText);
       const year = Number(yearText);
+      // The calendar shown must be the month the prompt names.
+      expect(q.display).toEqual({ kind: 'calendar', year, monthIndex });
       const expected = countOccurrences(year, monthIndex, weekdayIndex);
       expect(q.answer.kind).toBe('number');
       if (q.answer.kind !== 'number') continue;

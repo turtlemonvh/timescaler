@@ -6,9 +6,8 @@ import type { GeneratorContext, Question, QuestionType } from './types';
 
 export const COUNT_WEEKDAYS_TYPE_ID = 'countWeekdays';
 
-/** Counting occurrences across a whole month is more work than finding one
- * specific occurrence (`nthWeekday`), but it's free-typed rather than
- * browsed-and-picked, so it lands a little under that type's own timer. */
+/** Counting a column on the month grid shown is quick, but it's free-typed
+ * rather than browsed-and-picked, so it keeps the extra time. */
 const TIME_LIMIT_MULTIPLIER = 1.4;
 
 /** Every weekday name pluralizes regularly ("Monday" -> "Mondays"). */
@@ -18,9 +17,10 @@ function pluralWeekday(name: string): string {
 
 /**
  * Peak 5's third emphasis: counting how many times a weekday occurs across
- * a whole month — "how many Mondays are in June 2026?" No display: the
- * month isn't shown, just named in the prompt, so the count can't be read
- * off a grid and has to be worked out.
+ * a whole month — "how many Mondays are in June 2026?" The month is shown
+ * as a calendar with no day highlighted: working it out blind (month length
+ * plus the weekday of the 1st) proved too hard in play, so the skill here
+ * is reading a weekday's column and noticing partial first/last weeks.
  */
 export function generateCountWeekdays(rng: Rng, ctx: GeneratorContext): Question {
   const profile = difficultyProfile(ctx.difficulty);
@@ -36,7 +36,7 @@ export function generateCountWeekdays(rng: Rng, ctx: GeneratorContext): Question
     id: makeQuestionId(rng, COUNT_WEEKDAYS_TYPE_ID),
     typeId: COUNT_WEEKDAYS_TYPE_ID,
     prompt: `How many ${plural} are in ${monthYear}?`,
-    display: { kind: 'none' },
+    display: { kind: 'calendar', year, monthIndex },
     answer: { kind: 'number', target: count },
     timeLimitMs: timeLimitFor(profile, TIME_LIMIT_MULTIPLIER),
     explainCorrect: `${monthYear} has ${count} ${plural}.`,
