@@ -35,3 +35,31 @@ or with `gh issue comment <N> --attach`, and replace the trailer link in the roo
 Shot lengths live in `src/shots.ts`; the edit points live in `src/IntroLoop.tsx` and
 `src/Trailer.tsx`. If a scene change shifts the action inside a take, re-record and adjust the
 `from` offsets there.
+
+## Before/after captures for rendering changes
+
+`capture/` uses the same virtual clock to film gameplay scenarios for review, so a scenario filmed
+on `main` and on a branch lines up frame for frame. That makes it easy to put a BEFORE | AFTER GIF
+on a PR.
+
+```sh
+pnpm trailer:install                       # once
+git worktree add --detach ../timescaler-main main   # the "before" build, served on another port
+pnpm capture --list                        # scenarios: trailer takes, every peak and animal, slips, map…
+pnpm capture http://localhost:5401 ../captures/before/ climb-peak1-fox trailer-deer-slip
+pnpm capture http://localhost:5173 ../captures/after/  climb-peak1-fox trailer-deer-slip
+pnpm capture:sheet ../captures/after climb-peak1-fox --every 3     # one PNG of the clip's frames
+pnpm capture:compare ../captures/before ../captures/after trailer-deer-slip ../captures/slip \
+  --from 600 --to 1600 --still 1000        # → slip.gif (side by side) + slip.png
+```
+
+- The server must be a Vite **dev** server, because the debug routes don't exist in a build.
+- The output directory needs a `/` or a leading `.`, so a mistyped scenario name is reported
+  rather than taken as a directory. Without one, captures go to `trailer/out/capture/<host-port>/`,
+  which is gitignored.
+- Each scenario writes 30 fps `fNNNN.jpg` frames, a GIF, an MP4, PNG stills and any page errors.
+- Scenarios live in `capture/scenarios.ts`. `/debug/scene` ones drive the debug stage's own controls
+  by label and button text, so a scenario keeps working as long as those labels do.
+- Remotion's bundled ffmpeg does the encoding. It can't overlay or stack frames, so labels, sheets
+  and side-by-sides are laid out in Chromium first.
+- Software WebGL is slow: a 6 s scenario takes about 20–40 s.

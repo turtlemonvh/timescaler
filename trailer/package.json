@@ -5,6 +5,9 @@
   "scripts": {
     "typecheck": "tsc -p .",
     "record": "tsx record.ts",
+    "capture": "tsx capture/capture.ts",
+    "capture:sheet": "tsx capture/sheet.ts",
+    "capture:compare": "tsx capture/compare.ts",
     "studio": "remotion studio src/index.ts",
     "render:intro": "remotion render src/index.ts IntroLoop out/intro-hero.webm --codec=vp9 --crf=36",
     "render:poster": "remotion still src/index.ts IntroPoster out/intro-hero-poster.jpg --image-format=jpeg --jpeg-quality=82",

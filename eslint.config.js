@@ -35,7 +35,13 @@ export default tseslint.config(
     },
   },
   {
-    files: ['scripts/**/*.ts', 'trailer/*.ts', 'vite.config.ts', 'playwright.config.ts'],
+    files: [
+      'scripts/**/*.ts',
+      'trailer/*.ts',
+      'trailer/capture/*.ts',
+      'vite.config.ts',
+      'playwright.config.ts',
+    ],
     languageOptions: { globals: globals.node },
   },
   eslintConfigPrettier,
