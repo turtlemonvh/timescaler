@@ -12,6 +12,9 @@ export interface ProfileSelectProps {
    * profile needs both.
    */
   onCreateProfile: (name: string) => void;
+  /** Opens with the "new climber" form showing even when profiles exist — the Map's switcher
+   * menu uses this for its "+ New climber" item. */
+  startCreating?: boolean;
 }
 
 /**
@@ -25,8 +28,9 @@ export default function ProfileSelect({
   profiles,
   onSelectProfile,
   onCreateProfile,
+  startCreating = false,
 }: ProfileSelectProps) {
-  const [creating, setCreating] = useState(profiles.length === 0);
+  const [creating, setCreating] = useState(startCreating || profiles.length === 0);
   const [name, setName] = useState('');
 
   function handleCreate(event: FormEvent) {
