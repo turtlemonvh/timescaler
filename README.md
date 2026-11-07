@@ -7,10 +7,9 @@
 A local-storage-only, installable browser game that teaches telling time and working with
 calendars by climbing ten mountain peaks.
 
-**🚧 Work in progress.** The question engine, the ten peaks, the climb rules and local-storage
-profiles are built and unit-tested. The game is played in a three.js world: your chosen forest animal
-hops from ledge to ledge up a cliff as you answer, slips on a miss, tumbles if you miss too often,
-and dances on the summit flag when you make it. The live site may lag the `main` branch.
+The game is played in a three.js world: your chosen forest animal hops from ledge to ledge up a
+cliff as you answer, slips on a miss, tumbles if you miss too often, and dances on the summit flag
+when you make it.
 
 **Live:** <https://turtlemonvh.github.io/timescaler/>
 
