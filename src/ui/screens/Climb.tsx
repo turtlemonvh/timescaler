@@ -103,6 +103,15 @@ export default function Climb({
   const sideCard = useMediaQuery('(min-width: 720px) and (min-aspect-ratio: 1/1)');
   const docked = !sideCard;
   const clockSize = shortScreen ? 150 : docked ? 180 : 220;
+  // The set-the-clock pad (up to two 52px rows) and its Submit button need
+  // room too, so that clock only gets the full size when the card has the
+  // height for it: the side card from 620px, the 60svh bottom card from
+  // 760px. On a short landscape screen the pad sits beside the face instead
+  // (see index.css), so the face itself is what has to stay small.
+  const tallScreen = useMediaQuery('(min-height: 620px)');
+  const tallerScreen = useMediaQuery('(min-height: 760px)');
+  const roomForPad = docked ? tallerScreen : tallScreen;
+  const handsClockSize = shortScreen ? 120 : roomForPad ? clockSize : docked ? 130 : 150;
   const { climbState, question, revealing, move } = run;
   const answer = question.answer;
   const [showTitle, setShowTitle] = useState(true);
@@ -169,8 +178,9 @@ export default function Climb({
             <AnalogClock
               time={run.draftTime}
               precision={answer.precision}
-              onHandChange={revealing ? undefined : run.setDraftTime}
-              size={clockSize}
+              onHandChange={run.setDraftTime}
+              disabled={revealing}
+              size={handsClockSize}
             />
             <button
               type="button"

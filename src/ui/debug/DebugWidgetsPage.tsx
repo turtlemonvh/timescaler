@@ -21,7 +21,7 @@ const STATIC_TIMES: TimeOfDay[] = [
 /**
  * Dev-only gallery for the question display/answer widgets (clocks,
  * calendar, choice grid, entry fields) — a place to see every widget
- * rendered and interact with the draggable ones without playing through
+ * rendered and interact with the interactive ones without playing through
  * the real game.
  */
 export default function DebugWidgetsPage() {
@@ -75,9 +75,9 @@ export default function DebugWidgetsPage() {
         </div>
       </div>
 
-      <h2>AnalogClock — draggable hands</h2>
+      <h2>AnalogClock — step-button hands</h2>
       <p>
-        <label htmlFor="widgets-precision">Snap precision</label>{' '}
+        <label htmlFor="widgets-precision">Minute step precision</label>{' '}
         <select
           id="widgets-precision"
           data-testid="widgets-precision"

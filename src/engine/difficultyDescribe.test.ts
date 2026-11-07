@@ -78,7 +78,7 @@ describe('describeDifficultyLevel', () => {
         const expectedMode = getGenerator(typeId).answerMode;
         const expectedLabel = {
           choice: 'Multiple choice only',
-          interactive: 'Drag/set answers, like moving clock hands only',
+          interactive: 'Hands-on answers, like setting clock hands only',
           free: 'Typed-in answers only',
         }[expectedMode];
         for (let level = 1; level <= 10; level++) {
@@ -94,10 +94,10 @@ describe('describeDifficultyLevel', () => {
       expect(bullets).not.toContain('Typed-in answers');
     });
 
-    it('reproduces the reported case: Sundial Spire (peak 2) at difficulty 7 says "Multiple choice", not "Drag/set"', () => {
+    it('reproduces the reported case: Sundial Spire (peak 2) at difficulty 7 says "Multiple choice", not "Hands-on"', () => {
       const bullets = describeDifficultyLevel(7, 2).join(' | ');
       expect(bullets).toContain('Multiple choice only');
-      expect(bullets).not.toContain('Drag/set');
+      expect(bullets).not.toContain('Hands-on');
     });
 
     it('the described answer style always matches questions actually generated for that peak/difficulty', () => {
@@ -107,7 +107,7 @@ describe('describeDifficultyLevel', () => {
       // class" testing convention (see contract.test.ts for the pattern).
       const MODE_LABEL_SUBSTRING = {
         choice: 'multiple choice',
-        interactive: 'drag/set',
+        interactive: 'hands-on',
         free: 'typed-in',
       } as const;
       for (let peakId = 1; peakId <= 10; peakId++) {

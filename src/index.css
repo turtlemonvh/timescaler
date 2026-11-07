@@ -587,6 +587,112 @@ td {
   align-items: center;
   gap: 0.6rem;
 }
+/* The set-the-clock answer: the face with a pad of step buttons below it
+ * (`AnalogClock` with `onHandChange`). */
+.analog-clock-input {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+.clock-pad {
+  display: grid;
+  /* [◀] label [▶] [?] — the help column sits empty on the minutes row. */
+  grid-template-columns: 3.25rem 5rem 3.25rem 2.75rem;
+  align-items: center;
+  justify-items: center;
+  gap: 0.5rem 0.35rem;
+  /* Balances the help column so the arrows stay centred under the face. */
+  padding-left: 3.1rem;
+}
+.clock-pad__label {
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-h);
+}
+.clock-pad button {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+button.clock-pad__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  min-height: 52px;
+  height: 52px;
+  padding: 0;
+}
+button.clock-pad__help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-h);
+}
+button.clock-pad__help > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--card-solid);
+  border: 1.5px solid var(--border);
+  box-shadow: 0 2px 0 var(--border);
+  font-size: 1rem;
+  text-transform: none;
+}
+button.clock-pad__help[aria-expanded='true'] > span {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+/* Floats over the face so opening it never moves the pad. */
+.clock-pad__hint {
+  position: absolute;
+  z-index: 2;
+  top: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(17rem, 100%);
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--card-solid);
+  box-shadow: var(--shadow);
+  color: var(--text-h);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  text-align: center;
+}
+/* Short landscape screens: the pad sits beside the face, not under it. */
+@media (max-height: 520px) {
+  .analog-clock-input {
+    flex-direction: row;
+  }
+  .clock-pad {
+    grid-template-columns: 3.25rem 4.5rem 3.25rem 2.75rem;
+    padding-left: 0;
+  }
+  /* Over the face would cover the arrows beside it; drop below the row
+   * instead (over Submit — tapping the hint closes it). */
+  .clock-pad__hint {
+    top: calc(100% + 0.4rem);
+  }
+}
+
 .climb-card__explain {
   margin: 0.75rem 0 0;
   padding: 0.5rem 0.75rem;

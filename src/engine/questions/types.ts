@@ -58,12 +58,12 @@ export interface ChoiceAnswer {
 }
 
 /**
- * Player drags the analog clock's hands to match `target`. `precision`
- * carries the snap granularity `Climb.tsx` hands to the interactive
- * `AnalogClock` (see its own `precision` prop) — the generator that builds
- * this answer already drew `target`'s minute at that same precision, so a
- * correct drag is always reachable. Only hour and minute are graded: the
- * widget's hands don't include a draggable second hand.
+ * Player sets the analog clock's hands to match `target` with the
+ * widget's step buttons. `precision` is how far one press of a minute arrow
+ * moves (see `AnalogClock`'s own `precision` prop) — the generator that
+ * builds this answer already drew `target`'s minute at that same precision,
+ * so the target is always reachable. Only hour and minute are graded: the
+ * widget has no control for a second hand.
  */
 export interface SetHandsAnswer {
   kind: 'setHands';
@@ -137,7 +137,7 @@ export function isCorrectChoice(answer: ChoiceAnswer, selectedIndex: number): bo
   );
 }
 
-/** Grades a dragged-clock-hands answer. See the `SetHandsAnswer` doc comment. */
+/** Grades a set-the-clock-hands answer. See the `SetHandsAnswer` doc comment. */
 export function isCorrectSetHands(answer: SetHandsAnswer, submitted: TimeOfDay): boolean {
   return submitted.hour === answer.target.hour && submitted.minute === answer.target.minute;
 }

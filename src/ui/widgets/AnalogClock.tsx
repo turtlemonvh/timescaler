@@ -1,6 +1,12 @@
-import { useCallback, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
-import { to24Hour, type TimeOfDay, type TimePrecision } from '../../engine/timeMath';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import {
+  PRECISION_STEP_MINUTES,
+  stepTime,
+  type TimeOfDay,
+  type TimePrecision,
+} from '../../engine/timeMath';
+import { useRepeatPress } from './useRepeatPress';
 
 const FACE = {
   face: '#fdf6e3',
@@ -13,14 +19,8 @@ const SECOND_HAND_COLOR = '#c0392b';
 const NUMERAL_RADIUS_FRACTION = 0.36;
 const NUMERALS = ['12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
 
-const PRECISION_STEP_MINUTES: Record<TimePrecision, number> = {
-  hour: 60,
-  half: 30,
-  quarter: 15,
-  five: 5,
-  minute: 1,
-  second: 1,
-};
+export const CLOCK_HINT =
+  'Tap an arrow to move one step. Hold it down to keep going — the longer you hold, the faster it moves.';
 
 export interface AnalogClockProps {
   time: TimeOfDay;
@@ -29,19 +29,20 @@ export interface AnalogClockProps {
   size?: number;
   /** Numerals 1-12 around the face. Difficulty turns this off at high levels. */
   showNumerals?: boolean;
-  /** Minute-hand drag snapping. Only relevant when `onHandChange` is set. */
+  /** How far one press of a minute arrow moves. Only relevant when `onHandChange` is set. */
   precision?: TimePrecision;
-  /** Presence makes the hour and minute hands draggable. */
+  /** Presence adds the button pad that steps the hands. */
   onHandChange?: (next: TimeOfDay) => void;
+  /** Keeps the pad on screen but greys it out (e.g. while an answer is revealed). */
+  disabled?: boolean;
 }
 
-type Dragging = 'hour' | 'minute' | null;
-
 /**
- * An SVG clock face with draggable hands. Hands are real hit-testable
- * elements with fractional angles; the face is a circle with 60 ticks.
- * The 12-hour face cannot show AM/PM, so a drag always preserves whichever
- * half the current time is in (see `defaultSetHandsDraft`).
+ * An SVG clock face with display-only hands; the face is a circle with 60
+ * ticks. With `onHandChange` it also renders a button pad below the face:
+ * hours step by one, minutes by `precision` and carry into the hour. The
+ * 12-hour face cannot show AM/PM, so every step keeps whichever half the
+ * current time is in (see `stepTime` and `defaultSetHandsDraft`).
  */
 export default function AnalogClock({
   time,
@@ -50,59 +51,176 @@ export default function AnalogClock({
   showNumerals = true,
   precision = 'minute',
   onHandChange,
+  disabled = false,
 }: AnalogClockProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [dragging, setDragging] = useState<Dragging>(null);
-  const interactive = Boolean(onHandChange);
+  const face = (
+    <ClockFace time={time} showSeconds={showSeconds} size={size} showNumerals={showNumerals} />
+  );
+  if (!onHandChange) return face;
+  return (
+    <ClockInput time={time} precision={precision} onHandChange={onHandChange} disabled={disabled}>
+      {face}
+    </ClockInput>
+  );
+}
 
+interface ClockInputProps {
+  time: TimeOfDay;
+  precision: TimePrecision;
+  onHandChange: (next: TimeOfDay) => void;
+  disabled: boolean;
+  children: ReactNode;
+}
+
+function ClockInput({ time, precision, onHandChange, disabled, children }: ClockInputProps) {
+  // The latest time this pad knows of: its own last step, or the prop once it
+  // commits. Steps read it rather than `time`, so a repeat timer firing
+  // before React re-renders still moves on from the previous step.
+  const timeRef = useRef(time);
+  useLayoutEffect(() => {
+    timeRef.current = time;
+  }, [time]);
+  const [hintOpen, setHintOpen] = useState(false);
+  const showHint = hintOpen && !disabled;
+  const hintId = useId();
+
+  useEffect(() => {
+    if (!showHint) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setHintOpen(false);
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [showHint]);
+
+  const minuteStep = PRECISION_STEP_MINUTES[precision];
+  const showMinutes = precision !== 'hour';
+
+  function step(unit: 'hour' | 'minute', direction: 1 | -1) {
+    setHintOpen(false);
+    const next = stepTime(timeRef.current, unit, direction * (unit === 'hour' ? 1 : minuteStep));
+    timeRef.current = next;
+    onHandChange(next);
+  }
+
+  const minuteWord = minuteStep === 1 ? 'minute' : 'minutes';
+
+  return (
+    <div className="analog-clock-input" data-testid="analog-clock-input">
+      {children}
+      {showHint && (
+        // Tapping the bubble itself closes it too, since it can sit over Submit.
+        <p
+          className="clock-pad__hint"
+          role="tooltip"
+          id={hintId}
+          data-testid="clock-hint"
+          onClick={() => setHintOpen(false)}
+        >
+          {CLOCK_HINT}
+        </p>
+      )}
+      <div
+        className="clock-pad"
+        role="group"
+        aria-label="Set the clock"
+        data-testid="clock-pad"
+        data-disabled={disabled ? 'true' : 'false'}
+      >
+        <StepButton
+          direction={-1}
+          label="hour hand back 1 hour"
+          testId="clock-step-hour-back"
+          disabled={disabled}
+          onStep={() => step('hour', -1)}
+        />
+        <span className="clock-pad__label">Hours</span>
+        <StepButton
+          direction={1}
+          label="hour hand forward 1 hour"
+          testId="clock-step-hour-forward"
+          disabled={disabled}
+          onStep={() => step('hour', 1)}
+        />
+        <button
+          type="button"
+          className="clock-pad__help"
+          data-testid="clock-help"
+          aria-label="How to set the clock"
+          aria-expanded={showHint}
+          aria-describedby={showHint ? hintId : undefined}
+          disabled={disabled}
+          onClick={() => setHintOpen((open) => !open)}
+        >
+          <span aria-hidden="true">?</span>
+        </button>
+        {showMinutes && (
+          <>
+            <StepButton
+              direction={-1}
+              label={`minute hand back ${minuteStep} ${minuteWord}`}
+              testId="clock-step-minute-back"
+              disabled={disabled}
+              onStep={() => step('minute', -1)}
+            />
+            <span className="clock-pad__label">Minutes</span>
+            <StepButton
+              direction={1}
+              label={`minute hand forward ${minuteStep} ${minuteWord}`}
+              testId="clock-step-minute-forward"
+              disabled={disabled}
+              onStep={() => step('minute', 1)}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface StepButtonProps {
+  direction: 1 | -1;
+  label: string;
+  testId: string;
+  disabled: boolean;
+  onStep: () => void;
+}
+
+function StepButton({ direction, label, testId, disabled, onStep }: StepButtonProps) {
+  const handlers = useRepeatPress(onStep, disabled);
+  return (
+    <button
+      type="button"
+      className="clock-pad__step"
+      data-testid={testId}
+      aria-label={label}
+      disabled={disabled}
+      {...handlers}
+    >
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+        <path
+          d={direction > 0 ? 'M5 2.5 L15 9 L5 15.5 Z' : 'M13 2.5 L3 9 L13 15.5 Z'}
+          fill="currentColor"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
+interface ClockFaceProps {
+  time: TimeOfDay;
+  showSeconds: boolean;
+  size: number;
+  showNumerals: boolean;
+}
+
+function ClockFace({ time, showSeconds, size, showNumerals }: ClockFaceProps) {
   const hourAngle = ((time.hour % 12) + time.minute / 60) * 30;
   const minuteAngle = time.minute * 6 + time.second / 10;
   const secondAngle = time.second * 6;
-
-  const angleFromPointer = useCallback((clientX: number, clientY: number) => {
-    const svg = svgRef.current;
-    if (!svg) return 0;
-    const rect = svg.getBoundingClientRect();
-    const dx = clientX - (rect.left + rect.width / 2);
-    const dy = clientY - (rect.top + rect.height / 2);
-    return ((Math.atan2(dx, -dy) * 180) / Math.PI + 360) % 360;
-  }, []);
-
-  const applyDrag = useCallback(
-    (which: Dragging, clientX: number, clientY: number) => {
-      if (!which || !onHandChange) return;
-      const angle = angleFromPointer(clientX, clientY);
-      if (which === 'minute') {
-        const step = PRECISION_STEP_MINUTES[precision];
-        const minute = (Math.round(angle / 6 / step) * step) % 60;
-        onHandChange({ ...time, minute, second: 0 });
-      } else {
-        const hour12 = Math.round(angle / 30) % 12 || 12;
-        const isPM = time.hour >= 12;
-        onHandChange({ ...time, hour: to24Hour(hour12, isPM) });
-      }
-    },
-    [angleFromPointer, onHandChange, precision, time],
-  );
-
-  const startDrag = useCallback(
-    (which: Dragging) => (event: ReactPointerEvent<SVGLineElement>) => {
-      if (!interactive) return;
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-      setDragging(which);
-      applyDrag(which, event.clientX, event.clientY);
-    },
-    [applyDrag, interactive],
-  );
-
-  function onPointerMove(event: ReactPointerEvent<SVGSVGElement>) {
-    if (!dragging) return;
-    applyDrag(dragging, event.clientX, event.clientY);
-  }
-
-  function endDrag() {
-    setDragging(null);
-  }
 
   const center = size / 2;
   const radius = size * 0.47;
@@ -123,16 +241,7 @@ export default function AnalogClock({
       style={{ position: 'relative', width: size, height: size }}
       data-testid="analog-clock"
     >
-      <svg
-        ref={svgRef}
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        style={{ display: 'block', touchAction: 'none' }}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-      >
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
         <defs>
           <radialGradient id="analog-clock-face" cx="50%" cy="40%" r="65%">
             <stop offset="0%" stopColor={FACE.face} />
@@ -198,6 +307,7 @@ export default function AnalogClock({
         )}
         <line
           data-testid="analog-clock-hour-hand"
+          data-hour={time.hour}
           x1={center}
           y1={center}
           x2={hourPoint.x}
@@ -205,14 +315,10 @@ export default function AnalogClock({
           stroke={FACE.rim}
           strokeWidth={size * 0.05}
           strokeLinecap="round"
-          onPointerDown={startDrag('hour')}
-          style={{
-            cursor: interactive ? 'grab' : undefined,
-            pointerEvents: interactive ? 'stroke' : 'none',
-          }}
         />
         <line
           data-testid="analog-clock-minute-hand"
+          data-minute={time.minute}
           x1={center}
           y1={center}
           x2={minutePoint.x}
@@ -220,11 +326,6 @@ export default function AnalogClock({
           stroke={FACE.rim}
           strokeWidth={size * 0.034}
           strokeLinecap="round"
-          onPointerDown={startDrag('minute')}
-          style={{
-            cursor: interactive ? 'grab' : undefined,
-            pointerEvents: interactive ? 'stroke' : 'none',
-          }}
         />
         <circle cx={center} cy={center} r={size * 0.028} fill={FACE.rim} />
         <circle cx={center} cy={center} r={size * 0.012} fill={FACE.face} />

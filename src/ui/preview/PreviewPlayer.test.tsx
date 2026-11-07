@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PreviewPlayer from './PreviewPlayer';
@@ -64,18 +64,6 @@ describe('PreviewPlayer', () => {
   });
 
   it('renders the real interactive AnalogClock for setHands questions, and reveals on Check', async () => {
-    const CENTER = 129; // AnalogClock's default target size (260) snaps to actualSize 258.
-    vi.spyOn(SVGElement.prototype, 'getBoundingClientRect').mockReturnValue({
-      left: 0,
-      top: 0,
-      width: CENTER * 2,
-      height: CENTER * 2,
-      right: CENTER * 2,
-      bottom: CENTER * 2,
-      x: 0,
-      y: 0,
-      toJSON: () => {},
-    } as DOMRect);
     const user = userEvent.setup();
     render(<PreviewPlayer initialSeed={1} />);
     // ...elapsedAdd(12-14), elapsedBetween(15-17), setHands(18-20): 18 clicks reaches index 18.
@@ -85,6 +73,11 @@ describe('PreviewPlayer', () => {
     const answerSection = screen.getByTestId('preview-set-hands');
     expect(within(answerSection).getByTestId('analog-clock')).toBeInTheDocument();
     expect(screen.queryByTestId('preview-hands-result')).not.toBeInTheDocument();
+    // The pad's buttons drive the draft: one hour press moves the hour hand on by one.
+    const hourHand = within(answerSection).getByTestId('analog-clock-hour-hand');
+    const before = Number(hourHand.getAttribute('data-hour'));
+    await user.click(within(answerSection).getByTestId('clock-step-hour-forward'));
+    expect(Number(hourHand.getAttribute('data-hour')) % 12).toBe((before + 1) % 12);
 
     fireEvent.click(screen.getByTestId('preview-check'));
     expect(screen.getByTestId('preview-hands-result')).toBeInTheDocument();

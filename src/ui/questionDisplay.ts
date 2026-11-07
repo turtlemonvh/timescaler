@@ -56,9 +56,9 @@ export function describeDisplay(display: DisplaySpec): string {
  * Starting hand position for a `setHands` answer's interactive widget.
  * Matches `target`'s AM/PM half (noon if PM, midnight if AM) —
  * `AnalogClock`'s 12-hour face can't show which half the hour hand is in,
- * so a drag always preserves whichever half the draft starts in (see the
- * widget's own doc comment). Starting in the wrong half would make the
- * target structurally unreachable by dragging, not just a harder question.
+ * so every button step keeps whichever half the draft starts in (see
+ * `stepTime`). Starting in the wrong half would make the target
+ * structurally unreachable with the buttons, not just a harder question.
  * Shared between `Climb.tsx` and `PreviewPlayer.tsx`, the two places that
  * render this answer kind interactively, so the reachability fix can't
  * drift out of sync between them.

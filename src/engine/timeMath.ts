@@ -8,7 +8,8 @@ export interface TimeOfDay {
   second: number;
 }
 
-const PRECISION_STEP_MINUTES: Record<TimePrecision, number> = {
+/** Minute granularity of each precision. `second` steps the minute hand by 1. */
+export const PRECISION_STEP_MINUTES: Record<TimePrecision, number> = {
   hour: 60,
   half: 30,
   quarter: 15,
@@ -30,6 +31,23 @@ export function randomTime(rng: Rng, precision: TimePrecision): TimeOfDay {
 export function to24Hour(hour12: number, isPM: boolean): number {
   const hour = hour12 % 12;
   return isPM ? hour + 12 : hour;
+}
+
+const HALF_DAY_MINUTES = 12 * 60;
+
+/**
+ * Moves a time by `delta` hours or minutes the way the set-the-clock buttons
+ * do, always keeping its AM/PM half: a 12-hour face cannot show the half, so
+ * the draft must never leave the one it started in. Hours wrap 12 <-> 1 and
+ * leave the minutes alone; minutes carry into the hour like a real clock
+ * (11:55 AM + 5 min -> 12:00 AM, 12:00 PM - 1 min -> 11:59 PM). Seconds
+ * become 0.
+ */
+export function stepTime(time: TimeOfDay, unit: 'hour' | 'minute', delta: number): TimeOfDay {
+  const halfStart = time.hour >= 12 ? 12 : 0;
+  const moved = (time.hour % 12) * 60 + time.minute + (unit === 'hour' ? delta * 60 : delta);
+  const position = ((moved % HALF_DAY_MINUTES) + HALF_DAY_MINUTES) % HALF_DAY_MINUTES;
+  return { hour: halfStart + Math.floor(position / 60), minute: position % 60, second: 0 };
 }
 
 export function formatTime12(t: TimeOfDay, opts: { seconds?: boolean } = {}): string {

@@ -54,7 +54,7 @@ function renderDisplay(display: DisplaySpec) {
  * it'll actually be presented in the game, without `Climb.tsx`'s full
  * boost/fall-risk/HUD state machine (deliberately lighter-weight than that
  * screen, not a stand-in for it). Choosing an option or checking a typed
- * number, dragging the clock hands, or picking a calendar date reveals
+ * number, setting the clock hands, or picking a calendar date reveals
  * whether it was correct, but — since there's no climb/scoring here —
  * Enter (or Next) always advances regardless of whether an answer was
  * given at all. Deliberately reachable in production: this is what

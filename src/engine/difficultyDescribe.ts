@@ -44,7 +44,7 @@ const ANSWER_MODE_ORDER: readonly AnswerMode[] = ['choice', 'interactive', 'free
 
 const ANSWER_MODE_LABELS: Readonly<Record<AnswerMode, string>> = {
   choice: 'multiple choice',
-  interactive: 'drag/set answers, like moving clock hands',
+  interactive: 'hands-on answers, like setting clock hands',
   free: 'typed-in answers',
 };
 

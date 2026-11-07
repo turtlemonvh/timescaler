@@ -52,7 +52,7 @@ describe('isCorrectSetHands', () => {
     expect(isCorrectSetHands(setHands, { hour: 15, minute: 45, second: 0 })).toBe(true);
   });
 
-  it('ignores seconds — the widget has no draggable second hand', () => {
+  it('ignores seconds — the widget has no second-hand control', () => {
     expect(isCorrectSetHands(setHands, { hour: 15, minute: 45, second: 37 })).toBe(true);
   });
 
