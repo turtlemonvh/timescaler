@@ -9,14 +9,22 @@ import type {
 
 const DEFAULT_PEAK_DIFFICULTY = 1;
 
-function makeProfileId(): string {
-  return crypto.randomUUID();
+/** A random v4 UUID. `crypto.randomUUID` only exists in secure contexts (HTTPS or
+ * localhost), so a dev server opened over plain HTTP from another device on the
+ * LAN or tailnet lacks it; `getRandomValues` works everywhere. */
+function makeId(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // RFC 4122 variant
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /** Creates a new profile, appends it, and makes it the active one. */
 export function createProfile(save: SaveFile, name: string, characterId: string): SaveFile {
   const profile: Profile = {
-    id: makeProfileId(),
+    id: makeId(),
     name,
     characterId,
     createdAt: Date.now(),
@@ -131,7 +139,7 @@ function makeClimbLogEntry(
 ): ClimbLogEntry {
   const endedAt = Date.now();
   return {
-    id: crypto.randomUUID(),
+    id: makeId(),
     peakId,
     difficulty,
     startedAt: endedAt - elapsedMs,
@@ -290,7 +298,7 @@ export function addGoal(
 ): SaveFile {
   return updateProfile(save, profileId, (profile) => {
     const goal: Goal = {
-      id: crypto.randomUUID(),
+      id: makeId(),
       peakId,
       difficulty,
       targetDate,

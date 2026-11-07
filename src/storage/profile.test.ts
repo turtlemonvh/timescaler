@@ -21,6 +21,31 @@ import type { Profile, SaveFile } from './types';
 
 const EMPTY_SAVE: SaveFile = { v: 3, activeProfileId: null, profiles: [] };
 
+describe('ids outside a secure context', () => {
+  // A dev server opened over plain HTTP from another device (LAN, tailnet) isn't a
+  // secure context, so the browser leaves crypto.randomUUID undefined there.
+  it('creates profiles, climb log entries and goals without crypto.randomUUID', () => {
+    vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) });
+    try {
+      let save = createProfile(EMPTY_SAVE, 'Riley', 'preset-1');
+      save = createProfile(save, 'Sam', 'preset-2');
+      const id = save.profiles[1].id;
+      save = recordSummit(save, id, 1, 1, 60000);
+      save = addGoal(save, id, 2, 1, '2026-12-01');
+      const profile = getProfile(save, id)!;
+      const ids = [save.profiles[0].id, id, profile.climbLog[0].id, profile.goals[0].id];
+      for (const value of ids) {
+        expect(value).toMatch(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+        );
+      }
+      expect(new Set(ids).size).toBe(ids.length);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
 describe('createProfile', () => {
   it('appends a new profile with defaults and makes it active', () => {
     const save = createProfile(EMPTY_SAVE, 'Riley', 'preset-1');
