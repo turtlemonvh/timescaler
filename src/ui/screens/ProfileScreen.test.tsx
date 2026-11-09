@@ -180,4 +180,24 @@ describe('ProfileScreen', () => {
     fireEvent.click(screen.getByTestId('profile-delete-confirm'));
     expect(onDeleteProfile).toHaveBeenCalledTimes(1);
   });
+
+  it('confirms a multi-word name regardless of doubled or non-breaking spaces', () => {
+    const onDeleteProfile = vi.fn();
+    render(
+      <ProfileScreen
+        profile={makeProfile({ name: 'Mina van  heest' })}
+        onChangeAnimal={vi.fn()}
+        onBack={vi.fn()}
+        onDeleteProfile={onDeleteProfile}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('profile-delete-open'));
+    const input = screen.getByTestId('profile-delete-input');
+    fireEvent.change(input, { target: { value: 'Mina van heest' } });
+    expect(screen.getByTestId('profile-delete-confirm')).toBeEnabled();
+    fireEvent.change(input, { target: { value: 'Mina\u00a0van heest' } });
+    expect(screen.getByTestId('profile-delete-confirm')).toBeEnabled();
+    fireEvent.change(input, { target: { value: 'Minavan heest' } });
+    expect(screen.getByTestId('profile-delete-confirm')).toBeDisabled();
+  });
 });

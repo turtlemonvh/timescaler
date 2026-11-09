@@ -75,9 +75,19 @@ function TrophyMark({ trophy }: { trophy: Trophy }) {
   );
 }
 
-/** Typing the name again (ignoring case and surrounding spaces) is the confirmation. */
+/**
+ * Folds a name for the delete confirmation: case-insensitive, and every run of whitespace
+ * (including the non-breaking or doubled spaces Android keyboards insert after a word
+ * suggestion) counts as one space. The page renders the name with spaces collapsed, so a
+ * saved "Mina van  heest" looks exactly like "Mina van heest" and must match it.
+ */
+function foldName(value: string): string {
+  return value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/** Typing the name again (ignoring case and spacing) is the confirmation. */
 function namesMatch(typed: string, name: string): boolean {
-  return typed.trim().toLowerCase() === name.trim().toLowerCase();
+  return foldName(typed) === foldName(name);
 }
 
 /**

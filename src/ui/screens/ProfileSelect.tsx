@@ -35,7 +35,8 @@ export default function ProfileSelect({
 
   function handleCreate(event: FormEvent) {
     event.preventDefault();
-    const trimmed = name.trim();
+    // Collapse doubled/non-breaking spaces a phone keyboard may leave between words.
+    const trimmed = name.replace(/\s+/g, ' ').trim();
     if (!trimmed) return;
     onCreateProfile(trimmed);
   }
