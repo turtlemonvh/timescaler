@@ -83,6 +83,18 @@ describe('ProfileSelect', () => {
     expect(onCreateProfile).toHaveBeenCalledWith('Riley');
   });
 
+  it('collapses doubled and non-breaking spaces between words', () => {
+    const onCreateProfile = vi.fn();
+    render(
+      <ProfileSelect profiles={[]} onSelectProfile={vi.fn()} onCreateProfile={onCreateProfile} />,
+    );
+    fireEvent.change(screen.getByTestId('profile-name-input'), {
+      target: { value: 'Mina van \u00a0heest ' },
+    });
+    fireEvent.click(screen.getByTestId('profile-create-submit'));
+    expect(onCreateProfile).toHaveBeenCalledWith('Mina van heest');
+  });
+
   it('disables submit when the name is empty or whitespace-only', () => {
     render(<ProfileSelect profiles={[]} onSelectProfile={vi.fn()} onCreateProfile={vi.fn()} />);
     expect(screen.getByTestId('profile-create-submit')).toBeDisabled();
