@@ -23,6 +23,7 @@ function renderSwitcher(overrides: Partial<Parameters<typeof ProfileSwitcher>[0]
     otherProfiles: OTHERS,
     onSwitchProfile: vi.fn(),
     onNewProfile: vi.fn(),
+    onLogout: vi.fn(),
     ...overrides,
   };
   render(<ProfileSwitcher {...props} />);
@@ -38,7 +39,7 @@ describe('ProfileSwitcher', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  it('opens a menu of the other climbers plus "+ New climber", focusing the first item', () => {
+  it('opens a menu of the other climbers, "+ New climber" and "Log out", focusing the first item', () => {
     renderSwitcher();
     const toggle = screen.getByTestId('profile-switch-toggle');
     fireEvent.click(toggle);
@@ -46,10 +47,11 @@ describe('ProfileSwitcher', () => {
     const menu = screen.getByRole('menu', { name: 'Switch climber' });
     expect(toggle).toHaveAttribute('aria-controls', menu.id);
     const items = screen.getAllByRole('menuitem');
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(items[0]).toHaveAccessibleName('Sam');
     expect(items[1]).toHaveAccessibleName('Jo');
     expect(items[2]).toHaveAccessibleName('+ New climber');
+    expect(items[3]).toHaveAccessibleName('Log out');
     expect(items[0]).toHaveFocus();
   });
 
@@ -64,9 +66,18 @@ describe('ProfileSwitcher', () => {
   it('offers "+ New climber" even when there is nobody else to switch to', () => {
     const { onNewProfile } = renderSwitcher({ otherProfiles: [] });
     fireEvent.click(screen.getByTestId('profile-switch-toggle'));
-    expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+    expect(screen.getAllByRole('menuitem')).toHaveLength(2);
     fireEvent.click(screen.getByTestId('profile-switch-new'));
     expect(onNewProfile).toHaveBeenCalled();
+  });
+
+  it('reports "Log out" and closes', () => {
+    const { onLogout, onSwitchProfile } = renderSwitcher();
+    fireEvent.click(screen.getByTestId('profile-switch-toggle'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Log out' }));
+    expect(onLogout).toHaveBeenCalledTimes(1);
+    expect(onSwitchProfile).not.toHaveBeenCalled();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
   it('closes on Escape and returns focus to the toggle', () => {
@@ -88,11 +99,11 @@ describe('ProfileSwitcher', () => {
     fireEvent.keyDown(menu, { key: 'ArrowDown' });
     expect(items[1]).toHaveFocus();
     fireEvent.keyDown(menu, { key: 'End' });
-    expect(items[2]).toHaveFocus();
+    expect(items[3]).toHaveFocus();
     fireEvent.keyDown(menu, { key: 'ArrowDown' });
     expect(items[0]).toHaveFocus();
     fireEvent.keyDown(menu, { key: 'ArrowUp' });
-    expect(items[2]).toHaveFocus();
+    expect(items[3]).toHaveFocus();
   });
 
   it('opens from the keyboard with ArrowDown on the toggle', () => {

@@ -1705,6 +1705,39 @@ button.peak-tile--selected {
 .profile-section__lead {
   margin-top: -0.25rem;
 }
+/* Delete-a-climber, at the very bottom of the profile page: quiet until opened. */
+.delete-climber {
+  margin: 2.5rem 0 1rem;
+  padding-top: 1.25rem;
+  border-top: 1.5px solid var(--border);
+}
+button.delete-climber__open {
+  font-size: 0.9rem;
+  color: var(--danger);
+}
+.delete-climber--open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 28rem;
+  padding: 1rem;
+  border: 2px solid var(--danger);
+  border-radius: 14px;
+  background: var(--card-solid);
+}
+.delete-climber--open h2,
+.delete-climber--open p {
+  margin: 0;
+}
+.delete-climber__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+button.delete-climber__confirm {
+  background: var(--danger);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--danger) 70%, black);
+}
 .animal-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -47,6 +47,8 @@ export interface MapProps {
   onSwitchProfile?: (profileId: string) => void;
   /** Starts creating a new climber from the switcher menu. */
   onNewProfile?: () => void;
+  /** Leaves this climber for the intro screen, from the switcher menu. */
+  onLogout?: () => void;
 }
 
 interface PeakStatusProps {
@@ -365,6 +367,7 @@ export default function Map({
   otherProfiles = [],
   onSwitchProfile,
   onNewProfile,
+  onLogout,
 }: MapProps) {
   const animal = resolveAnimal(profile.characterId);
   const reducedMotion = usePrefersReducedMotion();
@@ -468,11 +471,12 @@ export default function Map({
                 }
               />
             </button>
-            {onSwitchProfile && onNewProfile && (
+            {onSwitchProfile && onNewProfile && onLogout && (
               <ProfileSwitcher
                 otherProfiles={otherProfiles}
                 onSwitchProfile={onSwitchProfile}
                 onNewProfile={onNewProfile}
+                onLogout={onLogout}
               />
             )}
             <button

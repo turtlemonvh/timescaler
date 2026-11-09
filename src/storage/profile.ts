@@ -40,6 +40,18 @@ export function createProfile(save: SaveFile, name: string, characterId: string)
   };
 }
 
+/**
+ * Removes a profile and everything recorded under it. If it was the active
+ * profile, no profile is active afterwards (the app returns to the intro).
+ */
+export function deleteProfile(save: SaveFile, profileId: string): SaveFile {
+  return {
+    ...save,
+    profiles: save.profiles.filter((p) => p.id !== profileId),
+    activeProfileId: save.activeProfileId === profileId ? null : save.activeProfileId,
+  };
+}
+
 export function getProfile(save: SaveFile, profileId: string): Profile | undefined {
   return save.profiles.find((profile) => profile.id === profileId);
 }

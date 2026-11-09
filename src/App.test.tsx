@@ -260,9 +260,10 @@ describe('App', () => {
     // Switch back to Riley: only the other climber is listed.
     fireEvent.click(screen.getByTestId('profile-switch-toggle'));
     const items = screen.getAllByRole('menuitem');
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(3);
     expect(items[0]).toHaveAccessibleName('Riley');
     expect(items[1]).toHaveAccessibleName('+ New climber');
+    expect(items[2]).toHaveAccessibleName('Log out');
     fireEvent.click(items[0]);
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(screen.getByTestId('profile-chip-name')).toHaveTextContent('Riley');
@@ -275,5 +276,46 @@ describe('App', () => {
     const saved = JSON.parse(localStorage.getItem('timescaler.save') ?? '{}') as SaveFile;
     expect(saved.profiles.map((p) => p.name)).toEqual(['Riley', 'Sam']);
     expect(saved.activeProfileId).toBe(saved.profiles[0].id);
+  });
+
+  it('logs out from the switcher back to the intro, keeping every climber', () => {
+    const { unmount } = render(<App />);
+    createProfileAndReachMap('Riley');
+    fireEvent.click(screen.getByTestId('profile-switch-toggle'));
+    fireEvent.click(screen.getByTestId('profile-switch-logout'));
+    expect(screen.getByTestId('intro-continue')).toHaveTextContent('Get Started');
+
+    // Get Started lands on the climber list, where Riley is still waiting.
+    fireEvent.click(screen.getByTestId('intro-continue'));
+    expect(screen.getAllByTestId(/^profile-option-/)).toHaveLength(1);
+    unmount();
+    const saved = JSON.parse(localStorage.getItem('timescaler.save') ?? '{}') as SaveFile;
+    expect(saved.profiles.map((p) => p.name)).toEqual(['Riley']);
+    expect(saved.activeProfileId).toBeNull();
+  });
+
+  it('deletes a climber from the profile page after the name is typed', () => {
+    const { unmount } = render(<App />);
+    createProfileAndReachMap('Riley');
+    fireEvent.click(screen.getByTestId('profile-switch-toggle'));
+    fireEvent.click(screen.getByTestId('profile-switch-new'));
+    fireEvent.change(screen.getByTestId('profile-name-input'), { target: { value: 'Oops' } });
+    fireEvent.click(screen.getByTestId('profile-create-submit'));
+    fireEvent.click(screen.getAllByTestId(/^character-option-/)[0]);
+
+    fireEvent.click(screen.getByTestId('profile-open'));
+    fireEvent.click(screen.getByTestId('profile-delete-open'));
+    fireEvent.change(screen.getByTestId('profile-delete-input'), { target: { value: 'Oops' } });
+    fireEvent.click(screen.getByTestId('profile-delete-confirm'));
+    expect(screen.getByTestId('intro-continue')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('intro-continue'));
+    const options = screen.getAllByTestId(/^profile-option-/);
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent('Riley');
+    unmount();
+    const saved = JSON.parse(localStorage.getItem('timescaler.save') ?? '{}') as SaveFile;
+    expect(saved.profiles.map((p) => p.name)).toEqual(['Riley']);
+    expect(saved.activeProfileId).toBeNull();
   });
 });
