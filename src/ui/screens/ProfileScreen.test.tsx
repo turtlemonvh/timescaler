@@ -31,7 +31,14 @@ function makeProfile(overrides: Partial<Profile> = {}): Profile {
 
 describe('ProfileScreen', () => {
   it('shows the name, the current animal on a turntable, and zeroed stats for a new profile', () => {
-    render(<ProfileScreen profile={makeProfile()} onChangeAnimal={vi.fn()} onBack={vi.fn()} />);
+    render(
+      <ProfileScreen
+        profile={makeProfile()}
+        onChangeAnimal={vi.fn()}
+        onBack={vi.fn()}
+        onDeleteProfile={vi.fn()}
+      />,
+    );
     expect(screen.getByTestId('profile-name')).toHaveTextContent('Riley');
     expect(screen.getByTestId('profile-animal-name')).toHaveTextContent('Fox');
     expect(screen.getByTestId('animal-showcase')).toHaveAttribute('data-animal', 'fox');
@@ -44,7 +51,12 @@ describe('ProfileScreen', () => {
   it('offers every animal and reports a switch without re-reporting the current one', () => {
     const onChangeAnimal = vi.fn();
     render(
-      <ProfileScreen profile={makeProfile()} onChangeAnimal={onChangeAnimal} onBack={vi.fn()} />,
+      <ProfileScreen
+        profile={makeProfile()}
+        onChangeAnimal={onChangeAnimal}
+        onBack={vi.fn()}
+        onDeleteProfile={vi.fn()}
+      />,
     );
     for (const animal of ANIMALS) {
       expect(screen.getByTestId(`profile-animal-${animal.id}`)).toHaveTextContent(animal.name);
@@ -57,7 +69,12 @@ describe('ProfileScreen', () => {
 
   it('reflects a changed animal from props and cheers on the turntable', () => {
     const { rerender } = render(
-      <ProfileScreen profile={makeProfile()} onChangeAnimal={vi.fn()} onBack={vi.fn()} />,
+      <ProfileScreen
+        profile={makeProfile()}
+        onChangeAnimal={vi.fn()}
+        onBack={vi.fn()}
+        onDeleteProfile={vi.fn()}
+      />,
     );
     fireEvent.click(screen.getByTestId('profile-animal-stag'));
     rerender(
@@ -65,6 +82,7 @@ describe('ProfileScreen', () => {
         profile={makeProfile({ characterId: 'stag' })}
         onChangeAnimal={vi.fn()}
         onBack={vi.fn()}
+        onDeleteProfile={vi.fn()}
       />,
     );
     expect(screen.getByTestId('animal-showcase')).toHaveAttribute('data-animal', 'stag');
@@ -90,7 +108,14 @@ describe('ProfileScreen', () => {
         entry('c', 3, 1, 'fell', 200_000),
       ],
     });
-    render(<ProfileScreen profile={profile} onChangeAnimal={vi.fn()} onBack={vi.fn()} />);
+    render(
+      <ProfileScreen
+        profile={profile}
+        onChangeAnimal={vi.fn()}
+        onBack={vi.fn()}
+        onDeleteProfile={vi.fn()}
+      />,
+    );
     // First clear (5 × 2) + new best (3 × 2) = 16 coins, two trophies.
     expect(screen.getByTestId('profile-coins')).toHaveTextContent('16');
     expect(screen.getByTestId('profile-trophies')).toHaveTextContent('2');
@@ -107,8 +132,52 @@ describe('ProfileScreen', () => {
 
   it('calls onBack from the back button', () => {
     const onBack = vi.fn();
-    render(<ProfileScreen profile={makeProfile()} onChangeAnimal={vi.fn()} onBack={onBack} />);
+    render(
+      <ProfileScreen
+        profile={makeProfile()}
+        onChangeAnimal={vi.fn()}
+        onBack={onBack}
+        onDeleteProfile={vi.fn()}
+      />,
+    );
     fireEvent.click(screen.getByTestId('profile-back'));
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes only after the climber name is typed, and Cancel backs out', () => {
+    const onDeleteProfile = vi.fn();
+    render(
+      <ProfileScreen
+        profile={makeProfile()}
+        onChangeAnimal={vi.fn()}
+        onBack={vi.fn()}
+        onDeleteProfile={onDeleteProfile}
+      />,
+    );
+    expect(screen.queryByTestId('profile-delete-panel')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('profile-delete-open'));
+    const confirm = screen.getByTestId('profile-delete-confirm');
+    expect(confirm).toHaveTextContent('Delete Riley');
+    expect(confirm).toBeDisabled();
+
+    const input = screen.getByLabelText('Type Riley to confirm');
+    fireEvent.change(input, { target: { value: 'Rile' } });
+    expect(confirm).toBeDisabled();
+    fireEvent.submit(input);
+    expect(onDeleteProfile).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('profile-delete-cancel'));
+    expect(screen.queryByTestId('profile-delete-panel')).not.toBeInTheDocument();
+    expect(onDeleteProfile).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('profile-delete-open'));
+    expect(screen.getByTestId('profile-delete-input')).toHaveValue('');
+    fireEvent.change(screen.getByTestId('profile-delete-input'), {
+      target: { value: '  riley ' },
+    });
+    expect(screen.getByTestId('profile-delete-confirm')).toBeEnabled();
+    fireEvent.click(screen.getByTestId('profile-delete-confirm'));
+    expect(onDeleteProfile).toHaveBeenCalledTimes(1);
   });
 });

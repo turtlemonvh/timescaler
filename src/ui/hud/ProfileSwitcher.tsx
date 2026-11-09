@@ -9,6 +9,8 @@ export interface ProfileSwitcherProps {
   onSwitchProfile: (profileId: string) => void;
   /** Starts the usual name -> animal flow for a brand-new climber. */
   onNewProfile: () => void;
+  /** Leaves this climber and goes back to the intro screen. */
+  onLogout: () => void;
 }
 
 function menuItems(menu: HTMLElement | null): HTMLButtonElement[] {
@@ -17,7 +19,7 @@ function menuItems(menu: HTMLElement | null): HTMLButtonElement[] {
 
 /**
  * The caret next to the Map's profile pill: a menu-button listing the other
- * saved climbers plus "+ New climber". The pill itself keeps opening the
+ * saved climbers, "+ New climber" and "Log out". The pill itself keeps opening the
  * profile page, so this is a separate, small control rather than a change
  * to what the pill does.
  *
@@ -30,6 +32,7 @@ export default function ProfileSwitcher({
   otherProfiles,
   onSwitchProfile,
   onNewProfile,
+  onLogout,
 }: ProfileSwitcherProps) {
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -175,6 +178,20 @@ export default function ProfileSwitcher({
             }}
           >
             + New climber
+          </button>
+          <div role="separator" className="profile-switcher__separator" />
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            className="profile-switcher__item"
+            data-testid="profile-switch-logout"
+            onClick={() => {
+              close({ restoreFocus: false });
+              onLogout();
+            }}
+          >
+            Log out
           </button>
         </div>
       )}

@@ -15,6 +15,7 @@ import {
   addGoal,
   checkGoalsAchieved,
   createProfile,
+  deleteProfile,
   getProfile,
   importProfile,
   recordBail,
@@ -111,6 +112,10 @@ export default function App() {
             setSave((current) => ({ ...current, activeProfileId: profileId }))
           }
           onNewProfile={() => setScreen({ name: 'profileSelect', startCreating: true })}
+          onLogout={() => {
+            setSave((current) => ({ ...current, activeProfileId: null }));
+            setScreen({ name: 'intro' });
+          }}
           onClimb={(peakId, difficulty) => {
             setSave((current) => setPeakDifficulty(current, profile.id, peakId, difficulty));
             setScreen({ name: 'climb', peakId, seed: Date.now() });
@@ -134,6 +139,10 @@ export default function App() {
             setSave((current) => setCharacter(current, profile.id, animalId))
           }
           onBack={() => setScreen({ name: 'map' })}
+          onDeleteProfile={() => {
+            setSave((current) => deleteProfile(current, profile.id));
+            setScreen({ name: 'intro' });
+          }}
         />
       );
     }

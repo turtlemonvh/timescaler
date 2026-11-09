@@ -4,6 +4,7 @@ import {
   bestTimeForDifficulty,
   checkGoalsAchieved,
   createProfile,
+  deleteProfile,
   getProfile,
   goalsForPeak,
   highestAttemptBeyondCleared,
@@ -68,6 +69,26 @@ describe('createProfile', () => {
   it('does not mutate the original save', () => {
     createProfile(EMPTY_SAVE, 'Riley', 'preset-1');
     expect(EMPTY_SAVE.profiles).toHaveLength(0);
+  });
+});
+
+describe('deleteProfile', () => {
+  it('removes the profile and clears it as the active one', () => {
+    const one = createProfile(EMPTY_SAVE, 'Riley', 'fox');
+    const two = createProfile(one, 'Sam', 'stag');
+    const [riley, sam] = two.profiles;
+    const result = deleteProfile(two, sam.id);
+    expect(result.profiles.map((p) => p.id)).toEqual([riley.id]);
+    expect(result.activeProfileId).toBeNull();
+    expect(two.profiles).toHaveLength(2);
+  });
+
+  it('keeps a different active profile active', () => {
+    const two = createProfile(createProfile(EMPTY_SAVE, 'Riley', 'fox'), 'Sam', 'stag');
+    const [riley, sam] = two.profiles;
+    const result = deleteProfile(two, riley.id);
+    expect(result.profiles.map((p) => p.id)).toEqual([sam.id]);
+    expect(result.activeProfileId).toBe(sam.id);
   });
 });
 

@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { summarizeProfile } from '../../engine/achievements';
 import { PEAKS } from '../../engine/peaks';
 import { COIN_CAP, computeRewards, type Trophy } from '../../engine/rewards';
@@ -21,6 +21,8 @@ export interface ProfileScreenProps {
   initialSection?: ProfileSection;
   onChangeAnimal: (animalId: AnimalId) => void;
   onBack: () => void;
+  /** Deletes this climber for good; only called once the player has typed the name to confirm. */
+  onDeleteProfile: () => void;
 }
 
 /** A kid-readable animal silhouette stand-in: the animal's initial on its accent colour. */
@@ -73,9 +75,93 @@ function TrophyMark({ trophy }: { trophy: Trophy }) {
   );
 }
 
+/** Typing the name again (ignoring case and surrounding spaces) is the confirmation. */
+function namesMatch(typed: string, name: string): boolean {
+  return typed.trim().toLowerCase() === name.trim().toLowerCase();
+}
+
+/**
+ * The bottom-of-page way to delete a climber made by accident. Kept small and
+ * out of the way: a quiet button that opens a confirm panel, and the delete
+ * button there stays disabled until the climber's name has been typed.
+ */
+function DeleteClimber({ name, onDelete }: { name: string; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const inputId = useId();
+  const confirmed = namesMatch(typed, name);
+
+  if (!open) {
+    return (
+      <div className="delete-climber">
+        <button
+          type="button"
+          data-variant="ghost"
+          className="delete-climber__open"
+          data-testid="profile-delete-open"
+          onClick={() => setOpen(true)}
+        >
+          Delete this climber…
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="delete-climber delete-climber--open"
+      data-testid="profile-delete-panel"
+      aria-labelledby={`${inputId}-title`}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (confirmed) onDelete();
+      }}
+    >
+      <h2 id={`${inputId}-title`}>Delete {name}?</h2>
+      <p>
+        This removes {name} and all of their peaks, trophies, coins and climb history from this
+        device. It can&apos;t be undone.
+      </p>
+      <label htmlFor={inputId}>
+        Type <strong>{name}</strong> to confirm
+      </label>
+      <input
+        id={inputId}
+        type="text"
+        autoComplete="off"
+        autoFocus
+        data-testid="profile-delete-input"
+        value={typed}
+        onChange={(event) => setTyped(event.target.value)}
+      />
+      <div className="delete-climber__actions">
+        <button
+          type="button"
+          data-variant="secondary"
+          data-testid="profile-delete-cancel"
+          onClick={() => {
+            setOpen(false);
+            setTyped('');
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="delete-climber__confirm"
+          data-testid="profile-delete-confirm"
+          disabled={!confirmed}
+        >
+          Delete {name}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 /**
  * The player's page: change the climber, see coins, trophies, badges and
- * the trophy case peak by peak. Reached from the profile chip and the
+ * the trophy case peak by peak, and (at the very bottom) delete the climber. Reached from the profile chip and the
  * rewards chip on the Map; the latter opens scrolled to Accomplishments.
  */
 export default function ProfileScreen({
@@ -83,6 +169,7 @@ export default function ProfileScreen({
   initialSection = 'climber',
   onChangeAnimal,
   onBack,
+  onDeleteProfile,
 }: ProfileScreenProps) {
   const animal = resolveAnimal(profile.characterId);
   const reducedMotion = usePrefersReducedMotion();
@@ -308,6 +395,8 @@ export default function ProfileScreen({
           </div>
         </dl>
       </section>
+
+      <DeleteClimber name={profile.name} onDelete={onDeleteProfile} />
     </main>
   );
 }
