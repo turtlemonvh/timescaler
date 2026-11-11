@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { climbHeight } from '../../engine/climb';
+import { PEAKS } from '../../engine/peaks';
+import { WALL_COLUMNS, ledgePoint, wallGrid, wallOutline, type WallGrid } from '../climb/cliffPath';
+import { FLAG, summitFlagFoot } from '../climb/flag';
 import {
   HAWK_CYCLE,
   HAWK_FLAP,
@@ -89,22 +93,84 @@ describe('songbirdPose', () => {
   });
 });
 
+/** Every summit height a peak's climbs can have (one per difficulty). */
+function summitHeights(peak: (typeof PEAKS)[number]): number[] {
+  return [...new Set(Array.from({ length: 10 }, (_, d) => climbHeight(peak, d + 1)))];
+}
+
+/** The nearest and furthest z of the cliff mesh over a box of the face, or null where it has no rock. */
+function rockDepth(grid: WallGrid, minX: number, maxX: number, minY: number, maxY: number) {
+  const { rows, positions } = grid;
+  const stride = WALL_COLUMNS + 1;
+  let min = Infinity;
+  let max = -Infinity;
+  // Rows run bottom to top and vertices wander under a row's spacing, so a
+  // one-row margin is enough to skip rows that can't reach the box.
+  const rowStep = (positions[stride * rows * 3 + 1] - positions[1]) / rows;
+  for (let row = 0; row < rows; row++) {
+    const rowY = positions[row * stride * 3 + 1];
+    if (rowY + 2 * rowStep < minY || rowY - rowStep > maxY) continue;
+    for (let col = 0; col < WALL_COLUMNS; col++) {
+      const a = row * stride + col;
+      const corners = [a, a + 1, a + stride, a + stride + 1];
+      let x0 = Infinity;
+      let x1 = -Infinity;
+      let y0 = Infinity;
+      let y1 = -Infinity;
+      for (const v of corners) {
+        x0 = Math.min(x0, positions[v * 3]);
+        x1 = Math.max(x1, positions[v * 3]);
+        y0 = Math.min(y0, positions[v * 3 + 1]);
+        y1 = Math.max(y1, positions[v * 3 + 1]);
+      }
+      if (x1 < minX || x0 > maxX || y1 < minY || y0 > maxY) continue;
+      for (const v of corners) {
+        min = Math.min(min, positions[v * 3 + 2]);
+        max = Math.max(max, positions[v * 3 + 2]);
+      }
+    }
+  }
+  return min === Infinity ? null : { min, max };
+}
+
 describe('hawkOrbit', () => {
-  // The summit flag (CliffWorld's `Flag`), relative to the summit's standing point:
-  // pole at x +0.9, z +0.1; the cloth reaches x +1.82 and the finial tops out at y +2.35.
-  const FLAG_Z = 0.1;
-  const FLAG_TOP = 2.35;
   // The hawk's half-span (shoulder + inner + outer panel) at its default scale of 0.8.
   const REACH = (0.06 + 0.3 + 0.32) * 0.8;
-  const samples = Array.from({ length: 2000 }, (_, i) => hawkOrbit(i * 0.05));
+  // One full circle and more, so every point of it (and of the bob) is covered.
+  const samples = Array.from({ length: 300 }, (_, i) => hawkOrbit(i * 0.1));
+  // How far behind the summit standing point the climber's body can reach.
+  const CLIMBER_BACK = 0.6;
 
-  it('stays behind the flag’s depth all the way round', () => {
-    for (const p of samples) expect(p.z + REACH).toBeLessThan(FLAG_Z - 2);
+  it('is always further back than the flag and the climber, on every peak', () => {
+    for (const peak of PEAKS) {
+      for (const height of summitHeights(peak)) {
+        const summit = ledgePoint(height, peak.id);
+        const foot = summitFlagFoot(height, peak.id);
+        // The cloth only swings forward, so the pole and finial are the flag's back.
+        const flagBack = foot.z - Math.max(FLAG.poleRadius, FLAG.finialRadius);
+        const back = Math.min(flagBack, summit.z - CLIMBER_BACK) - 0.5;
+        for (const p of samples) expect(summit.z + p.z + REACH).toBeLessThan(back);
+      }
+    }
   });
 
-  it('stays well above the flag', () => {
-    // Lowest wingtip: the bottom of a beat (shoulder −0.45) plus the bank (0.35).
-    for (const p of samples) expect(p.y - REACH * Math.sin(0.8)).toBeGreaterThan(FLAG_TOP + 0.1);
+  it('never pokes through the rock: wherever the face is behind it, it is wholly behind the face', () => {
+    for (const peak of PEAKS) {
+      for (const height of summitHeights(peak)) {
+        const summit = ledgePoint(height, peak.id);
+        let grid: WallGrid | null = null;
+        for (const p of samples) {
+          const x = summit.x + p.x;
+          const y = summit.y + p.y;
+          const z = summit.z + p.z;
+          const outlines = [y - REACH, y + REACH].map((h) => wallOutline(h, height, peak.id));
+          if (outlines.every((o) => x + REACH < o.minX || x - REACH > o.maxX)) continue;
+          grid ??= wallGrid(height, peak.id);
+          const rock = rockDepth(grid, x - REACH, x + REACH, y - REACH, y + REACH);
+          if (rock) expect(z + REACH).toBeLessThan(rock.min);
+        }
+      }
+    }
   });
 
   it('faces along the circle', () => {

@@ -145,8 +145,8 @@ function ClimbScene({
         scale={phase === 'summit' ? 0.7 : 0.9}
         color={birdColor}
       />
-      {/* A hawk circles behind and above the flag at the summit, never
-          between the flag and the swinging camera. */}
+      {/* A hawk circles behind the flag at the summit: it may pass behind
+          the flag on screen, but never between the flag and the camera. */}
       {phase === 'summit' && <SummitHawk summit={ledgePoint(height, peakId)} color={birdColor} />}
       <Weather
         kind={reducedMotion ? 'none' : theme.weather}

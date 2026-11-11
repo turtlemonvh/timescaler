@@ -261,9 +261,10 @@ export default function Birds({
 }
 
 /**
- * One hawk soaring on a thermal near the summit: it circles behind the flag
- * and above it, banked into the turn, mostly gliding with two slow beats
- * every few seconds. Mount it for the summit only.
+ * One hawk soaring on a thermal near the summit: it circles behind the flag,
+ * banked into the turn, mostly gliding with two slow beats every few
+ * seconds. On screen it may pass behind the flag, but it is always further
+ * from the camera than the flag. Mount it for the summit only.
  */
 export function SummitHawk({
   summit,
@@ -282,8 +283,12 @@ export function SummitHawk({
   const rightWrist = useRef<THREE.Group>(null);
   const shoulders = [leftShoulder, rightShoulder] as const;
   const wrists = [leftWrist, rightWrist] as const;
+  const startRef = useRef<number | null>(null);
   useFrame(({ clock }) => {
-    const t = clock.elapsedTime;
+    // The hawk's clock starts with the summit, like the camera's swing, so
+    // where it is on screen is the same every time (and in the trailer).
+    if (startRef.current === null) startRef.current = clock.elapsedTime;
+    const t = clock.elapsedTime - startRef.current;
     const orbit = hawkOrbit(t);
     if (group.current) {
       group.current.position.set(summit.x + orbit.x, summit.y + orbit.y, summit.z + orbit.z);

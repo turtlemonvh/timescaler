@@ -76,21 +76,33 @@ export function hawkPose(t: number, seed = 0): WingPose {
 
 /**
  * The hawk's thermal circle near the summit, relative to the summit's
- * standing point. The whole circle sits behind the flag's depth (the flag
- * stands at +0.1 z, its finial tops out at +2.35 y) and above the flag. It
- * rings the peak, so whichever way the summit camera swings it sees the hawk
- * on one side or the other, passing behind the peak's tip now and then. It
- * is kept far back so that even the circle's near side stays below the top
- * of the frame: the summit camera sits only ~2 above the summit.
+ * standing point. The whole circle sits well behind the flag and the
+ * climber in depth, so on screen it may pass behind the flag but never in
+ * front of it or through it. It circles out to the flag's side of the peak,
+ * about level with the flag's top, where the summit camera's swing keeps
+ * open sky in view. `phase` is where it starts when the summit begins: the
+ * camera's swing starts then too, so the pairing was tuned (in a model of
+ * `CameraRig`) to keep the hawk in frame as long as possible.
  */
-export const HAWK_ORBIT = { dx: 0, dy: 3, dz: -7, radius: 4.2, rate: 0.45, bank: 0.35 };
+export const HAWK_ORBIT = {
+  dx: 3,
+  dy: 2.8,
+  dz: -5,
+  radius: 3,
+  rate: 0.45,
+  bank: 0.35,
+  phase: 5.24,
+};
 
-/** Where the hawk is on its circle at `t`, and which way it faces (yaw about +Y). */
+/**
+ * Where the hawk is on its circle `t` seconds into the summit, and which way
+ * it faces (yaw about +Y).
+ */
 export function hawkOrbit(t: number): { x: number; y: number; z: number; yaw: number } {
-  const a = t * HAWK_ORBIT.rate;
+  const a = (t + HAWK_ORBIT.phase) * HAWK_ORBIT.rate;
   return {
     x: HAWK_ORBIT.dx + Math.cos(a) * HAWK_ORBIT.radius,
-    y: HAWK_ORBIT.dy + Math.sin(t * 0.3) * 0.15,
+    y: HAWK_ORBIT.dy + Math.sin((t + HAWK_ORBIT.phase) * 0.3) * 0.15,
     z: HAWK_ORBIT.dz + Math.sin(a) * HAWK_ORBIT.radius,
     // Forward (+X) turned onto the circle's tangent, (−sin a, 0, cos a).
     yaw: -a - Math.PI / 2,
