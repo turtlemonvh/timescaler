@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { BEAK_COLOR, SONGBIRD, type BirdShape, type WingSpec } from './birdGeometry';
-import { songbirdPose } from './birdFlight';
+import { BEAK_COLOR, HAWK, SONGBIRD, type BirdShape, type WingSpec } from './birdGeometry';
+import { HAWK_ORBIT, hawkOrbit, hawkPose, songbirdPose } from './birdFlight';
 
 export interface BirdsProps {
   /** Centre height; birds fly a little above and below. With `followRef`, an offset above it. */
@@ -256,6 +256,50 @@ export default function Birds({
           scale={scale}
         />
       ))}
+    </group>
+  );
+}
+
+/**
+ * One hawk soaring on a thermal near the summit: it circles behind the flag,
+ * banked into the turn, mostly gliding with two slow beats every few
+ * seconds. On screen it may pass behind the flag, but it is always further
+ * from the camera than the flag. Mount it for the summit only.
+ */
+export function SummitHawk({
+  summit,
+  color = '#2b2118',
+  scale = 0.8,
+}: {
+  /** The summit's standing point; the circle is placed relative to it. */
+  summit: { x: number; y: number; z: number };
+  color?: string;
+  scale?: number;
+}) {
+  const group = useRef<THREE.Group>(null);
+  const leftShoulder = useRef<THREE.Group>(null);
+  const rightShoulder = useRef<THREE.Group>(null);
+  const leftWrist = useRef<THREE.Group>(null);
+  const rightWrist = useRef<THREE.Group>(null);
+  const shoulders = [leftShoulder, rightShoulder] as const;
+  const wrists = [leftWrist, rightWrist] as const;
+  const startRef = useRef<number | null>(null);
+  useFrame(({ clock }) => {
+    // The hawk's clock starts with the summit, like the camera's swing, so
+    // where it is on screen is the same every time (and in the trailer).
+    if (startRef.current === null) startRef.current = clock.elapsedTime;
+    const t = clock.elapsedTime - startRef.current;
+    const orbit = hawkOrbit(t);
+    if (group.current) {
+      group.current.position.set(summit.x + orbit.x, summit.y + orbit.y, summit.z + orbit.z);
+      group.current.rotation.set(HAWK_ORBIT.bank, orbit.yaw, 0, 'YXZ');
+    }
+    const pose = hawkPose(t);
+    setWings(shoulders, wrists, pose.shoulder, pose.wrist);
+  });
+  return (
+    <group ref={group} scale={scale}>
+      <BirdModel shape={HAWK} color={color} shoulders={shoulders} wrists={wrists} />
     </group>
   );
 }
