@@ -15,7 +15,7 @@ when you make it.
 
 **Trailer** (30 seconds, with sound):
 
-https://github.com/user-attachments/assets/2b1e29cc-4860-498d-930f-b6f8260b5e49
+https://github.com/user-attachments/assets/3a8f05b1-6971-41a1-ba37-72436bf4743a
 
 The GIF, the trailer and the intro screen's video are all filmed from the real game; see
 [`trailer/`](./trailer/README.md) to re-shoot them after the scenes change.
