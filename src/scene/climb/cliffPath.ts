@@ -299,3 +299,95 @@ export function ropePoints(
     return { x, y, z: Math.max(ideal, surface + clearance) };
   });
 }
+
+/** Columns across each row of the cliff face: ~0.3 units apart where it is widest. */
+export const WALL_COLUMNS = 44;
+
+/**
+ * The cliff face's vertex grid, exactly as `CliffWorld` meshes it: `rows + 1`
+ * rows of `WALL_COLUMNS + 1` vertices, row-major from the bottom, two
+ * triangles per cell. `noise` is each vertex's rock noise and `shade` the
+ * extra random term in its colour. Pure, so anything placed in front of the
+ * rock (the summit flag) can be checked against the mesh itself rather than
+ * an estimate of it.
+ */
+export interface WallGrid {
+  rows: number;
+  positions: Float32Array;
+  noise: Float64Array;
+  shade: Float64Array;
+}
+
+export function wallGrid(height: number, peakId: number): WallGrid {
+  const top = wallPeakY(height);
+  const rows = Math.ceil((top - WALL_BOTTOM) * 2.2);
+  const route = ledgePoints(height, peakId);
+  const count = (WALL_COLUMNS + 1) * (rows + 1);
+  const positions = new Float32Array(count * 3);
+  const noise = new Float64Array(count);
+  const shade = new Float64Array(count);
+  const rng = mulberry32(peakId * 31 + 7);
+
+  const rowStep = (top - WALL_BOTTOM) / rows;
+  for (let row = 0; row <= rows; row++) {
+    const rowY = WALL_BOTTOM + rowStep * row;
+    const { minX, maxX } = wallOutline(rowY, height, peakId);
+    const colStep = (maxX - minX) / WALL_COLUMNS;
+    for (let col = 0; col <= WALL_COLUMNS; col++) {
+      const i = row * (WALL_COLUMNS + 1) + col;
+      // Interior vertices wander within their cell, so the rows don't read
+      // as terraces where the peak's narrowing rows fan out; the outline's
+      // own vertices stay on it.
+      const inner = row > 0 && row < rows && col > 0 && col < WALL_COLUMNS;
+      const x = minX + colStep * col + (inner ? (rng() - 0.5) * 0.6 * colStep : 0);
+      const y = rowY + (inner ? (rng() - 0.5) * 0.7 * rowStep : 0);
+      const jitter = (rng() - 0.5) * 0.35;
+      const { z, n } = wallSurface(x, y, peakId, route, jitter);
+      positions[i * 3] = x;
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = z;
+      noise[i] = n;
+      shade[i] = rng();
+    }
+  }
+  return { rows, positions, noise, shade };
+}
+
+/**
+ * The furthest-forward z of the cliff mesh over the box
+ * `[minX..maxX] x [minY..maxY]` of the face: the highest corner of every
+ * cell whose footprint touches the box (a flat triangle is furthest forward
+ * at a corner). `-Infinity` where the face doesn't reach the box.
+ */
+export function wallFrontZ(
+  grid: WallGrid,
+  minX: number,
+  maxX: number,
+  minY: number,
+  maxY: number,
+): number {
+  const { rows, positions } = grid;
+  const stride = WALL_COLUMNS + 1;
+  let front = -Infinity;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < WALL_COLUMNS; col++) {
+      const a = row * stride + col;
+      const c = a + stride;
+      let x0 = Infinity;
+      let x1 = -Infinity;
+      let y0 = Infinity;
+      let y1 = -Infinity;
+      let z = -Infinity;
+      for (const v of [a, a + 1, c, c + 1]) {
+        x0 = Math.min(x0, positions[v * 3]);
+        x1 = Math.max(x1, positions[v * 3]);
+        y0 = Math.min(y0, positions[v * 3 + 1]);
+        y1 = Math.max(y1, positions[v * 3 + 1]);
+        z = Math.max(z, positions[v * 3 + 2]);
+      }
+      if (x1 < minX || x0 > maxX || y1 < minY || y0 > maxY) continue;
+      front = Math.max(front, z);
+    }
+  }
+  return front;
+}

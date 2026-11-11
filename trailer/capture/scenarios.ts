@@ -197,6 +197,18 @@ export const SCENARIOS: Record<string, Scenario> = {
     seconds: 7,
     stills: [1500, 3000, 4500, 6500],
   }),
+  // The summit of every peak: each has its own summit rock behind the flag.
+  ...Object.fromEntries(
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((p) => [
+      `summit-peak${p}`,
+      climb(p, 'fox', {
+        about: `summit on peak ${p} as fox, a few flag swings`,
+        steps: nearSummit,
+        seconds: 6,
+        stills: [2500, 3500, 4500, 5500],
+      }),
+    ]),
+  ),
 
   'map-tour': scene('map: select each peak in turn as deer', 'map', {
     viewport: wide,
