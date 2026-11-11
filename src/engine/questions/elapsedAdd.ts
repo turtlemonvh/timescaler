@@ -1,9 +1,9 @@
 import { difficultyProfile } from '../difficulty';
-import { pick, randInt, type Rng } from '../rng';
+import { pick, randInt, shuffle, type Rng } from '../rng';
+import type { TimeOfDay } from '../timeMath';
 import {
   buildChoiceAnswer,
   clockSortKey,
-  distractorTimes,
   formatClockFace,
   makeQuestionId,
   shiftTime,
@@ -18,12 +18,105 @@ export const ELAPSED_ADD_TYPE_ID = 'elapsedAdd';
  * multi-step date jump. */
 const TIME_LIMIT_MULTIPLIER = 1.2;
 
-/** How big a jump to add/subtract, banded by difficulty: round numbers at
- * the easy end, arbitrary minute counts (up to 3h) at the hard end. */
-function pickAmountMinutes(rng: Rng, difficulty: number): number {
-  if (difficulty <= 3) return pick(rng, [15, 30, 45, 60, 90]);
-  if (difficulty <= 6) return randInt(rng, 1, 11) * 5;
-  return randInt(rng, 1, 180);
+/** One drawn question: where the clock starts, how far it moves, and which way. */
+interface ElapsedPlan {
+  start: TimeOfDay;
+  amount: number;
+  forward: boolean;
+}
+
+/**
+ * Every (start minute, amount) pair at a `step`-minute grain, up to
+ * `amountMax`, whose result stays inside the start's hour (minute 0..`lastMinute`).
+ * `startGrain` is the grain of the start minute itself (1 = any minute).
+ */
+function sameHourPairs(
+  forward: boolean,
+  startGrain: number,
+  step: number,
+  amountMax: number,
+  lastMinute: number,
+): [number, number][] {
+  const pairs: [number, number][] = [];
+  for (let minute = 0; minute <= lastMinute; minute += startGrain) {
+    for (let amount = step; amount <= amountMax; amount += step) {
+      const end = forward ? minute + amount : minute - amount;
+      if (end >= 0 && end <= lastMinute) pairs.push([minute, amount]);
+    }
+  }
+  return pairs;
+}
+
+/**
+ * The per-level curriculum agreed in issue #164:
+ *
+ * | Level | Start minute | Amount                          | Direction | Crosses hour |
+ * |-------|--------------|---------------------------------|-----------|--------------|
+ * | 1     | steps of 10  | 10–50, steps of 10              | add       | no           |
+ * | 2     | steps of 5   | 5–55, steps of 5                | add       | no           |
+ * | 3     | steps of 5   | 5–55, steps of 5                | both      | no           |
+ * | 4     | steps of 5   | 5–55 steps of 5, or 1h / 2h     | both      | yes          |
+ * | 5     | any          | 5–55, steps of 5                | both      | no           |
+ * | 6     | any          | 5–55, steps of 5                | both      | yes          |
+ * | 7     | any          | 1–2h plus 5–55 min, steps of 5  | both      | yes          |
+ * | 8–10  | any          | 1–180 minutes                   | both      | yes          |
+ *
+ * The no-crossing levels draw uniformly over every valid (start, amount)
+ * pair, so a start of :00 isn't over-represented just because it has the
+ * most amounts available.
+ */
+function planElapsed(rng: Rng, difficulty: number): ElapsedPlan {
+  const hour = randInt(rng, 0, 23);
+  const at = (minute: number) => ({ hour, minute, second: 0 });
+  if (difficulty <= 3) {
+    const forward = difficulty <= 2 || rng() < 0.5;
+    const pairs =
+      difficulty === 1
+        ? sameHourPairs(forward, 10, 10, 50, 50)
+        : sameHourPairs(forward, 5, 5, 55, 55);
+    const [minute, amount] = pick(rng, pairs);
+    return { start: at(minute), amount, forward };
+  }
+  const forward = rng() < 0.5;
+  if (difficulty === 4) {
+    const amount = rng() < 0.25 ? pick(rng, [60, 120]) : randInt(rng, 1, 11) * 5;
+    return { start: at(randInt(rng, 0, 11) * 5), amount, forward };
+  }
+  if (difficulty === 5) {
+    const [minute, amount] = pick(rng, sameHourPairs(forward, 1, 5, 55, 59));
+    return { start: at(minute), amount, forward };
+  }
+  const start = at(randInt(rng, 0, 59));
+  if (difficulty === 6) return { start, amount: randInt(rng, 1, 11) * 5, forward };
+  if (difficulty === 7) {
+    return { start, amount: randInt(rng, 1, 2) * 60 + randInt(rng, 1, 11) * 5, forward };
+  }
+  return { start, amount: randInt(rng, 1, 180), forward };
+}
+
+/**
+ * Wrong options at the level's grain. While the hour never changes (levels
+ * 1–3) every option keeps the correct answer's hour — a different hour
+ * would give the answer away — and sits on the level's minute grain (10s at
+ * level 1, 5s at 2–3). From level 4 one option is always the correct time
+ * ±1 hour (the forgotten-carry mistake), and the other two are ±5–20
+ * minute near misses, which keep a 5-minute answer on a 5-minute mark.
+ */
+function elapsedDistractors(rng: Rng, correct: TimeOfDay, difficulty: number): TimeOfDay[] {
+  if (difficulty <= 3) {
+    const step = difficulty === 1 ? 10 : 5;
+    const pool: TimeOfDay[] = [];
+    for (let minute = 0; minute < 60; minute += step) {
+      if (minute !== correct.minute) pool.push({ ...correct, minute });
+    }
+    return pool;
+  }
+  const carry = shiftTime(correct, (rng() < 0.5 ? 1 : -1) * 3600);
+  const nearMisses = shuffle(
+    rng,
+    [5, -5, 10, -10, 15, -15, 20, -20].map((m) => shiftTime(correct, m * 60)),
+  ).slice(0, 2);
+  return [carry, ...nearMisses];
 }
 
 function formatDuration(minutes: number): string {
@@ -45,13 +138,11 @@ function formatDuration(minutes: number): string {
  */
 export function generateElapsedAdd(rng: Rng, ctx: GeneratorContext): Question {
   const profile = difficultyProfile(ctx.difficulty);
-  const start = { hour: randInt(rng, 0, 23), minute: randInt(rng, 0, 59), second: 0 };
-  const amount = pickAmountMinutes(rng, ctx.difficulty);
-  const forward = rng() < 0.5;
+  const { start, amount, forward } = planElapsed(rng, ctx.difficulty);
   const sign = forward ? 1 : -1;
   const correctTime = shiftTime(start, sign * amount * 60);
   const correct = formatClockFace(correctTime, false);
-  const candidates = distractorTimes(correctTime, 'five').map((t) => ({
+  const candidates = elapsedDistractors(rng, correctTime, ctx.difficulty).map((t) => ({
     label: formatClockFace(t, false),
     sort: clockSortKey(t),
   }));
