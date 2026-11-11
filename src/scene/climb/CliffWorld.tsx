@@ -7,15 +7,14 @@ import type { PeakTheme } from '../theme/peakThemes';
 import Clouds from '../world/Clouds';
 import Pines from '../world/Pines';
 import { basePines, wallPines } from './forest';
+import { FLAG, flagFlutter, flagSwing, summitFlagFoot } from './flag';
 import {
   BACKDROP_Z,
   FOREST_FLOOR,
   ROPE_RADIUS,
-  WALL_BOTTOM,
+  WALL_COLUMNS,
   clamp01,
-  wallOutline,
-  wallPeakY,
-  wallSurface,
+  wallGrid,
   ledgePoints,
   ledgeSlab,
   ropePoints,
@@ -24,6 +23,7 @@ import {
   type Box3Like,
   type LedgeSlab,
   type Vec3,
+  type WallGrid,
 } from './cliffPath';
 
 export interface CliffWorldProps {
@@ -33,8 +33,6 @@ export interface CliffWorldProps {
   position: number;
 }
 
-/** Columns across each row of the face: ~0.3 units apart where it is widest. */
-const COLUMNS = 44;
 /** The highlighted ledge's mat. */
 const MAT_THICKNESS = 0.012;
 
@@ -42,57 +40,34 @@ const MAT_THICKNESS = 0.012;
  * The cliff: a grid whose rows each span the outline at their height
  * (`wallOutline`), so the face tapers to a peak behind the summit between
  * buttressed edges, instead of being a flat-topped ribbon with ruler-straight
- * sides. About as many vertices as the old ribbon; still one draw.
+ * sides. About as many vertices as the old ribbon; still one draw. The
+ * vertices come from `wallGrid`, so the tests see the same rock.
  */
-function buildWall(height: number, theme: PeakTheme): THREE.BufferGeometry {
-  const peakId = theme.peak.id;
-  const top = wallPeakY(height);
-  const rows = Math.ceil((top - WALL_BOTTOM) * 2.2);
-  const route = ledgePoints(height, peakId);
-  const count = (COLUMNS + 1) * (rows + 1);
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
+function buildWall(height: number, theme: PeakTheme, grid: WallGrid): THREE.BufferGeometry {
+  const { rows, positions, noise, shade } = grid;
+  const colors = new Float32Array(positions.length);
   const rock = new THREE.Color(theme.rock);
   const dark = new THREE.Color(theme.rockDark);
   const snow = new THREE.Color(theme.snow);
-  const rng = mulberry32(peakId * 31 + 7);
   const scratch = new THREE.Color();
   const snowLine = summitY(height) - 2.5;
 
-  const rowStep = (top - WALL_BOTTOM) / rows;
-  for (let row = 0; row <= rows; row++) {
-    const rowY = WALL_BOTTOM + rowStep * row;
-    const { minX, maxX } = wallOutline(rowY, height, peakId);
-    const colStep = (maxX - minX) / COLUMNS;
-    for (let col = 0; col <= COLUMNS; col++) {
-      const i = row * (COLUMNS + 1) + col;
-      // Interior vertices wander within their cell, so the rows don't read
-      // as terraces where the peak's narrowing rows fan out; the outline's
-      // own vertices stay on it.
-      const inner = row > 0 && row < rows && col > 0 && col < COLUMNS;
-      const x = minX + colStep * col + (inner ? (rng() - 0.5) * 0.6 * colStep : 0);
-      const y = rowY + (inner ? (rng() - 0.5) * 0.7 * rowStep : 0);
-      const jitter = (rng() - 0.5) * 0.35;
-      const { z, n } = wallSurface(x, y, peakId, route, jitter);
-      positions[i * 3] = x;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = z;
-
-      const shade = clamp01(0.5 - n * 0.9 + (rng() - 0.5) * 0.2) * 0.75;
-      scratch.copy(rock).lerp(dark, shade);
-      const snowT = clamp01((y - snowLine) / 3) * (n > -0.25 ? 1 : 0.35);
-      scratch.lerp(snow, snowT);
-      colors[i * 3] = scratch.r;
-      colors[i * 3 + 1] = scratch.g;
-      colors[i * 3 + 2] = scratch.b;
-    }
+  for (let i = 0; i < noise.length; i++) {
+    const n = noise[i];
+    const y = positions[i * 3 + 1];
+    scratch.copy(rock).lerp(dark, clamp01(0.5 - n * 0.9 + (shade[i] - 0.5) * 0.2) * 0.75);
+    const snowT = clamp01((y - snowLine) / 3) * (n > -0.25 ? 1 : 0.35);
+    scratch.lerp(snow, snowT);
+    colors[i * 3] = scratch.r;
+    colors[i * 3 + 1] = scratch.g;
+    colors[i * 3 + 2] = scratch.b;
   }
 
   const index: number[] = [];
   for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < COLUMNS; col++) {
-      const a = row * (COLUMNS + 1) + col;
-      const c = a + COLUMNS + 1;
+    for (let col = 0; col < WALL_COLUMNS; col++) {
+      const a = row * (WALL_COLUMNS + 1) + col;
+      const c = a + WALL_COLUMNS + 1;
       // Counter-clockwise seen from +Z: the face looks at the camera.
       index.push(a, a + 1, c + 1, a, c + 1, c);
     }
@@ -193,28 +168,33 @@ function Rope({ route, color, peakId }: { route: Vec3[]; color: string; peakId: 
   );
 }
 
-function Flag({ point, color }: { point: Vec3; color: string }) {
+/**
+ * The summit flag. Its foot comes from `summitFlagFoot`, which stands it far
+ * enough in front of the peak's rock that the cloth's whole swing stays clear
+ * of it; the cloth only ever swings forward, away from the wall.
+ */
+function Flag({ foot, color }: { foot: Vec3; color: string }) {
   const cloth = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
     if (cloth.current) {
-      cloth.current.rotation.y = Math.sin(clock.elapsedTime * 3.2) * 0.35;
-      cloth.current.scale.x = 0.9 + Math.sin(clock.elapsedTime * 6) * 0.1;
+      cloth.current.rotation.y = flagSwing(clock.elapsedTime);
+      cloth.current.scale.x = flagFlutter(clock.elapsedTime);
     }
   });
   return (
-    <group position={[point.x + 0.9, point.y, point.z + 0.1]}>
-      <mesh position={[0, 1.1, 0]} castShadow>
-        <cylinderGeometry args={[0.04, 0.05, 2.2, 6]} />
+    <group position={[foot.x, foot.y, foot.z]}>
+      <mesh position={[0, FLAG.poleHeight / 2, 0]} castShadow>
+        <cylinderGeometry args={[FLAG.poleRadius - 0.01, FLAG.poleRadius, FLAG.poleHeight, 6]} />
         <meshStandardMaterial color="#6b4a2e" />
       </mesh>
-      <mesh ref={cloth} position={[0.02, 1.85, 0]}>
-        <mesh position={[0.45, 0, 0]}>
-          <boxGeometry args={[0.9, 0.55, 0.03]} />
+      <mesh ref={cloth} position={[0.02, FLAG.clothY, 0]}>
+        <mesh position={[FLAG.clothWidth / 2, 0, 0]}>
+          <boxGeometry args={[FLAG.clothWidth, FLAG.clothHeight, FLAG.clothDepth]} />
           <meshStandardMaterial color={color} side={THREE.DoubleSide} />
         </mesh>
       </mesh>
-      <mesh position={[0, 2.25, 0]}>
-        <sphereGeometry args={[0.09, 6, 5]} />
+      <mesh position={[0, FLAG.finialY, 0]}>
+        <sphereGeometry args={[FLAG.finialRadius, 6, 5]} />
         <meshStandardMaterial color="#ffd13b" />
       </mesh>
     </group>
@@ -256,7 +236,12 @@ function DistantPeaks({ theme }: { theme: PeakTheme }) {
  * each peak looks different and nothing new enters the precache.
  */
 export default function CliffWorld({ theme, height, position }: CliffWorldProps) {
-  const wall = useMemo(() => buildWall(height, theme), [height, theme]);
+  const grid = useMemo(() => wallGrid(height, theme.peak.id), [height, theme.peak.id]);
+  const wall = useMemo(() => buildWall(height, theme, grid), [height, theme, grid]);
+  const flagFoot = useMemo(
+    () => summitFlagFoot(height, theme.peak.id, grid),
+    [height, theme.peak.id, grid],
+  );
   const route = useMemo(() => ledgePoints(height, theme.peak.id), [height, theme.peak.id]);
   const slabs = useMemo(
     () => route.map((_, i) => ledgeSlab(i, theme.peak.id)),
@@ -291,7 +276,7 @@ export default function CliffWorld({ theme, height, position }: CliffWorldProps)
         <boxGeometry args={boxSize(plateau)} />
         <meshStandardMaterial color={theme.snow} flatShading roughness={1} />
       </mesh>
-      <Flag point={route[height]} color={theme.flag} />
+      <Flag foot={flagFoot} color={theme.flag} />
 
       {/* Ground + forest at the base */}
       <mesh position={[0, FOREST_FLOOR - 0.05, 6]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
