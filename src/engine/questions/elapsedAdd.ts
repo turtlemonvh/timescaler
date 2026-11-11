@@ -119,6 +119,26 @@ function elapsedDistractors(rng: Rng, correct: TimeOfDay, difficulty: number): T
   return [carry, ...nearMisses];
 }
 
+const ELAPSED_LEVEL_DESCRIPTIONS: readonly string[] = [
+  'Adds tens of minutes (2:10 + 30), staying inside the hour',
+  'Adds 5-minute steps (2:15 + 25), staying inside the hour',
+  'Adds or takes away 5-minute steps, staying inside the hour',
+  'Crosses the hour (2:50 + 20), plus whole-hour jumps',
+  'Any start minute (2:47 − 15), staying inside the hour',
+  'Any start minute, 5-minute steps across the hour',
+  'Jumps of over an hour (1 hour and 25 minutes)',
+  'Any jump up to 3 hours',
+  'Any jump up to 3 hours',
+  'Any jump up to 3 hours',
+];
+
+/** Plain-English summary of what level `difficulty` asks on Elapsed
+ * Escarpment, for the level-details comparison table (`difficultyDescribe.ts`). */
+export function describeElapsedAddLevel(difficulty: number): string {
+  const level = Math.min(10, Math.max(1, Math.round(difficulty)));
+  return ELAPSED_LEVEL_DESCRIPTIONS[level - 1];
+}
+
 function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'}`;
   const hours = Math.floor(minutes / 60);

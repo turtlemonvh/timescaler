@@ -173,6 +173,7 @@ describe('describeDifficultyComparisonTable', () => {
         'Dates',
         'Day span',
         'Question kinds',
+        'Time jumps',
         'Time-in-words',
         'Timer',
       ].sort(),
@@ -206,6 +207,8 @@ describe('describeDifficultyComparisonTable', () => {
     expect(itemsFor(9)).toContain('Day span');
     expect(itemsFor(9)).not.toContain('Dates');
     expect(itemsFor(8)).toContain('Question kinds');
+    expect(itemsFor(6)).toContain('Time jumps');
+    expect(itemsFor(1)).not.toContain('Time jumps');
     const daySpan = describeDifficultyComparisonTable(5, 10, 9).find((r) => r.item === 'Day span');
     expect(daySpan).toMatchObject({ changed: true });
   });
@@ -244,13 +247,14 @@ describe('describeDifficultyComparisonTable', () => {
     }
   });
 
-  it('flags exactly the two rows that change from difficulty 1 to 2 (timer and time-in-words)', () => {
+  it('flags exactly the rows that change from difficulty 1 to 2 (timer, time jumps, time-in-words)', () => {
     // D1 and D2 share the same dominant clock precision (hour) and the same
     // dominant answer mode (choice) per difficulty.ts's real weights — only
-    // the timer and the describePhrasing tier actually change here.
+    // the timer, elapsedAdd's own ladder (tens -> fives) and the
+    // describePhrasing tier actually change here.
     const rows = describeDifficultyComparisonTable(1, 2, BROADEST_PEAK);
     const changed = rows.filter((r) => r.changed).map((r) => r.item);
-    expect(changed).toEqual(['Timer', 'Time-in-words']);
+    expect(changed).toEqual(['Timer', 'Time jumps', 'Time-in-words']);
   });
 
   it('flags every remaining row as changed from difficulty 1 to 10', () => {
