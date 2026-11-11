@@ -279,6 +279,9 @@ td {
 .climb-screen__scene {
   position: fixed;
   inset: 0;
+  /* On iOS the keyboard covers the page rather than resizing it; stopping the
+   * scene at its top edge re-frames the climber in the space that's left. */
+  bottom: var(--keyboard-inset, 0px);
   z-index: 0;
   background: var(--sky);
 }
@@ -552,7 +555,9 @@ td {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* Lifted above the on-screen keyboard on iOS, where the keyboard covers the
+   * layout instead of resizing it (`useVisualViewport` sets the inset). */
+  bottom: var(--keyboard-inset, 0px);
   z-index: 2;
   max-height: 60svh;
   overflow: auto;
@@ -737,7 +742,7 @@ button.clock-pad__help[aria-expanded='true'] > span {
     left: auto;
     right: 1rem;
     top: 5rem;
-    bottom: 1rem;
+    bottom: calc(1rem + var(--keyboard-inset, 0px));
     width: min(44vw, 560px);
     max-height: none;
     overflow: auto;
@@ -752,7 +757,7 @@ button.clock-pad__help[aria-expanded='true'] > span {
 @media (min-width: 720px) and (min-aspect-ratio: 1/1) and (max-height: 520px) {
   .climb-card {
     top: 3.4rem;
-    bottom: 0.5rem;
+    bottom: calc(0.5rem + var(--keyboard-inset, 0px));
     right: 0.5rem;
     padding: 0.6rem 0.9rem;
     justify-content: flex-start;
@@ -760,6 +765,53 @@ button.clock-pad__help[aria-expanded='true'] > span {
   .climb-card__prompt {
     font-size: 1rem;
     margin: 0.4rem 0 0.3rem;
+  }
+}
+
+/* Typing a free-entry answer on a touch screen: the on-screen keyboard takes
+ * roughly half the height, so the card claims what's left (the scene behind
+ * it gives way), puts the input and Submit side by side straight under the
+ * prompt, and lets any display (the countWeekdays calendar) follow below.
+ * `--visual-height` is the visible height above the keyboard; Android Chrome
+ * shrinks 100svh itself (`interactive-widget=resizes-content` in index.html),
+ * iOS Safari doesn't, hence the variable. Pointer-fine screens never change. */
+@media (pointer: coarse) {
+  .climb-card:has(.climb-card__stack--number input:focus) {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    max-height: calc(min(100svh, var(--visual-height, 100svh)) - 5.5rem);
+    padding-top: 0.6rem;
+    padding-bottom: 0.8rem;
+  }
+  .climb-card:has(.climb-card__stack--number input:focus) .climb-card__prompt {
+    margin: 0.4rem 0 0.4rem;
+  }
+  .climb-card:has(.climb-card__stack--number input:focus) .climb-card__answer {
+    order: 1;
+  }
+  .climb-card:has(.climb-card__stack--number input:focus) .climb-card__display {
+    order: 2;
+    margin: 0.5rem 0 0;
+  }
+  .climb-card:has(.climb-card__stack--number input:focus) .climb-card__explain {
+    order: 3;
+  }
+  .climb-card__stack--number:has(input:focus) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .climb-card__stack--number input:focus {
+    width: 7.5rem;
+  }
+}
+/* The landscape side card hugs its content under the HUD instead of
+ * stretching down to the keyboard. */
+@media (pointer: coarse) and (min-width: 720px) and (min-aspect-ratio: 1/1) {
+  .climb-card:has(.climb-card__stack--number input:focus) {
+    bottom: auto;
+    max-height: calc(min(100svh, var(--visual-height, 100svh)) - 5.5rem);
   }
 }
 

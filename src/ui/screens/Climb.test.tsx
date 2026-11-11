@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Climb from './Climb';
 import type { Peak } from '../../engine/peaks';
@@ -531,6 +532,52 @@ describe('Climb — number answer kind', () => {
     fireEvent.change(screen.getByTestId('number-entry-input'), { target: { value: '10' } });
     fireEvent.click(screen.getByTestId('climb-submit'));
     expect(onQuestionAnswered).toHaveBeenCalledWith('testNumber', false, expect.any(Number));
+  });
+
+  // Issue #168: return on the phone keyboard did nothing.
+  it('pressing Enter in the field submits, like the Submit button', async () => {
+    vi.useRealTimers(); // user-event awaits real timers between keystrokes
+    const user = userEvent.setup();
+    const onQuestionAnswered = renderClimb();
+    await user.type(screen.getByTestId('number-entry-input'), '45{Enter}');
+    expect(onQuestionAnswered).toHaveBeenCalledTimes(1);
+    expect(onQuestionAnswered).toHaveBeenCalledWith('testNumber', true, expect.any(Number));
+  });
+
+  it('pressing Enter with a wrong number misses', async () => {
+    vi.useRealTimers(); // user-event awaits real timers between keystrokes
+    const user = userEvent.setup();
+    const onQuestionAnswered = renderClimb();
+    await user.type(screen.getByTestId('number-entry-input'), '10{Enter}');
+    expect(onQuestionAnswered).toHaveBeenCalledWith('testNumber', false, expect.any(Number));
+  });
+
+  it('pressing Enter on an empty field does nothing', async () => {
+    vi.useRealTimers(); // user-event awaits real timers between keystrokes
+    const user = userEvent.setup();
+    const onQuestionAnswered = renderClimb();
+    await user.type(screen.getByTestId('number-entry-input'), '{Enter}');
+    // Typed then cleared counts as empty too.
+    await user.type(screen.getByTestId('number-entry-input'), '7{Backspace}{Enter}');
+    expect(onQuestionAnswered).not.toHaveBeenCalled();
+    expect(screen.getByTestId('climb-submit')).toBeDisabled();
+    expect(screen.queryByTestId('climb-explain')).not.toBeInTheDocument();
+  });
+
+  it('a second Enter while the answer is revealed does not answer twice', async () => {
+    vi.useRealTimers(); // user-event awaits real timers between keystrokes
+    const user = userEvent.setup();
+    const onQuestionAnswered = renderClimb();
+    await user.type(screen.getByTestId('number-entry-input'), '45{Enter}{Enter}');
+    expect(onQuestionAnswered).toHaveBeenCalledTimes(1);
+  });
+
+  it('wraps the field in a form whose submit button is Submit', () => {
+    renderClimb();
+    const form = screen.getByTestId('climb-number');
+    expect(form.tagName).toBe('FORM');
+    expect(screen.getByTestId('climb-submit')).toHaveAttribute('type', 'submit');
+    expect(form).toContainElement(screen.getByTestId('number-entry-input'));
   });
 });
 

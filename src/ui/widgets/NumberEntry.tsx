@@ -11,14 +11,17 @@ export interface NumberEntryProps {
  * A free-numeric-answer input (elapsed minutes, a count of days, etc.) —
  * the free-entry counterpart to `ChoiceGrid`'s multiple choice. Controlled,
  * like the other input widgets; the question/climb flow decides when a
- * typed value counts as a submitted answer.
+ * typed value counts as a submitted answer — `Climb` wraps it in a form so
+ * Enter submits.
  */
 export default function NumberEntry({ value, onChange, min, max, unit }: NumberEntryProps) {
   return (
-    <label data-testid="number-entry">
+    <label data-testid="number-entry" className="number-entry">
       <input
         type="number"
         inputMode="numeric"
+        // The return key reads "Go" and submits the surrounding form, if any.
+        enterKeyHint="go"
         data-testid="number-entry-input"
         value={value}
         min={min}
