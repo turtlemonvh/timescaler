@@ -1,6 +1,8 @@
-import { useRef, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { BEAK_COLOR, SONGBIRD, type BirdShape, type WingSpec } from './birdGeometry';
+import { songbirdPose } from './birdFlight';
 
 export interface BirdsProps {
   /** Centre height; birds fly a little above and below. With `followRef`, an offset above it. */
@@ -31,19 +33,122 @@ interface BirdState {
   offset: number;
   speed: number;
   dy: number;
-  flap: number;
 }
 
 const ray = new THREE.Vector3();
 
 const BIRDS: BirdState[] = [
-  { offset: 0, speed: 2.2, dy: 1.2, flap: 11 },
-  { offset: 9, speed: 1.7, dy: -0.4, flap: 9 },
-  { offset: 15, speed: 2.6, dy: 2.4, flap: 13 },
+  { offset: 0, speed: 2.2, dy: 1.2 },
+  { offset: 9, speed: 1.7, dy: -0.4 },
+  { offset: 15, speed: 2.6, dy: 2.4 },
 ];
+
+type JointRef = RefObject<THREE.Group | null>;
+
+/** One wing: a shoulder hinge about the flight axis, and a wrist that folds the outer panel. */
+function Wing({
+  spec,
+  side,
+  material,
+  shoulderRef,
+  wristRef,
+}: {
+  spec: WingSpec;
+  side: 0 | 1;
+  material: THREE.Material;
+  shoulderRef: JointRef;
+  wristRef: JointRef;
+}) {
+  const s = side === 0 ? 1 : -1;
+  return (
+    <group ref={shoulderRef} position={[spec.shoulder[0], spec.shoulder[1], spec.shoulder[2] * s]}>
+      <mesh geometry={spec.inner[side]} material={material} />
+      <group ref={wristRef} position={[0, 0, spec.wrist * s]}>
+        <mesh geometry={spec.outer[side]} material={material} />
+      </group>
+    </group>
+  );
+}
+
+/** Raises both wings by `shoulder` (positive = up) and folds the outer panels by `wrist`. */
+function setWings(
+  shoulders: readonly [JointRef, JointRef],
+  wrists: readonly [JointRef, JointRef],
+  shoulder: number,
+  wrist: number,
+) {
+  for (let i = 0; i < 2; i++) {
+    const s = i === 0 ? 1 : -1;
+    const sh = shoulders[i].current;
+    const wr = wrists[i].current;
+    if (sh) sh.rotation.x = -shoulder * s;
+    if (wr) wr.rotation.x = -wrist * s;
+  }
+}
+
+/** Body, head, beak, tail and two hinged wings; the caller poses the joints. */
+function BirdModel({
+  shape,
+  color,
+  shoulders,
+  wrists,
+}: {
+  shape: BirdShape;
+  color: string;
+  shoulders: readonly [JointRef, JointRef];
+  wrists: readonly [JointRef, JointRef];
+}) {
+  const materials = useMemo(() => {
+    const base = new THREE.Color(color);
+    const make = (c: THREE.Color | string) =>
+      new THREE.MeshStandardMaterial({ color: c, flatShading: true, side: THREE.DoubleSide });
+    return {
+      body: make(base.clone().multiplyScalar(shape.bodyShade)),
+      wing: make(base.clone().multiplyScalar(shape.wingShade)),
+      beak: make(BEAK_COLOR),
+    };
+  }, [color, shape]);
+  useEffect(
+    () => () => {
+      materials.body.dispose();
+      materials.wing.dispose();
+      materials.beak.dispose();
+    },
+    [materials],
+  );
+  return (
+    <>
+      <mesh material={materials.body} scale={shape.body.scale}>
+        <sphereGeometry args={[shape.body.radius, 7, 5]} />
+      </mesh>
+      <mesh material={materials.body} position={shape.head.position}>
+        <sphereGeometry args={[shape.head.radius, 6, 5]} />
+      </mesh>
+      <mesh
+        material={materials.beak}
+        position={shape.beak.position}
+        rotation={[0, 0, -Math.PI / 2 - shape.beak.tilt]}
+      >
+        <coneGeometry args={[shape.beak.radius, shape.beak.length, 4]} />
+      </mesh>
+      <mesh geometry={shape.tail} material={materials.wing} />
+      {([0, 1] as const).map((side) => (
+        <Wing
+          key={side}
+          spec={shape.wing}
+          side={side}
+          material={materials.wing}
+          shoulderRef={shoulders[side]}
+          wristRef={wrists[side]}
+        />
+      ))}
+    </>
+  );
+}
 
 function Bird({
   bird,
+  seed,
   y,
   z,
   span,
@@ -52,6 +157,7 @@ function Bird({
   scale,
 }: {
   bird: BirdState;
+  seed: number;
   spread: number;
   y: number;
   z: number;
@@ -60,39 +166,34 @@ function Bird({
   scale: number;
 }) {
   const group = useRef<THREE.Group>(null);
-  const left = useRef<THREE.Mesh>(null);
-  const right = useRef<THREE.Mesh>(null);
+  const leftShoulder = useRef<THREE.Group>(null);
+  const rightShoulder = useRef<THREE.Group>(null);
+  const leftWrist = useRef<THREE.Group>(null);
+  const rightWrist = useRef<THREE.Group>(null);
+  const shoulders = [leftShoulder, rightShoulder] as const;
+  const wrists = [leftWrist, rightWrist] as const;
   useFrame(({ clock }) => {
     const t = clock.elapsedTime * bird.speed + bird.offset;
     const period = span * 2 + 8;
     const x = (((t % period) + period) % period) - span - 4;
+    const pose = songbirdPose(clock.elapsedTime, seed);
     if (group.current) {
-      group.current.position.set(x, y + (bird.dy + Math.sin(t * 0.7) * 0.4) * spread, z);
-      group.current.rotation.z = Math.sin(t * 0.5) * 0.15;
+      group.current.position.set(x, y + (bird.dy + Math.sin(t * 0.7) * 0.4) * spread + pose.bob, z);
+      group.current.rotation.set(pose.bank, 0, 0);
     }
-    const flap = Math.sin(clock.elapsedTime * bird.flap) * 0.6;
-    if (left.current) left.current.rotation.z = flap;
-    if (right.current) right.current.rotation.z = -flap;
+    setWings(shoulders, wrists, pose.shoulder, pose.wrist);
   });
   return (
     <group ref={group} scale={scale}>
-      <mesh ref={left} position={[0, 0, 0]}>
-        <boxGeometry args={[0.5, 0.04, 0.16]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh ref={right} position={[0, 0, 0]}>
-        <boxGeometry args={[0.5, 0.04, 0.16]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[0.08, 5, 4]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
+      <BirdModel shape={SONGBIRD} color={color} shoulders={shoulders} wrists={wrists} />
     </group>
   );
 }
 
-/** A few birds crossing the sky on a loop — wildlife that lives there (fun bar F17). */
+/**
+ * A few songbirds crossing the sky on a loop — wildlife that lives there (fun
+ * bar F17). Each flaps a few quick beats and glides, out of step with the rest.
+ */
 export default function Birds({
   y,
   z = -3,
@@ -146,6 +247,7 @@ export default function Birds({
         <Bird
           key={i}
           bird={bird}
+          seed={i}
           y={following ? 0 : y}
           z={following ? 0 : z}
           span={span}
