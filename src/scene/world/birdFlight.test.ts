@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { HAWK_CYCLE, HAWK_FLAP, hawkPose, songbirdPose, songbirdRhythm, warp } from './birdFlight';
+import {
+  HAWK_CYCLE,
+  HAWK_FLAP,
+  hawkOrbit,
+  hawkPose,
+  songbirdPose,
+  songbirdRhythm,
+  warp,
+} from './birdFlight';
 
 const DT = 1 / 240;
 
@@ -78,6 +86,33 @@ describe('songbirdPose', () => {
   it('banks only slightly', () => {
     for (let t = 0; t < 20; t += 0.1)
       expect(Math.abs(songbirdPose(t, 1).bank)).toBeLessThanOrEqual(0.08);
+  });
+});
+
+describe('hawkOrbit', () => {
+  // The summit flag (CliffWorld's `Flag`), relative to the summit's standing point:
+  // pole at x +0.9, z +0.1; the cloth reaches x +1.82 and the finial tops out at y +2.35.
+  const FLAG_Z = 0.1;
+  const FLAG_TOP = 2.35;
+  // The hawk's half-span (shoulder + inner + outer panel) at its default scale of 0.8.
+  const REACH = (0.06 + 0.3 + 0.32) * 0.8;
+  const samples = Array.from({ length: 2000 }, (_, i) => hawkOrbit(i * 0.05));
+
+  it('stays behind the flag’s depth all the way round', () => {
+    for (const p of samples) expect(p.z + REACH).toBeLessThan(FLAG_Z - 2);
+  });
+
+  it('stays well above the flag', () => {
+    // Lowest wingtip: the bottom of a beat (shoulder −0.45) plus the bank (0.35).
+    for (const p of samples) expect(p.y - REACH * Math.sin(0.8)).toBeGreaterThan(FLAG_TOP + 0.1);
+  });
+
+  it('faces along the circle', () => {
+    const a = hawkOrbit(1);
+    const b = hawkOrbit(1.01);
+    const heading = Math.atan2(-(b.z - a.z), b.x - a.x);
+    const diff = Math.atan2(Math.sin(heading - a.yaw), Math.cos(heading - a.yaw));
+    expect(Math.abs(diff)).toBeLessThan(0.05);
   });
 });
 

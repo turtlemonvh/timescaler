@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { ANIMALS, type AnimalId } from '../animals/roster';
 import { peakTheme } from '../theme/peakThemes';
 import { hasWebGL } from '../webgl';
-import Birds from '../world/Birds';
+import Birds, { SummitHawk } from '../world/Birds';
 import Particles, { type ParticleApi } from '../world/Particles';
 import SkyDome from '../world/SkyDome';
 import Weather from '../world/Weather';
@@ -145,6 +145,9 @@ function ClimbScene({
         scale={phase === 'summit' ? 0.7 : 0.9}
         color={birdColor}
       />
+      {/* A hawk circles behind and above the flag at the summit, never
+          between the flag and the swinging camera. */}
+      {phase === 'summit' && <SummitHawk summit={ledgePoint(height, peakId)} color={birdColor} />}
       <Weather
         kind={reducedMotion ? 'none' : theme.weather}
         followRef={climberPositionRef}
