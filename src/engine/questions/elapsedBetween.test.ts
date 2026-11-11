@@ -48,6 +48,35 @@ describe('generateElapsedBetween', () => {
     }
   });
 
+  it.each([7, 8, 9, 10])(
+    'level %i: re-derives the answer from the prompt and keeps the level grain',
+    (difficulty) => {
+      let offGrain = false;
+      for (let seed = 0; seed < 400; seed++) {
+        const q = generateElapsedBetween(mulberry32(seed), { ...ctx, difficulty });
+        const match = PROMPT_PATTERN.exec(q.prompt);
+        if (!match) throw new Error(`unexpected prompt: ${q.prompt}`);
+        const startMinute = Number(match[2]);
+        const endMinute = Number(match[4]);
+        const startHalfDayMin = (Number(match[1]) % 12) * 60 + startMinute;
+        const endHalfDayMin = (Number(match[3]) % 12) * 60 + endMinute;
+        const expected = (((endHalfDayMin - startHalfDayMin) % 720) + 720) % 720;
+        if (q.answer.kind !== 'number') throw new Error('expected a number answer');
+        expect(q.answer.target).toBe(expected);
+        expect(q.answer.target).toBeGreaterThan(0);
+        expect(q.answer.target).toBeLessThanOrEqual(300);
+        if (difficulty <= 8) {
+          // Levels 7–8: both readings on 5-minute marks.
+          expect(startMinute % 5).toBe(0);
+          expect(endMinute % 5).toBe(0);
+        }
+        offGrain ||= startMinute % 5 !== 0 || endMinute % 5 !== 0;
+      }
+      // Levels 9–10: any minute.
+      expect(offGrain).toBe(difficulty >= 9);
+    },
+  );
+
   it("uses the difficulty profile timer, scaled by this type's own multiplier", () => {
     for (const difficulty of [1, 5, 10]) {
       const q = generateElapsedBetween(mulberry32(1), { ...ctx, difficulty });

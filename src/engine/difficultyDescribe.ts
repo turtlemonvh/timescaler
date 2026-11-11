@@ -4,6 +4,7 @@ import { climbHeight, climbLengthLabel } from './climb';
 import { getPeak } from './peaks';
 import { BUILT_IN_QUESTION_TYPES } from './questions';
 import { describeCountBetweenLevel } from './questions/countBetween';
+import { describeElapsedAddLevel } from './questions/elapsedAdd';
 import { describeHour24Level } from './questions/hour24';
 import { describeOffsetDateLevel } from './questions/offsetDate';
 import { isOnThemeForPeak } from './questions/peakEmphasis';
@@ -187,7 +188,8 @@ export interface DifficultyComparisonRow {
  *
  * `offsetDate` and `countBetween` no longer read `dateSpan` — each has its
  * own per-level ladder (issue #126) — so they show their own row ('Date
- * jumps', 'Day span') described by the generator itself, as does `hour24`
+ * jumps', 'Day span') described by the generator itself, as does `elapsedAdd`
+ * ('Time jumps', issue #164), as does `hour24`
  * ('Question kinds') for its level-gated question variants.
  */
 const GENERATOR_RELEVANT_ITEMS: Readonly<Record<string, readonly string[]>> = {
@@ -195,7 +197,7 @@ const GENERATOR_RELEVANT_ITEMS: Readonly<Record<string, readonly string[]>> = {
   describeTime: ['Clock precision', 'Clock numbers', 'Time-in-words', 'Answer order'],
   readCalendar: ['Dates', 'Answer order'],
   offsetDate: ['Date jumps', 'Answer order'],
-  elapsedAdd: ['Answer order'],
+  elapsedAdd: ['Time jumps', 'Answer order'],
   elapsedBetween: [],
   setHands: ['Clock precision'],
   dayOfWeek: ['Answer order'],
@@ -279,6 +281,7 @@ export function describeDifficultyComparisonTable(
     row('24-hour time', pa.hour24 ? 'On' : 'Off', pb.hour24 ? 'On' : 'Off'),
     row('Date jumps', describeOffsetDateLevel(a), describeOffsetDateLevel(b)),
     row('Day span', describeCountBetweenLevel(a), describeCountBetweenLevel(b)),
+    row('Time jumps', describeElapsedAddLevel(a), describeElapsedAddLevel(b)),
     row('Question kinds', describeHour24Level(a), describeHour24Level(b)),
     row(
       'Clock numbers',
