@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import type { ClimbState } from '../../engine/climb';
 import type { Peak } from '../../engine/peaks';
 import type { DisplaySpec } from '../../engine/questions';
@@ -13,6 +13,7 @@ import TimerBar from '../hud/TimerBar';
 import { useClimbRun } from '../useClimbRun';
 import { useMediaQuery } from '../useMediaQuery';
 import { usePrefersReducedMotion } from '../usePrefersReducedMotion';
+import { useVisualViewport } from '../useVisualViewport';
 import AnalogClock from '../widgets/AnalogClock';
 import CalendarMonth from '../widgets/CalendarMonth';
 import ChoiceGrid from '../widgets/ChoiceGrid';
@@ -94,6 +95,8 @@ export default function Climb({
 }: ClimbProps) {
   const run = useClimbRun({ peak, difficulty, seed, onSummit, onFall, onQuestionAnswered });
   const reducedMotion = usePrefersReducedMotion();
+  // Keeps the card above the on-screen keyboard on iOS (see index.css).
+  const visualViewport = useVisualViewport();
   // Landscape phones leave little height beside the scene; a smaller clock keeps the answers in view.
   const shortScreen = useMediaQuery('(max-height: 520px)');
   // Matches the CSS breakpoint that moves the card to the right-hand side.
@@ -194,17 +197,26 @@ export default function Climb({
         );
       case 'number':
         return (
-          <div data-testid="climb-number" className="climb-card__stack">
+          // A form so Enter / the keyboard's "Go" key submits like the button
+          // does. An empty field disables the button, which also blocks the
+          // implicit submit, and `submitNumber` ignores it regardless.
+          <form
+            data-testid="climb-number"
+            className="climb-card__stack climb-card__stack--number"
+            onSubmit={(event: FormEvent) => {
+              event.preventDefault();
+              run.submitNumber();
+            }}
+          >
             <NumberEntry value={run.draftNumber} onChange={run.setDraftNumber} unit={answer.unit} />
             <button
-              type="button"
+              type="submit"
               data-testid="climb-submit"
-              onClick={run.submitNumber}
               disabled={revealing || run.draftNumber === ''}
             >
               Submit
             </button>
-          </div>
+          </form>
         );
       case 'pickDate':
         return (
@@ -225,6 +237,14 @@ export default function Climb({
       className="climb-screen"
       data-move={move?.kind ?? 'none'}
       data-revealing={revealing ? 'true' : 'false'}
+      style={
+        visualViewport
+          ? ({
+              '--visual-height': `${visualViewport.height}px`,
+              '--keyboard-inset': `${visualViewport.bottomInset}px`,
+            } as CSSProperties)
+          : undefined
+      }
     >
       <div className="climb-screen__scene" aria-hidden="true">
         <Suspense

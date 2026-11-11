@@ -22,6 +22,13 @@ describe('NumberEntry', () => {
     expect(onChange).toHaveBeenCalledWith('');
   });
 
+  it('brings up a digits keyboard with a "Go" return key', () => {
+    render(<NumberEntry value="" onChange={vi.fn()} />);
+    const input = screen.getByTestId('number-entry-input');
+    expect(input).toHaveAttribute('inputmode', 'numeric');
+    expect(input).toHaveAttribute('enterkeyhint', 'go');
+  });
+
   it('shows the unit label when given', () => {
     render(<NumberEntry value={10} onChange={vi.fn()} unit="minutes" />);
     expect(screen.getByTestId('number-entry-unit')).toHaveTextContent('minutes');
